@@ -8,6 +8,13 @@ verify_ssl = true
 [packages]
 pylint = "*"
 flask = "*"
+python-dotenv = "*"
+psycopg2 = "*"
+flask-sqlalchemy = "===2.4.1"
+flask-migrate = "==2.5.2"
+pylint-flask = "*"
+pylint-flask-sqlalchemy = "*"
+sqlalchemy-utils = "*"
 
 [requires]
 python_version = "3.7"
