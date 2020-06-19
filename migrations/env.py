@@ -5,9 +5,9 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
 from alembic import context
 
+import sqlalchemy_utils
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -53,6 +53,18 @@ def run_migrations_offline():
     with context.begin_transaction():
         context.run_migrations()
 
+def render_item(type_, obj, autogen_context):
+    """Apply custom rendering for selected items."""
+
+    # custom render for sqalchemy_utils ChoiceType column and params
+    # May be better to use: https://stackoverflow.com/questions/30132370/trouble-when-using-alembic-with-sqlalchemy-utils
+    if type_ == 'type' and isinstance(obj, sqlalchemy_utils.types.choice.ChoiceType):
+        autogen_context.imports.add("import sqlalchemy_utils")
+        col_type = "sqlalchemy_utils.types.choice.ChoiceType({})"
+        return col_type.format(obj.choices)
+
+    # default rendering for other objects
+    return False
 
 def run_migrations_online():
     """Run migrations in 'online' mode.
@@ -83,6 +95,8 @@ def run_migrations_online():
             connection=connection,
             target_metadata=target_metadata,
             process_revision_directives=process_revision_directives,
+            # custom object rendering
+            render_item=render_item,
             **current_app.extensions['migrate'].configure_args
         )
 

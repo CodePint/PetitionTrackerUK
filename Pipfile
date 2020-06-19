@@ -15,6 +15,7 @@ flask-migrate = "==2.5.2"
 pylint-flask = "*"
 pylint-flask-sqlalchemy = "*"
 sqlalchemy-utils = "*"
+flask-script = "*"
 
 [requires]
 python_version = "3.7"

@@ -1,18 +1,16 @@
 import sqlalchemy
-import sqlalchemy_utils
-import datetime
 
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import functions as sqlfunc
-from sqlalchemy_utils import ChoiceType, JSONType
+from sqlalchemy_utils import *
 
-from sqlalchemy.ext.declarative import declarative_base
-BASE = declarative_base()
+import datetime
 
-from .app import db
+db = SQLAlchemy()
 
-class Petition(BASE):
+class Petition(db.Model):
 
     STATES = [
         (0, 'Open'),
@@ -21,21 +19,21 @@ class Petition(BASE):
     ]
 
     __tablename__ = "petition"
-    id = Column(Integer, primary_key=True, autoincrement=False)
+    id = db.Column(Integer, primary_key=True, autoincrement=False)
+    state = db.Column(ChoiceType(STATES), nullable=False)
     records = relationship(lambda: Record, back_populates="petition")
-    state = Column(ChoiceType(STATES))
-    action = Column(String(512), index=True, unique=True)
-    signatures = Column(Integer)
-    url = Column(String(2048), index=True, unique=True)
-    background: Column(String)
-    additional_details: Column(String)
-    pt_created_at = Column(DateTime)
-    pt_updated_at = Column(DateTime)
-    pt_rejected_at = Column(DateTime)
-    db_created_at = Column(DateTime(timezone=True), default=sqlfunc.now())
-    db_updated_at = Column(DateTime(timezone=True), onupdate=sqlfunc.now())
-    initial_json = Column(JSONType)
-    latest_json = Column(JSONType)
+    action = db.Column(String(512), index=True, unique=True)
+    signatures = db.Column(Integer)
+    url = db.Column(String(2048), index=True, unique=True)
+    background: db.Column(String)
+    additional_details: db.Column(String)
+    pt_created_at = db.Column(DateTime)
+    pt_updated_at = db.Column(DateTime)
+    pt_rejected_at = db.Column(DateTime)
+    db_created_at = db.Column(DateTime(timezone=True), default=sqlfunc.now())
+    db_updated_at = db.Column(DateTime(timezone=True), onupdate=sqlfunc.now())
+    initial_json = db.Column(JSONType)
+    latest_json = db.Column(JSONType)
 
     def __repr__(self):
         return '<petition id: {}, action: {} >'.format(self.id, self.action)
@@ -44,46 +42,46 @@ class Petition(BASE):
         return self.action
 
 
-class Record(BASE):
+class Record(db.Model):
     __tablename__ = 'record'
-    id = Column(Integer, primary_key=True)
-    timestamp = Column(DateTime(timezone=True), default=sqlfunc.now())
-    petition_id = Column(Integer, ForeignKey(Petition.id))
+    id = db.Column(Integer, primary_key=True)
+    timestamp = db.Column(DateTime(timezone=True), default=sqlfunc.now())
+    petition_id = db.Column(Integer, ForeignKey(Petition.id))
     petition = relationship(Petition, back_populates="records")
     total_signatures = relationship("TotalSignatures", back_populates="record")
     signatures_by_country = relationship("SignaturesByCountry", back_populates="record")
     signatures_by_region = relationship("SignaturesByRegion", back_populates="record")
     signatures_by_constituency = relationship("SignaturesByConstituency", back_populates="record")
 
-class SignaturesByCountry(BASE):
+class SignaturesByCountry(db.Model):
     __tablename__ = 'signatures_by_country'
-    id = Column(Integer, primary_key=True)
-    record_id = Column(Integer, ForeignKey(Record.id))
+    id = db.Column(Integer, primary_key=True)
+    record_id = db.Column(Integer, ForeignKey(Record.id))
     record = relationship(Record, back_populates="signatures_by_country")
-    iso_code = Column(String(3))
-    count = Column(Integer)
+    iso_code = db.Column(String(3))
+    count = db.Column(Integer)
 
 
-class TotalSignatures(BASE):
+class TotalSignatures(db.Model):
     __tablename__ = 'total_signatures'
-    id = Column(Integer, primary_key=True)
-    record_id = Column("Record.records", ForeignKey(Record.id))
+    id = db.Column(Integer, primary_key=True)
+    record_id = db.Column("Record.records", ForeignKey(Record.id))
     record = relationship(Record, back_populates="total_signatures")
-    count = Column(Integer)
+    count = db.Column(Integer)
 
-class SignaturesByRegion(BASE):
+class SignaturesByRegion(db.Model):
     __tablename__ = 'signatures_by_region'
-    id = Column(Integer, primary_key=True)
-    record_id = Column(Integer, ForeignKey(Record.id))
+    id = db.Column(Integer, primary_key=True)
+    record_id = db.Column(Integer, ForeignKey(Record.id))
     record = relationship(Record, back_populates="signatures_by_region")
-    ons_code = Column(String(3))
-    count = Column(Integer)
+    ons_code = db.Column(String(3))
+    count = db.Column(Integer)
 
-class SignaturesByConstituency(BASE):
+class SignaturesByConstituency(db.Model):
     __tablename__ = 'signatures_by_constituency'
-    id = Column(Integer, primary_key=True)
-    record_id = Column(Integer, ForeignKey(Record.id))
+    id = db.Column(Integer, primary_key=True)
+    record_id = db.Column(Integer, ForeignKey(Record.id))
     record = relationship(Record, back_populates="signatures_by_constituency")
-    ons_code = Column(String(9))
-    count = Column(Integer)
+    ons_code = db.Column(String(9))
+    count = db.Column(Integer)
 

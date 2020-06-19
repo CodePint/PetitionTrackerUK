@@ -7,6 +7,9 @@ Create Date: ${create_date}
 """
 from alembic import op
 import sqlalchemy as sa
+import sqlalchemy_utils
+from PetitionTracker.models import *
+
 ${imports if imports else ""}
 
 # revision identifiers, used by Alembic.
