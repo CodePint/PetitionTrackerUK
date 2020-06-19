@@ -10,7 +10,6 @@ app.config.from_object(Config)
 from PetitionTracker.models import (
     Petition,
     Record,
-    TotalSignatures,
     SignaturesByCountry,
     SignaturesByRegion,
     SignaturesByConstituency
@@ -18,11 +17,9 @@ from PetitionTracker.models import (
 
 from PetitionTracker.models import db
 db.init_app(app)
-
 Migrate(app, db)
 
 from . import routes
-
 
 @app.shell_context_processor
 def make_shell_context():
@@ -30,7 +27,6 @@ def make_shell_context():
         'db': db,
         'Petition': Petition,
         'Record': Record,
-        'TotalSignatures': TotalSignatures,
         'SignaturesByCountry': SignaturesByCountry,
         'SignaturesByRegion': SignaturesByRegion,
         'SignaturesByConstituency': SignaturesByConstituency,
