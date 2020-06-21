@@ -4,10 +4,16 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
 from .config import Config
-app = Flask(__name__, instance_relative_config=True)
-app.config.from_object(Config)
 
-from PetitionTracker.models import (
+def create_app():
+    app = Flask(__name__, instance_relative_config=False)
+    app.config.from_object(Config)
+
+    from Tracker.models import db
+    db.init_app(app)
+    Migrate(app, db)
+
+from Tracker.models import (
     Petition,
     Record,
     SignaturesByCountry,
@@ -15,9 +21,7 @@ from PetitionTracker.models import (
     SignaturesByConstituency
 )
 
-from PetitionTracker.models import db
-db.init_app(app)
-Migrate(app, db)
+from Tracker.models import db
 
 from . import routes
 

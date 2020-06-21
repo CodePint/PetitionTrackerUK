@@ -1,5 +1,5 @@
 from flask import Flask, render_template
-from PetitionTracker import app
+from Tracker import app
 from .models import Petition
 
 @app.route('/')
