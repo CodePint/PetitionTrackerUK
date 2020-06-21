@@ -5,6 +5,14 @@ from flask_migrate import Migrate
 
 from .config import Config
 
+from Tracker.models import (
+    Petition,
+    Record,
+    SignaturesByCountry,
+    SignaturesByRegion,
+    SignaturesByConstituency
+)
+
 def create_app():
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(Config)
@@ -13,13 +21,6 @@ def create_app():
     db.init_app(app)
     Migrate(app, db)
 
-from Tracker.models import (
-    Petition,
-    Record,
-    SignaturesByCountry,
-    SignaturesByRegion,
-    SignaturesByConstituency
-)
 
 from Tracker.models import db
 
