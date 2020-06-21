@@ -1,10 +1,9 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 
 {% block content %}
-    <div class="jumbo">
-        <h1>Welcome to the Flask app</h1>
-        <h3>This is the home page for the Flask app</h3>
-        <a href="{{ url_for('tracker_bp.about') }}">About</a>
-
+    <div class="index">
+      <div class="title">
+        <h1>Petitions</h1>
+      </div>
     </div>
 {% endblock %}

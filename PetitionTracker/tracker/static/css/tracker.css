@@ -1,7 +1,66 @@
-/* h1 {
-  color: red;
-} */
+.wrapper {
+  background: black;
+  min-height: 100vh;
+}
 
-/* h2 {
-  color: red;
-} */
+h1, h2, h3, div, a, p {
+  color: whitesmoke;
+}
+
+header {
+  padding: 1em;
+  display: flex;
+  height: 5em;
+  /* justify-content: flex-end */
+}
+
+nav {
+  flex: 1;
+}
+
+.header h1 {
+  border-bottom: 1px solid white;
+}
+
+.buffer {
+  flex: 1;
+}
+
+nav a{
+  border-bottom: 1px solid yellow;
+  display: inline-block;
+  font-size: 1.5em;
+  color: yellow;
+}
+
+nav a:hover {
+  color: royalblue;
+  border-bottom: 1px solid royalblue;
+
+}
+
+h3 {
+  font-size: 1.5em;
+}
+
+.petition, .index {
+  margin-top: 0.5em;
+  padding: 1em 3em;
+}
+
+.petition .title,
+.index .title {
+  padding: 1em 0;
+}
+
+.petition .title h3 {
+  margin-top: 0.25em;
+}
+
+.petition .data {
+  padding: 1em 0;
+}
+
+.data li {
+  padding: 0.2em 0;
+}

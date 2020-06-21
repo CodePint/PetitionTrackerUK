@@ -30,6 +30,8 @@ class Petition(db.Model):
         ('R', 'Rejected')
     ]
 
+    BASE_URL = "https://petition.parliament.uk/petitions/"
+
     id = db.Column(Integer, primary_key=True, autoincrement=False)
     state = db.Column(ChoiceType(STATES), nullable=False)
     records = relationship(lambda: Record, lazy='dynamic', back_populates="petition")

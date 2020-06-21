@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <title>Flask App</title>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('tracker_bp.static', filename='css/tracker.css' ) }}">
+  </head>
+
+  <body>
+    <div class="wrapper">
+      <header>
+        <nav>
+          <a href="{{ url_for('tracker_bp.index') }}">Index</a>
+        </nav>
+        <div class="title">
+          <h1 class="logo">UK Petition Tracker App</h1>
+        </div>
+        <div class="buffer"></div>
+      </header>
+      
+        {% block content %}
+        
+        {% endblock %}
+    </div>
+  </body>
+</html>
