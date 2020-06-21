@@ -8,7 +8,7 @@ Create Date: ${create_date}
 from alembic import op
 import sqlalchemy as sa
 import sqlalchemy_utils
-from Tracker.models import *
+from PetitionTracker.tracker.models import *
 
 ${imports if imports else ""}
 

@@ -2,7 +2,9 @@
 
 {% block content %}
     <div class="jumbo">
-        <h2>Welcome to the Flask app</h2>
+        <h1>Welcome to the Flask app</h1>
         <h3>This is the home page for the Flask app</h3>
+        <a href="{{ url_for('tracker_bp.about') }}">About</a>
+
     </div>
 {% endblock %}

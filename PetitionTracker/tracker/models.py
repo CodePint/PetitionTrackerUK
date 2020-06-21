@@ -10,7 +10,7 @@ import datetime
 import enum
 import sys
 
-db = SQLAlchemy()
+from PetitionTracker import db
 
 class StateChoices(enum.Enum):
 
