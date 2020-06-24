@@ -7,8 +7,12 @@
     <div class="title">
       <h2>Petition - {{ petition['data']['id'] }}</h2>
       <h3>HTTP response- {{ error }}</h3>
-      <h3>Action: {{ petition['data']['attributes']['action'] }} </h3>
-      <h3><a href="{{url}}">URL: {{ url }}</a></h3>
+      <h3>Action: {{ petition['data']['attributes']['action'] }}</h3>
+      {% set petition_link = petition['links']['self'].split(".json")[0] %}
+
+      <a href="{{petition_link}}">
+        <h3>Remote Link</h3>
+      </a>
     </div>
     <div></div>
     <div class="data">

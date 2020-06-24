@@ -4,7 +4,7 @@ class RemotePetition():
 
     base_url = "https://petition.parliament.uk/petitions"
 
-    remote_states = [
+    states = [
         'rejected',
         'closed',
         'open',
@@ -16,13 +16,17 @@ class RemotePetition():
     ]
 
     @classmethod
+    def list_states(cls):
+        return cls.states + ['all']
+
+    @classmethod
     def fetch_list(cls, index=0, state="all"):
-        valid_states = cls.remote_states + list(state)
+        valid_states = cls.list_states()
         if not state in valid_states:
             raise ValueError("Invalid state param, valids states: {}".format(valid_states))
     
         url = cls.base_url + ".json?"
-        params = "page={}".format(state) + "&state={}".format(state)
+        params = "page={}".format(index) + "&state={}".format(state)
         return  requests.get(url + params)
 
     @classmethod
