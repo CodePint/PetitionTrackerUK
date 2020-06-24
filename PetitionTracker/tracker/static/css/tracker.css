@@ -19,7 +19,7 @@ nav {
 }
 
 .header h1 {
-  border-bottom: 1px solid white;
+  border-bottom: 1px solid whitesmoke;
 }
 
 .buffer {
@@ -63,4 +63,58 @@ h3 {
 
 .data li {
   padding: 0.2em 0;
+}
+
+
+/* fetch index css */
+
+
+.index .petitions > li {
+  border: 1px solid whitesmoke;
+  padding: 1em;
+}
+
+.index .petitions .item li {
+  padding: 0.15em;
+}
+
+.index .petitions .item .detail {
+  margin-top: 1em;
+}
+
+.index .petitions .item .detail a {
+  display: inline-block;
+  border-bottom: 1px solid white;
+}
+
+.index .page-header {
+  margin-bottom: 2em;
+}
+
+.index .paginate ul {
+  display: flex;
+  justify-content: center;
+  margin: 2em 0;
+}
+
+.index .paginate a {
+  font-size: 1.25em;
+  display: block;
+  border: 1px solid whitesmoke;
+  padding: 0.5em;
+}
+
+.index .paginate a:hover {
+  color: yellow;
+  background: gray
+}
+
+.index .paginate li.current a {
+  background: rgb(46, 46, 46);
+  font-weight: bold;
+}
+
+.index .paginate li.current a:hover {
+  background: rgb(46, 46, 46);
+  color: whitesmoke
 }

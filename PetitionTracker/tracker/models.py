@@ -9,28 +9,26 @@ from sqlalchemy_utils import *
 import datetime
 import enum
 import sys
+import requests
+import json
 
 from PetitionTracker import db
-
-class StateChoices(enum.Enum):
-
-    def __str__(self):
-        return self.name
-
-    open = 0
-    closed = 1
-    rejected = 2
 
 class Petition(db.Model):
     __tablename__ = "petition"
 
     STATES = [
-        ('O', 'Open'),
         ('C', 'Closed'),
-        ('R', 'Rejected')
+        ('R', 'Rejected'),
+        ('O', 'Open'),
+        ('D', 'Debated'),
+        ('ND', 'Not Debated'),
+        ('AW', 'Awaiting Response'),
+        ('WR', 'With Response'),
+        ('AW', 'Awaiting Debate')
     ]
 
-    BASE_URL = "https://petition.parliament.uk/petitions/"
+    BASE_URL = "https://petition.parliament.uk/petitions"
 
     id = db.Column(Integer, primary_key=True, autoincrement=False)
     state = db.Column(ChoiceType(STATES), nullable=False)
@@ -65,6 +63,7 @@ class Petition(db.Model):
 
     def last_record(self):
         return self.ordered_records().first()
+
 
 class Record(db.Model):
     __tablename__ = 'record'

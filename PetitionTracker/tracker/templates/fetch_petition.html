@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="petition">
+  {% if response == 200 %}
+    <div class="title">
+      <h2>Petition - {{ petition['data']['id'] }}</h2>
+      <h3>HTTP response- {{ error }}</h3>
+      <h3>Action: {{ petition['data']['attributes']['action'] }} </h3>
+      <h3><a href="{{url}}">URL: {{ url }}</a></h3>
+    </div>
+    <div></div>
+    <div class="data">
+      <h3>Attributes:</h3>
+      <div>
+        <ul>
+          {% for key, value in petition['data']['attributes'].items() %}
+          <li>- <b>{{ key }}</b>: {{ value }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  {% elif response == 404 %}
+    <h2>Unable to locate petition ID: {{ id }}</h2>
+    <h3>HTTP response - {{ response }}</h3>
+  {% else %}
+    <h2>A server error occured while trying to locate petition ID: {{ id }}</h2>
+    <h3>HTTP response - {{ response }}</h3>
+  {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="index">
+  <div class="page-header">
+    <div class="title">
+      <h1>Petitions:</h1>
+    </div>
+    <div class="request">
+      <h3>URL: {{ url }}</h3>
+    </div>
+  </div>
+
+  <div class="content">
+    <ul class="petitions">
+      {% for petition in petitions %}
+        <li>
+          <ul class="item">
+            <li><b>ID: </b>{{ petition['id'] }}</li>
+            <li><b>Action: </b>{{ petition['attributes']['action'] }}</li>
+            <li><b>State: </b>{{ petition['attributes']['action'] }}</li>
+            <li><b>Created at: </b>{{ petition['attributes']['created_at' ]}}</li>
+            <li><b>Signatures: </b>{{ petition['attributes']['signature_count'] }}</li>
+            <li><b>Background: </b>{{ petition['attributes']['background'] }}</li>
+            <li class="detail">
+              <a href="{{ petition['links']['self'] }}">
+                <b>View Detail</b>
+              </a>
+            </li>
+          </ul>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="paginate">
+    <ul>
+      {% for n in range(*paginate['range']) %}
+        {% if n == paginate['current'] %}
+          <li class="current">
+            <a href="{{ url_for('tracker_bp.fetch_index', index=n) }}">
+              {{n}}
+            </a>        
+          </li>
+        {% else %}
+          <li>
+            <a href="{{ url_for('tracker_bp.fetch_index', index=n) }}">
+              {{n}}
+            </a>        
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

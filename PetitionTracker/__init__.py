@@ -17,7 +17,11 @@ def init_extensions(app):
 
 def init_views(app):
     from PetitionTracker import tracker
+    from PetitionTracker import pages
+
     app.register_blueprint(tracker.bp)
+    app.register_blueprint(pages.bp)
+
 
 def create_app():
     app = Flask(__name__, instance_relative_config=False)

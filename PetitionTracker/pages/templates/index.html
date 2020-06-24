@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <title>UK Petition Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('pages_bp.static', filename='css/index.css' ) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+
+  </head>
+
+  <body>
+    <div class="wrapper">
+      <header>
+        <div class="title">
+          <h1 class="logo">UK Petition Tracker App</h1>
+        </div>
+      </header>
+
+      <nav>
+        <h3><a href="{{ url_for('tracker_bp.fetch_index') }}">Fetch List --></a></h3>
+        <form action="{{ url_for('tracker_bp.fetch_petition') }}"> 
+          <label for="id"><h3>Fetch petition:</h3></label>
+          <input type="text" id="id" name="id" placeholder="Search by petition ID"><br>
+        </form>
+      </nav>
+    
+      {% block content %}
+      
+      {% endblock %}
+    </div>
+  </body>
+</html>
