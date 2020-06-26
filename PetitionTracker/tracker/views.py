@@ -30,10 +30,15 @@ def fetch_remote_list(index=0):
     state = request.args.get('state', 'all')
     response = RemotePetition.fetch_list(current_index, state)
 
-    if response.status_code == 200:
-        data = response.json()
-        petitions = data['data']
+    try: 
+        response = RemotePetition.fetch_list(current_index, state)
+    except requests.exceptions.HTTPError as e: 
+        return render_template('fetch_list.html', {'error': response.status_code} )
 
+    data = response.json()
+    petitions = data['data']
+
+    if petitions:
         context = {}
         context['petitions'] = petitions
         context['paginate'] = get_fetched_index_pagination(current_index, data)
@@ -41,6 +46,8 @@ def fetch_remote_list(index=0):
         context['selected_state'] = state
 
         return render_template('fetch_list.html', **context)
+    else:
+        return render_template('fetch_list.html', {'petitions': [] })
 
 
 @bp.route('/petition/fetch/', methods=['GET'])
@@ -49,15 +56,17 @@ def fetch_remote_petition(id=None):
     if not id:
         id = request.args.get('id')
 
-    response = RemotePetition.fetch(id)
-    http_code = response.status_code
+    try: 
+        response = RemotePetition.fetch(id)
+    except requests.exceptions.HTTPError as e: 
+        return render_template('fetch_petition.html', {'error': response.status_code} )
 
-    if http_code == 200:
+    if response:
         data = response.json()
         url = response.url.split(".json")[0]
-        context = {'response': http_code, 'petition': data, 'url': url}
+        context = {'petition': data, 'url': url}
     else:
-        context = {'response': http_code, 'id': id}
+        context = {'error': 404, 'id': id}
     
     return render_template('fetch_petition.html', **context)
 

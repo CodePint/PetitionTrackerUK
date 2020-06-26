@@ -26,6 +26,7 @@
   </div>
 
   <div class="content">
+  {% if petitions %}
     <ul class="petitions">
       {% for petition in petitions %}
         <li>
@@ -58,26 +59,32 @@
         </li>
       {% endfor %}
     </ul>
-  </div>
 
-  <div class="paginate">
-    <ul>
-      {% for n in range(*paginate['range']) %}
-        {% if n == paginate['current'] %}
-          <li class="current">
-            <a href="{{ url_for('tracker_bp.fetch_remote_list', index=n) }}">
-              {{n}}
-            </a>        
-          </li>
-        {% else %}
-          <li>
-            <a href="{{ url_for('tracker_bp.fetch_remote_list', index=n) }}">
-              {{n}}
-            </a>        
-          </li>
-        {% endif %}
-      {% endfor %}
-    </ul>
+    <div class="paginate">
+      <ul>
+        {% for n in range(*paginate['range']) %}
+          {% if n == paginate['current'] %}
+            <li class="current">
+              <a href="{{ url_for('tracker_bp.fetch_remote_list', index=n) }}">
+                {{n}}
+              </a>        
+            </li>
+          {% else %}
+            <li>
+              <a href="{{ url_for('tracker_bp.fetch_remote_list', index=n) }}">
+                {{n}}
+              </a>        
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </div>
+    {% elif error %}
+    <h2>An error occured while trying to retrieve petitions</h2>
+    <h3>HTTP response - {{ error }}</h3>
+  {% else %}
+    <h2>No petitions found</h2>
+  {% endif %}
   </div>
 </div>
 {% endblock %}
