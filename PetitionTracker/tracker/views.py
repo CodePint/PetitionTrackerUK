@@ -3,7 +3,7 @@ from flask import request
 import requests, json
 from . import bp
 
-from .remote import RemotePetition
+from .remote import Remote
 
 from .models import (
     Petition,
@@ -28,26 +28,28 @@ def get_fetched_index_pagination(current, data):
 def fetch_remote_list(index=0):
     current_index = int(index)
     state = request.args.get('state', 'all')
-    response = RemotePetition.fetch_list(current_index, state)
+    response = Remote.fetch_list(current_index, state)
 
     try: 
-        response = RemotePetition.fetch_list(current_index, state)
+        response = Remote.fetch_list(current_index, state)
+        data = response.json()
+        petitions = data['data']
     except requests.exceptions.HTTPError as e: 
         return render_template('fetch_list.html', {'error': response.status_code} )
 
-    data = response.json()
-    petitions = data['data']
+    context = {}
+    context['states'] = Remote.states
+    context['url'] = response.url
 
     if petitions:
-        context = {}
         context['petitions'] = petitions
         context['paginate'] = get_fetched_index_pagination(current_index, data)
-        context['states'] = RemotePetition.list_states()
         context['selected_state'] = state
 
         return render_template('fetch_list.html', **context)
     else:
-        return render_template('fetch_list.html', {'petitions': [] })
+        context['petitions'] = []
+        return render_template('fetch_list.html', **context)
 
 
 @bp.route('/petition/fetch/', methods=['GET'])
@@ -56,14 +58,14 @@ def fetch_remote_petition(id=None):
     if not id:
         id = request.args.get('id')
 
-    try: 
-        response = RemotePetition.fetch(id)
-    except requests.exceptions.HTTPError as e: 
+    try:
+        response = Remote.fetch(id)
+    except requests.exceptions.HTTPError as e:
         return render_template('fetch_petition.html', {'error': response.status_code} )
 
     if response:
         data = response.json()
-        url = response.url.split(".json")[0]
+        url = response.url
         context = {'petition': data, 'url': url}
     else:
         context = {'error': 404, 'id': id}

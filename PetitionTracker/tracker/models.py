@@ -13,7 +13,7 @@ import requests
 import json
 
 from requests.exceptions import HTTPError
-from .remote import RemotePetition
+from .remote import Remote
 from PetitionTracker import db
 
 class Petition(db.Model):
@@ -40,44 +40,23 @@ class Petition(db.Model):
     pt_rejected_at = db.Column(DateTime)
     db_created_at = db.Column(DateTime(timezone=True), default=sqlfunc.now())
     db_updated_at = db.Column(DateTime(timezone=True), default=sqlfunc.now(), onupdate=sqlfunc.now())
-    initial_json = db.Column(JSONType)
-    latest_json = db.Column(JSONType)
-
-    # pet = Petition.onboard(id=300412)
-    # Petition.query.get("300412").latest_record().signatures_by('constituency', 'E14000601')
+    initial_data = db.Column(JSONType)
+    latest_data = db.Column(JSONType)
     
     @classmethod
     def onboard(cls, id):
-        response = RemotePetition.fetch(id)
+        response = Remote.fetch(id, raise_404=True).json()
+        params = Remote.deserialize(response)
+        petition = Petition(**params)
+        db.session.add(petition)
+        db.session.commit()
 
-        if response:
-            body = response.json()
-            attributes = body['data']['attributes']
+        return petition
 
-            params = {}
-            params['id'] = body['data']['id']
-            params['url'] = body['links']['self'].split(".json")[0]
-            params['state'] = attributes['state']
-            params['action'] = attributes['action']
-            params['signatures'] = attributes['signature_count']
-            params['background'] = attributes['background']
-            params['additional_details'] = attributes['additional_details']
-            params['pt_created_at'] = attributes['created_at']
-            params['pt_updated_at'] = attributes['updated_at']
-            params['pt_rejected_at'] = attributes['rejected_at']
-            params['initial_json'] = body
-            params['latest_json'] = body
-
-            petition = Petition(**params)
-            return petition
-        else:
-            return False
-
-    def add_record(self, attributes=None):
-        if not attributes:
-            response = RemotePetition.fetch(self.id, raise_404=True)
-            attributes = response.json()['data']["attributes"]
-    
+    def poll(self, commit=True):
+        response = Remote.fetch(self.id, raise_404=True).json()
+        attributes = response['data']["attributes"]
+        
         signatures = {}
         signatures['country'] = attributes.get('signatures_by_country', None)
         signatures['constituency'] = attributes.get('signatures_by_constituency', None)
@@ -90,12 +69,15 @@ class Petition(db.Model):
             for locale in signatures[geography]:
                 table.append(model(code=locale[code], count=locale["signature_count"]))
         
-        self.records.append(record)
+        if commit:
+            self.records.append(record)
+            self.latest_data = response
+            db.session.commit()
+            
         return record
 
     # manual work around for broken choice validation in sqlalchemy utils
     # also allows case agnostic value/key of the state tuple to be used as an argument
-    # only the corresponding upcase key is saved in the database regardless
     @validates('state')
     def validate_state_choice(self, key, state):
         state = state.capitalize()
@@ -107,8 +89,8 @@ class Petition(db.Model):
         return choices[state]
 
     def __repr__(self):
-        template = '<petition id: {}, action: {}, signatures: {}>'
-        return template.format(self.id, self.action, self.signatures)
+        template = '<petition id: {}, signatures: {}, action: {}>'
+        return template.format(self.id, self.signatures, self.action)
 
     def __str__(self):
         return self.action
@@ -123,6 +105,8 @@ class Petition(db.Model):
     
     def latest_record(self):
         return self.ordered_records().first()
+
+
 
 class Record(db.Model):
     __tablename__ = 'record'
@@ -142,10 +126,13 @@ class Record(db.Model):
         return table.filter(model.code == code).one()
 
     # get signature models attr for a geography
+    # to do: clean this up in an init or class var
     def get_sig_model_attr(self, geography):
         model = getattr(sys.modules[__name__], ('SignaturesBy' + geography.capitalize()))
         table = getattr(self, model.__tablename__)
         return table, model
+
+
 
 class SignaturesByCountry(db.Model):
     __tablename__ = 'signatures_by_country'
@@ -160,6 +147,8 @@ class SignaturesByCountry(db.Model):
     def init_on_load(self):
         self.timestamp = self.record.timestamp
 
+
+
 class SignaturesByRegion(db.Model):
     __tablename__ = 'signatures_by_region'
     code = synonym("ons_code")
@@ -173,6 +162,8 @@ class SignaturesByRegion(db.Model):
     @reconstructor
     def init_on_load(self):
         self.timestamp = self.record.timestamp
+
+
 
 class SignaturesByConstituency(db.Model):
     __tablename__ = 'signatures_by_constituency'
@@ -189,7 +180,6 @@ class SignaturesByConstituency(db.Model):
         self.timestamp = self.record.timestamp
 
 # Petition.query.get(12345).records.order_by("timestamp").all()
-
 # get the latest record for a petition by timestamp
 # Petition.query.get("300412").records.order_by(Record.timestamp.desc()).first()
 # Petition.query.get("300412").ordered_records().first().signatures_by_country.filter(SignaturesByCountry.code == "E").first()

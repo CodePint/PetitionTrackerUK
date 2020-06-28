@@ -1,6 +1,6 @@
 import requests, json
 
-class RemotePetition():
+class Remote():
 
     base_url = "https://petition.parliament.uk/petitions"
 
@@ -15,7 +15,6 @@ class RemotePetition():
         'awaiting_debate',
         'all'
     ]
-
 
     @classmethod
     def fetch_list(cls, index=0, state="all"):
@@ -41,4 +40,23 @@ class RemotePetition():
         else:
             response.raise_for_status()
 
+    @classmethod
+    def deserialize(cls, petition):
+        params = {}
+        params['id'] = petition['data']['id']
+        params['url'] = petition['links']['self'].split(".json")[0]
+
+        attributes = petition['data']['attributes']
+        params['state'] = attributes['state']
+        params['action'] = attributes['action']
+        params['signatures'] = attributes['signature_count']
+        params['background'] = attributes['background']
+        params['additional_details'] = attributes['additional_details']
+        params['pt_created_at'] = attributes['created_at']
+        params['pt_updated_at'] = attributes['updated_at']
+        params['pt_rejected_at'] = attributes['rejected_at']
+        params['initial_data'] = petition
+        params['latest_data'] = petition
+
+        return params
 
