@@ -1,7 +1,7 @@
 import sqlalchemy
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect, Integer, String, ForeignKey, DateTime
+from sqlalchemy import inspect, Integer, String, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship, synonym, validates, reconstructor
 from sqlalchemy.sql import functions as sqlfunc
 from sqlalchemy_utils import *
@@ -158,10 +158,14 @@ class Record(db.Model):
         return table, model
 
 
-# to do: add composite unique constraint on record id/code
+
 class SignaturesByCountry(db.Model):
     __tablename__ = 'signatures_by_country'
+    __table_args__ = (
+        db.UniqueConstraint('record_id', 'iso_code', name="uniq_sig_country_for_record"),
+    )
     code = synonym("iso_code")
+
     id = db.Column(Integer, primary_key=True)
     record_id = db.Column(Integer, ForeignKey(Record.id))
     record = relationship(Record, back_populates="signatures_by_country")
@@ -176,6 +180,9 @@ class SignaturesByCountry(db.Model):
 
 class SignaturesByRegion(db.Model):
     __tablename__ = 'signatures_by_region'
+    __table_args__ = (
+        db.UniqueConstraint('record_id', 'ons_code', name="uniq_sig_region_for_record"),
+    )
     code = synonym("ons_code")
 
     id = db.Column(Integer, primary_key=True)
@@ -192,6 +199,9 @@ class SignaturesByRegion(db.Model):
 
 class SignaturesByConstituency(db.Model):
     __tablename__ = 'signatures_by_constituency'
+    __table_args__ = (
+        db.UniqueConstraint('record_id', 'ons_code', name="uniq_sig_constituency_for_record"),
+    )
     code = synonym("ons_code")
 
     id = db.Column(Integer, primary_key=True)

@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: ae0789c73913
+Revision ID: d5854e3c412e
 Revises: 
-Create Date: 2020-06-28 13:57:55.275926
+Create Date: 2020-06-29 16:35:16.927193
 
 """
 from alembic import op
@@ -13,7 +13,7 @@ from PetitionTracker.tracker.models import *
 import sqlalchemy_utils
 
 # revision identifiers, used by Alembic.
-revision = 'ae0789c73913'
+revision = 'd5854e3c412e'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -54,7 +54,8 @@ def upgrade():
     sa.Column('ons_code', sa.String(length=9), nullable=True),
     sa.Column('count', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['record_id'], ['record.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('record_id', 'ons_code', name='uniq_sig_constituency_for_record')
     )
     op.create_table('signatures_by_country',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -62,7 +63,8 @@ def upgrade():
     sa.Column('iso_code', sa.String(length=3), nullable=True),
     sa.Column('count', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['record_id'], ['record.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('record_id', 'iso_code', name='uniq_sig_country_for_record')
     )
     op.create_table('signatures_by_region',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -70,7 +72,8 @@ def upgrade():
     sa.Column('ons_code', sa.String(length=3), nullable=True),
     sa.Column('count', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['record_id'], ['record.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('record_id', 'ons_code', name='uniq_sig_region_for_record')
     )
     # ### end Alembic commands ###
 

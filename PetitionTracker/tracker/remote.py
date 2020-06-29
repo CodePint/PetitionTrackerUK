@@ -22,6 +22,8 @@ class RemotePetition():
         "open"
     ]
 
+    # get a remote petition by id
+    # optionally raise on 404
     @classmethod
     def get(cls, id, raise_404=False):
         url = cls.base_url + '/' + str(id) + '.json'
@@ -33,7 +35,9 @@ class RemotePetition():
             return None
         else:
             response.raise_for_status()
-    
+
+    # fetches the page for a given list of query strings and a state
+    # default returns first page, or index can be specificed.
     @classmethod
     def get_page(cls, index=1, query=[], state="all"):
         if not state in cls.list_states:
@@ -56,6 +60,9 @@ class RemotePetition():
 
         return response
 
+    # query remote petitions by state and query string list
+    # default returns a single list of items with optional count param
+    # or if paginate == True, returns the pages within page_range
     @classmethod
     def query(cls, paginate=False, count=False, page_range=None, query=[], state='all'):
         if paginate:
@@ -72,6 +79,9 @@ class RemotePetition():
             petitions = cls.get_items(count, query, state)
             return petitions
 
+    # if page range: check it is valid and return it to query
+    # if page range is None: return the full range
+    # removes the first page from the range as we already have this from the initial get_page()
     @classmethod
     def find_page_range(cls, page, page_range, query, state):
         final_index = int(page['links']['last'].split("?page=")[1].split("&")[0])
@@ -83,6 +93,8 @@ class RemotePetition():
         
         return page_range[1:]
     
+    # executes the query with get_page() and collects the items from each page
+    # returns the results of the query when co
     @classmethod
     def get_items(cls, count, query, state):
         results = []
@@ -99,12 +111,13 @@ class RemotePetition():
 
             for item in page['data']:
                 results.append(item)
-                if count and len(results) >= count:
+                if count and len(results) == count:
                     return results
 
         return results
 
-
+    # deserialise petition json in preparation for onboarding to db
+    # ** might rename to parse/prepare **
     @classmethod
     def deserialize(cls, petition):
         params = {}
@@ -124,7 +137,3 @@ class RemotePetition():
         params['latest_data'] = petition
 
         return params
-
-# from PetitionTracker.tracker.remote import RemotePetition
-# len(RemotePetition.query(state="awaiting_debate", count=10, query=["close", "schools"]))
-# RemotePetition.query(state="awaiting_debate", paginated=True, query=["schools"])
