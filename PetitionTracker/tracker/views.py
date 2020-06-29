@@ -3,7 +3,7 @@ from flask import request
 import requests, json
 from . import bp
 
-from .remote import Remote
+from .remote import RemotePetition
 
 from .models import (
     Petition,
@@ -15,12 +15,12 @@ from .models import (
 
 def get_fetched_index_pagination(current, data):
     if "?page=" in data['links']['last']:
-        final = int(data['links']['last'].split("?page=")[1].split("&")[0]) -1
+        final = int(data['links']['last'].split("?page=")[1].split("&")[0])
     else:
-        final = 0
+        final = 1
     
-    range_start = (current - 5) if ((current - 5) > 0 ) else 0
-    range_end = (current + 5) if ((current + 5 < final)) else final + 1
+    range_start = (current - 5) if ((current - 5) > 1 ) else 1
+    range_end = (current + 5) if ((current + 5 < final)) else final
     return {'current': current, 'final': final, 'range': [range_start, range_end] }
 
 @bp.route('/petition/fetch/list/', methods=['GET'])
@@ -28,17 +28,17 @@ def get_fetched_index_pagination(current, data):
 def fetch_remote_list(index=0):
     current_index = int(index)
     state = request.args.get('state', 'all')
-    response = Remote.fetch_list(current_index, state)
+    response = RemotePetition.get_page(current_index, state)
 
     try: 
-        response = Remote.fetch_list(current_index, state)
+        response = RemotePetition.get_page(index=current_index, state=state)
         data = response.json()
         petitions = data['data']
     except requests.exceptions.HTTPError as e: 
         return render_template('fetch_list.html', {'error': response.status_code} )
 
     context = {}
-    context['states'] = Remote.states
+    context['states'] = RemotePetition.list_states
     context['url'] = response.url
 
     if petitions:
@@ -59,7 +59,7 @@ def fetch_remote_petition(id=None):
         id = request.args.get('id')
 
     try:
-        response = Remote.fetch(id)
+        response = RemotePetition.get(id)
     except requests.exceptions.HTTPError as e:
         return render_template('fetch_petition.html', {'error': response.status_code} )
 

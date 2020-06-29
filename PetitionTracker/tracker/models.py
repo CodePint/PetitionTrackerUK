@@ -13,19 +13,17 @@ import requests
 import json
 
 from requests.exceptions import HTTPError
-from .remote import Remote
+from .remote import RemotePetition
 from PetitionTracker import db
 
 class Petition(db.Model):
     __tablename__ = "petition"
 
     STATES = [
-        ('C', 'Closed'),
-        ('R', 'Rejected'),
-        ('O', 'Open'),
+        ('C', 'closed'),
+        ('R', 'rejected'),
+        ('O', 'open'),
     ]
-
-    BASE_URL = "https://petition.parliament.uk/petitions"
 
     id = db.Column(Integer, primary_key=True, autoincrement=False)
     state = db.Column(ChoiceType(STATES), nullable=False)
@@ -43,20 +41,59 @@ class Petition(db.Model):
     initial_data = db.Column(JSONType)
     latest_data = db.Column(JSONType)
     
-    @classmethod
-    def onboard(cls, id):
-        response = Remote.fetch(id, raise_404=True).json()
-        params = Remote.deserialize(response)
-        petition = Petition(**params)
-        db.session.add(petition)
-        db.session.commit()
+    # handles requests for remote operations
+    remote = RemotePetition
 
+    # manual work around for broken choice validation in sqlalchemy utils
+    # also allows case agnostic value/key of the state tuple to be used as an argument
+    @validates('state')
+    def validate_state_choice(self, key, state):
+        state = state.lower()
+        choices = dict(Petition.STATES)
+
+        if state not in list(choices.keys()):
+            choices = {v: k for k, v in choices.items()}
+        
+        return choices[state]
+
+    # onboard multiple remote petitions from the result of query
+    @classmethod
+    def populate(cls, query=[], count=False, state='open'):
+        results = cls.remote.query(count=count, query=query, state=state)
+
+        populated = []
+        for item in results:
+            id = item['id']
+            petition = cls.onboard(id=id, commit=False)
+            populated.append(petition)
+            db.session.add(petition)
+        
+        db.session.commit()
+        return populated
+
+    # onboard a remote petition by id (optional commit)
+    @classmethod
+    def onboard(cls, id, commit=True):
+        response = cls.remote.get(id, raise_404=True).json()
+        params = cls.remote.deserialize(response)
+        petition = Petition(**params)
+        record = petition.create_record(attributes=response['data']["attributes"], commit=False)
+        petition.records.append(record)
+
+        if commit:
+            db.session.add(petition)
+            db.session.commit()
+        
         return petition
 
-    def poll(self, commit=True):
-        response = Remote.fetch(self.id, raise_404=True).json()
+    # poll the remote petition and return a deserialised object (optional commit)
+    def poll(self, commit):
+        response = cls.remote.get(self.id, raise_404=True).json()
         attributes = response['data']["attributes"]
-        
+        return self.create_record(commit=commit, attributes=attributes)
+
+    # create a new record for the petition from attributres json (optional commit)
+    def create_record(self, attributes, commit=True):
         signatures = {}
         signatures['country'] = attributes.get('signatures_by_country', None)
         signatures['constituency'] = attributes.get('signatures_by_constituency', None)
@@ -75,18 +112,6 @@ class Petition(db.Model):
             db.session.commit()
             
         return record
-
-    # manual work around for broken choice validation in sqlalchemy utils
-    # also allows case agnostic value/key of the state tuple to be used as an argument
-    @validates('state')
-    def validate_state_choice(self, key, state):
-        state = state.capitalize()
-        choices = dict(Petition.STATES)
-
-        if state not in list(choices.keys()):
-            choices = {v: k for k, v in choices.items()}
-        
-        return choices[state]
 
     def __repr__(self):
         template = '<petition id: {}, signatures: {}, action: {}>'
@@ -133,7 +158,7 @@ class Record(db.Model):
         return table, model
 
 
-
+# to do: add composite unique constraint on record id/code
 class SignaturesByCountry(db.Model):
     __tablename__ = 'signatures_by_country'
     code = synonym("iso_code")
@@ -178,11 +203,3 @@ class SignaturesByConstituency(db.Model):
     @reconstructor
     def init_on_load(self):
         self.timestamp = self.record.timestamp
-
-# Petition.query.get(12345).records.order_by("timestamp").all()
-# get the latest record for a petition by timestamp
-# Petition.query.get("300412").records.order_by(Record.timestamp.desc()).first()
-# Petition.query.get("300412").ordered_records().first().signatures_by_country.filter(SignaturesByCountry.code == "E").first()
-# Petition.query.get("300412").add_record()
-# record.signatures_by_country.append(SignaturesByCountry(code="E", count="500"))
-# petition = Petition.query.get(300412)
