@@ -13,6 +13,7 @@ def load_models():
 load_models()
 
 def init_extensions(app):
+    from PetitionTracker.tracker.data import geographies
     db.init_app(app)
 
 def init_views(app):
