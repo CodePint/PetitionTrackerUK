@@ -13,20 +13,27 @@ import requests
 import json
 
 from requests.exceptions import HTTPError
-from .remote import RemotePetition
+from requests.structures import CaseInsensitiveDict
+
 from PetitionTracker import db
+from .remote import RemotePetition
+from PetitionTracker.tracker.data.geographies.choices.regions import REGIONS
+from PetitionTracker.tracker.data.geographies.choices.constituencies import CONSTITUENCIES
+from PetitionTracker.tracker.data.geographies.choices.countries import COUNTRIES
+
 
 class Petition(db.Model):
     __tablename__ = "petition"
 
-    STATES = [
+    STATE_CHOICES = [
         ('C', 'closed'),
         ('R', 'rejected'),
         ('O', 'open'),
     ]
+    STATE_LOOKUP = CaseInsensitiveDict({v: k for k, v in dict(STATE_CHOICES).items()})
 
     id = db.Column(Integer, primary_key=True, autoincrement=False)
-    state = db.Column(ChoiceType(STATES), nullable=False)
+    state = db.Column(ChoiceType(STATE_CHOICES), nullable=False)
     records = relationship(lambda: Record, lazy='dynamic', back_populates="petition")
     action = db.Column(String(512), index=True, unique=True)
     signatures = db.Column(Integer)
@@ -48,13 +55,12 @@ class Petition(db.Model):
     # also allows case agnostic value/key of the state tuple to be used as an argument
     @validates('state')
     def validate_state_choice(self, key, state):
-        state = state.lower()
-        choices = dict(Petition.STATES)
+        try:
+            state = Petition.STATE_LOOKUP[state]
+        except KeyError:
+            dict(Petition.STATE_CHOICES)[state]
 
-        if state not in list(choices.keys()):
-            choices = {v: k for k, v in choices.items()}
-        
-        return choices[state]
+        return state
 
     # onboard multiple remote petitions from the result of query
     @classmethod
@@ -78,10 +84,12 @@ class Petition(db.Model):
         params = cls.remote.deserialize(response)
         petition = Petition(**params)
         record = petition.create_record(attributes=response['data']["attributes"], commit=False)
-        petition.records.append(record)
+        if record:
+            petition.records.append(record)
 
         if commit:
             db.session.add(petition)
+            breakpoint()
             db.session.commit()
         
         return petition
@@ -99,19 +107,22 @@ class Petition(db.Model):
         signatures['constituency'] = attributes.get('signatures_by_constituency', None)
         signatures['region'] = attributes.get('signatures_by_region', None)
 
-        record = Record(petition_id=self)
-        for geography in list(signatures.keys()):
-            table, model = record.get_sig_model_attr(geography)
-            code = 'code' if geography == 'country' else 'ons_code'
-            for locale in signatures[geography]:
-                table.append(model(code=locale[code], count=locale["signature_count"]))
-        
-        if commit:
-            self.records.append(record)
-            self.latest_data = response
-            db.session.commit()
+        if any(signatures.values()):
+            record = Record(petition_id=self)
+            for geography in list(signatures.keys()):
+                table, model = record.get_sig_model_attr(geography)
+                code = 'code' if geography == 'country' else 'ons_code'
+                for locale in signatures[geography]:
+                    table.append(model(code=locale[code], count=locale["signature_count"]))
             
-        return record
+            if commit:
+                self.records.append(record)
+                self.latest_data = response
+                db.session.commit()
+                
+            return record
+        else:
+            return None
 
     def __repr__(self):
         template = '<petition id: {}, signatures: {}, action: {}>'
@@ -145,10 +156,16 @@ class Record(db.Model):
     timestamp = db.Column(DateTime(timezone=True), default=sqlfunc.now())
     signatures = db.Column(Integer)
 
-    # short hand query helper query for signature geography + code
-    def signatures_by(self, geography, code):
+    # short hand query helper query for signature geography + code or name
+    def signatures_by(self, geography, value):
         table, model = self.get_sig_model_attr(geography)
-        return table.filter(model.code == code).one()
+        choices = dict(model.CODE_CHOICES)
+        try:
+            choices[value]
+        except KeyError:
+            value = model.CODE_LOOKUP[value]
+
+        return table.filter(model.code == value).one()
 
     # get signature models attr for a geography
     # to do: clean this up in an init or class var
@@ -157,6 +174,10 @@ class Record(db.Model):
         table = getattr(self, model.__tablename__)
         return table, model
 
+    @validates('ons_code')
+    def validate_iso_choice(self, key, value):
+        validate_code(self, key, value, COUNTRY_CODE_CHOICES)
+
 
 
 class SignaturesByCountry(db.Model):
@@ -164,13 +185,15 @@ class SignaturesByCountry(db.Model):
     __table_args__ = (
         db.UniqueConstraint('record_id', 'iso_code', name="uniq_sig_country_for_record"),
     )
+    CODE_CHOICES = COUNTRIES
+    CODE_LOOKUP = CaseInsensitiveDict({v: k for k, v in dict(CODE_CHOICES).items()})
     code = synonym("iso_code")
 
     id = db.Column(Integer, primary_key=True)
-    record_id = db.Column(Integer, ForeignKey(Record.id))
+    record_id = db.Column(Integer, ForeignKey(Record.id), nullable=False)
     record = relationship(Record, back_populates="signatures_by_country")
-    iso_code = db.Column(String(3))
-    count = db.Column(Integer)
+    iso_code = db.Column(ChoiceType(CODE_CHOICES), nullable=False)
+    count = db.Column(Integer, default=0)
 
     @reconstructor
     def init_on_load(self):
@@ -183,13 +206,15 @@ class SignaturesByRegion(db.Model):
     __table_args__ = (
         db.UniqueConstraint('record_id', 'ons_code', name="uniq_sig_region_for_record"),
     )
+    CODE_CHOICES = REGIONS
+    CODE_LOOKUP = CaseInsensitiveDict({v: k for k, v in dict(CODE_CHOICES).items()})
     code = synonym("ons_code")
 
     id = db.Column(Integer, primary_key=True)
-    record_id = db.Column(Integer, ForeignKey(Record.id))
+    record_id = db.Column(Integer, ForeignKey(Record.id), nullable=False)
     record = relationship(Record, back_populates="signatures_by_region")
-    ons_code = db.Column(String(3))
-    count = db.Column(Integer)
+    ons_code = db.Column(ChoiceType(CODE_CHOICES), nullable=False)
+    count = db.Column(Integer, default=0)
 
     @reconstructor
     def init_on_load(self):
@@ -202,14 +227,36 @@ class SignaturesByConstituency(db.Model):
     __table_args__ = (
         db.UniqueConstraint('record_id', 'ons_code', name="uniq_sig_constituency_for_record"),
     )
+    CODE_CHOICES = CONSTITUENCIES
+    CODE_LOOKUP = CaseInsensitiveDict({v: k for k, v in dict(CODE_CHOICES).items()})
     code = synonym("ons_code")
 
     id = db.Column(Integer, primary_key=True)
-    record_id = db.Column(Integer, ForeignKey(Record.id))
+    record_id = db.Column(Integer, ForeignKey(Record.id), nullable=False)
     record = relationship(Record, back_populates="signatures_by_constituency")
-    ons_code = db.Column(String(9))
-    count = db.Column(Integer)
+    ons_code = db.Column(ChoiceType(CODE_CHOICES), nullable=False)
+    count = db.Column(Integer, default=0)
 
     @reconstructor
     def init_on_load(self):
         self.timestamp = self.record.timestamp
+
+    @validates('ons_code')
+    def validate_code_choice(self, key, value):
+        return ModelUtils.validate_geography_choice(self, key, value)
+
+
+
+class ModelUtils():
+
+    @classmethod
+    def validate_geography_choice(cls, instance, key, value):
+        model = instance.__class__
+        choices = dict(instance.__class__.CODE_CHOICES)
+        
+        try:
+            choices[value]
+        except KeyError:
+            value = model.CODE_LOOKUP[value]
+        
+        return value
