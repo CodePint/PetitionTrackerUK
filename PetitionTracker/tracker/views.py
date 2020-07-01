@@ -23,9 +23,10 @@ def get_fetched_index_pagination(current, data):
     range_end = (current + 5) if ((current + 5 < final)) else final
     return {'current': current, 'final': final, 'range': [range_start, range_end] }
 
-@bp.route('/petition/fetch/list/', methods=['GET'])
-@bp.route('/petition/fetch/list/<index>', methods=['GET'])
+@bp.route('/remote/petition/fetch/list/', methods=['GET'])
+@bp.route('/remote/petition/fetch/list/<index>', methods=['GET'])
 def fetch_remote_list(index=0):
+    template_name = 'remote/fetch_list.html'
     current_index = int(index)
     state = request.args.get('state', 'all')
     response = RemotePetition.get_page(current_index, state)
@@ -35,7 +36,7 @@ def fetch_remote_list(index=0):
         data = response.json()
         petitions = data['data']
     except requests.exceptions.HTTPError as e: 
-        return render_template('fetch_list.html', {'error': response.status_code} )
+        return render_template(template_name, {'error': response.status_code} )
 
     context = {}
     context['states'] = RemotePetition.list_states
@@ -46,22 +47,24 @@ def fetch_remote_list(index=0):
         context['paginate'] = get_fetched_index_pagination(current_index, data)
         context['selected_state'] = state
 
-        return render_template('fetch_list.html', **context)
+        return render_template(template_name, **context)
     else:
         context['petitions'] = []
-        return render_template('fetch_list.html', **context)
+        return render_template(template_name, **context)
 
 
-@bp.route('/petition/fetch/', methods=['GET'])
-@bp.route('/petition/fetch/<id>', methods=['GET'])
+@bp.route('/remote/petition/fetch/', methods=['GET'])
+@bp.route('/remote/petition/fetch/<id>', methods=['GET'])
 def fetch_remote_petition(id=None):
+    template_name = 'remote/fetch_petition.html'
+
     if not id:
         id = request.args.get('id')
 
     try:
         response = RemotePetition.get(id)
     except requests.exceptions.HTTPError as e:
-        return render_template('fetch_petition.html', {'error': response.status_code} )
+        return render_template(template_name, {'error': response.status_code} )
 
     if response:
         data = response.json()
@@ -70,6 +73,6 @@ def fetch_remote_petition(id=None):
     else:
         context = {'error': 404, 'id': id}
     
-    return render_template('fetch_petition.html', **context)
+    return render_template(template_name, **context)
 
 

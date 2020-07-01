@@ -86,7 +86,6 @@ class Petition(db.Model):
         record = petition.create_record(attributes=response['data']["attributes"], commit=False)
         if record:
             petition.records.append(record)
-
         if commit:
             db.session.add(petition)
             breakpoint()
