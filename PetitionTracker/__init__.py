@@ -47,6 +47,3 @@ def create_app():
         return context
 
     return app
-
-
-

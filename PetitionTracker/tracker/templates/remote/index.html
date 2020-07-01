@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('tracker_bp.static', filename='css/tracker.css' ) }}">
+<link rel="stylesheet" href="{{ url_for('tracker_bp.static', filename='css/remote/tracker.css' ) }}">
 {% endblock %}
 
 
@@ -9,7 +9,7 @@
 <div class="index">
   <div class="page-header">
     <div class="title">
-      <h1>Petitions:</h1>
+      <h1>Remote Petitions:</h1>
     </div>
     <div class="request">
       <h3>URL: {{ url }}</h3>
@@ -56,7 +56,7 @@
               </a>
             </li>
             <li class="detail">
-              <a href="{{ url_for('tracker_bp.fetch_remote_petition', id=petition['id'])  }}">
+              <a href="{{ url_for('tracker_bp.fetch_remote_petition', remote_id=petition['id'])  }}">
                 <b>Local Link</b>
               </a>
             </li>
@@ -70,13 +70,13 @@
         {% for n in range(*paginate['range']) %}
           {% if n == paginate['current'] %}
             <li class="current">
-              <a href="{{ url_for('tracker_bp.fetch_remote_list', index=n) }}">
+              <a href="{{ url_for('tracker_bp.fetch_remote_list', state=selected_state, index=n) }}">
                 {{n}}
               </a>        
             </li>
           {% else %}
             <li>
-              <a href="{{ url_for('tracker_bp.fetch_remote_list', index=n) }}">
+              <a href="{{ url_for('tracker_bp.fetch_remote_list', state=selected_state, index=n,) }}">
                 {{n}}
               </a>        
             </li>

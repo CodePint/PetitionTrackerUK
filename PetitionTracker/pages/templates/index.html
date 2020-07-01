@@ -17,11 +17,22 @@
       </header>
 
       <nav>
-        <h3><a href="{{ url_for('tracker_bp.fetch_remote_list') }}">Fetch List --></a></h3>
-        <form action="{{ url_for('tracker_bp.fetch_remote_petition') }}"> 
-          <label for="id"><h3>Fetch petition:</h3></label>
-          <input type="text" id="id" name="id" placeholder="Search by petition ID"><br>
-        </form>
+        <div class="remote">
+          <h3><a href="{{ url_for('tracker_bp.fetch_remote_list') }}">Get remote List --></a></h3>
+          <form action="{{ url_for('tracker_bp.fetch_remote_petition') }}"> 
+            <label for="remote_id"><h3>Get remote petition:</h3></label>
+            <input type="text" id="remote_id" name="id" placeholder="ID"><br>
+          </form>
+        </div>
+        <br>
+        <div class="local">
+            <h3><a href="{{ url_for('tracker_bp.get_local_list') }}">Get local List --></a></h3>
+            <form action="{{ url_for('tracker_bp.get_local_petition') }}"> 
+            <label for="local_id"><h3>Get local petition:</h3></label>
+            <input type="text" id="local_id" name="local_id" placeholder="ID"><br>
+          </form>
+        </div>
+
       </nav>
     
       {% block content %}

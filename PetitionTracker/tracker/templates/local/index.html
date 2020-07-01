@@ -1,7 +1,72 @@
 {% extends "base.html" %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('tracker_bp.static', filename='css/local/tracker.css' ) }}">
+{% endblock %}
+
+
 {% block content %}
 <div class="index">
+    <div class="page-header">
+    <div class="title">
+      <h1>Local Petitions:</h1>
+    </div>
 
+    <div class="select-state">
+      <form action="{{ url_for('tracker_bp.get_local_list') }}" onchange="document.petitionStateForm.submit()" method="get" name="petitionStateForm" id="petitionStateForm">
+        <select class="select-style" name="state" id="state">
+          {% for state in states %}
+            {% if state == selected_state %}
+              <option value="{{state}}" selected>{{ state }}</option>
+            {% else %}
+              <option value="{{state}}">{{ state }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+  </div>
+
+  <div class="content">
+    {% if petitions %}
+      <ul class="petitions">
+        {% for petition in petitions %}
+          <li>
+            <ul class="item">
+              <li><b>ID: </b>{{ petition.id }}</li>
+              <li><b>Action: </b>{{ petition.action }}</li>
+              <li><b>State: </b>{{ petition.state }}</li>
+              <li><b>Signatures: </b>{{ petition.signatures }}</li>
+              <li class="detail">
+                <a href="{{ url_for('tracker_bp.get_local_petition', local_id=petition.id)  }}">
+                  <b>Petition Detail</b>
+                </a>
+              </li>
+            </ul>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div>
+        <h2>No petitions found</h2>
+      </div>
+    {% endif %}
+  </div>
+  <div class="paginate">
+    <ul>
+      {% if prev_url %}
+      <li>
+        <a href="{{ prev_url }}">Prev</a>
+      </li>
+      {% endif %}
+
+      {% if next_url %}
+      <li>
+        <a href="{{ next_url }}">Next</a>
+      </li>
+      {% endif %}
+    </ul>
+  </div>
 </div>
+
 {% endblock %}
