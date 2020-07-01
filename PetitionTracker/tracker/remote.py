@@ -22,11 +22,34 @@ class RemotePetition():
         "open"
     ]
 
+    # deserialise petition json in preparation for onboarding to db
+    # ** might rename to parse/prepare **
+    @classmethod
+    def deserialize(cls, petition):
+        params = {}
+        params['id'] = petition['data']['id']
+        params['url'] = petition['links']['self'].split(".json")[0]
+
+        attributes = petition['data']['attributes']
+        params['state'] = attributes['state']
+        params['action'] = attributes['action']
+        params['signatures'] = attributes['signature_count']
+        params['background'] = attributes['background']
+        params['additional_details'] = attributes['additional_details']
+        params['pt_created_at'] = attributes['created_at']
+        params['pt_updated_at'] = attributes['updated_at']
+        params['pt_rejected_at'] = attributes['rejected_at']
+        params['initial_data'] = petition
+        params['latest_data'] = petition
+
+        return params
+
     # get a remote petition by id
     # optionally raise on 404
     @classmethod
     def get(cls, id, raise_404=False):
         url = cls.base_url + '/' + str(id) + '.json'
+        print("fetching petition ID: {}".format(id))
         response = requests.get(url)
 
         if (response.status_code == 200):
@@ -54,7 +77,7 @@ class RemotePetition():
         params = '&'.join(params)
         url = (url + params)
 
-        print("fetching page:{}".format(url))
+        print("fetching page: {}".format(index))
         response = requests.get(url)
         response.raise_for_status()
 
@@ -76,7 +99,7 @@ class RemotePetition():
             
             return pages
         else:
-            petitions = cls.get_items(count, query, state)
+            petitions = cls.get_items(count=count, query=query, state=state)
             return petitions
 
     # if page range: check it is valid and return it to query
@@ -100,10 +123,11 @@ class RemotePetition():
         results = []
 
         index = 1
-        next_page = True
-        while next_page:
+        fetched = 0
+        fetch = True
+        while fetch:
             page = cls.get_page(index=index, query=query, state=state).json()
-            next_page = page['links']['next']
+            fetch = page['links']['next']
             index += 1
 
             if not page['data']:
@@ -111,29 +135,24 @@ class RemotePetition():
 
             for item in page['data']:
                 results.append(item)
-                if count and len(results) == count:
-                    return results
+                print("items fetched: {}".format(fetched))
 
+                fetched += 1
+                if count and (fetched == count):
+                    fetch = False
+                    break
+                
+        print("total petitions fetched: {}".format(fetched))             
         return results
 
-    # deserialise petition json in preparation for onboarding to db
-    # ** might rename to parse/prepare **
+    # pagination for remote petition list view
     @classmethod
-    def deserialize(cls, petition):
-        params = {}
-        params['id'] = petition['data']['id']
-        params['url'] = petition['links']['self'].split(".json")[0]
-
-        attributes = petition['data']['attributes']
-        params['state'] = attributes['state']
-        params['action'] = attributes['action']
-        params['signatures'] = attributes['signature_count']
-        params['background'] = attributes['background']
-        params['additional_details'] = attributes['additional_details']
-        params['pt_created_at'] = attributes['created_at']
-        params['pt_updated_at'] = attributes['updated_at']
-        params['pt_rejected_at'] = attributes['rejected_at']
-        params['initial_data'] = petition
-        params['latest_data'] = petition
-
-        return params
+    def get_fetched_index_pagination(cls, current, data):
+        if "?page=" in data['links']['last']:
+            final = int(data['links']['last'].split("?page=")[1].split("&")[0])
+        else:
+            final = 1
+        
+        range_start = (current - 5) if ((current - 5) > 1 ) else 1
+        range_end = (current + 5) if ((current + 5 < final)) else final
+        return {'current': current, 'final': final, 'range': [range_start, range_end] }

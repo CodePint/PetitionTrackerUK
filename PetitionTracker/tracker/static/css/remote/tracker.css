@@ -1,0 +1,120 @@
+.wrapper {
+  background: black;
+  min-height: 100vh;
+}
+
+h1, h2, h3, div, a, p {
+  color: whitesmoke;
+}
+
+header {
+  padding: 1em;
+  display: flex;
+  height: 5em;
+  /* justify-content: flex-end */
+}
+
+nav {
+  flex: 1;
+}
+
+.header h1 {
+  border-bottom: 1px solid whitesmoke;
+}
+
+.buffer {
+  flex: 1;
+}
+
+nav a{
+  border-bottom: 1px solid yellow;
+  display: inline-block;
+  font-size: 1.5em;
+  color: yellow;
+}
+
+nav a:hover {
+  color: royalblue;
+  border-bottom: 1px solid royalblue;
+
+}
+
+h3 {
+  font-size: 1.5em;
+}
+
+.petition, .index {
+  margin-top: 0.5em;
+  padding: 1em 3em;
+}
+
+.petition .title,
+.index .title {
+  padding: 1em 0;
+}
+
+.petition .title h3 {
+  margin-top: 0.25em;
+}
+
+.petition .data {
+  padding: 1em 0;
+}
+
+.data li {
+  padding: 0.2em 0;
+}
+
+
+/* fetch index css */
+
+
+.index .petitions > li {
+  border: 1px solid whitesmoke;
+  padding: 1em;
+}
+
+.index .petitions .item li {
+  padding: 0.15em;
+}
+
+.index .petitions .item .detail {
+  margin-top: 1em;
+}
+
+.index .petitions .item .detail a {
+  display: inline-block;
+  border-bottom: 1px solid white;
+}
+
+.index .page-header {
+  margin-bottom: 2em;
+}
+
+.index .paginate ul {
+  display: flex;
+  justify-content: center;
+  margin: 2em 0;
+}
+
+.index .paginate a {
+  font-size: 1.25em;
+  display: block;
+  border: 1px solid whitesmoke;
+  padding: 0.5em;
+}
+
+.index .paginate a:hover {
+  color: yellow;
+  background: gray
+}
+
+.index .paginate li.current a {
+  background: rgb(46, 46, 46);
+  font-weight: bold;
+}
+
+.index .paginate li.current a:hover {
+  background: rgb(46, 46, 46);
+  color: whitesmoke
+}

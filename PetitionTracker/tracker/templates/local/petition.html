@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block head %}
+  <link rel="stylesheet" href="{{ url_for('tracker_bp.static', filename='css/local/tracker.css' ) }}">
+{% endblock %}
+
+
+{% block content %}
+  <div class="petition">
+    {% if petition %}
+      <div class="title">
+        <h2>ID: {{ petition.id }}</h2>
+        <h2>Signatures: {{ petition.signatures }}</h2>
+        <h2>Action: {{ petition.action }}</h2>
+      </div>
+
+      <div class="records">
+        {% if records %}
+          <h3>Latest Record ID: {{ latest_record.id }}</h3>
+          <h3>Timestamp: {{ latest_record.timestamp.strftime("%m/%d/%Y, %H:%M:%S") }}</h3>
+          <h3>View Detail --></h3>
+
+          <br>
+          <br>
+          <br>
+          <h3>All Records:</h3>
+          <ul>
+            {% for item in records %}
+            <br>
+            <ul>
+              <li>- Record ID: {{ item.id }}</li>
+              <li>- Timestamp: {{ item.timestamp.strftime("%m/%d/%Y, %H:%M:%S") }}</li>
+              <li>- View Detail</li>
+            </ul>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <h3>No Records available</h3>
+        {% endif %}
+    {% else %}
+    <div class="error">
+        <h2>No petition found for ID: {{ id }}</h2>
+    </div>
+    {% endif %}
+  </div>
+{% endblock %}

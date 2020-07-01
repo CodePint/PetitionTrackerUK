@@ -62,17 +62,40 @@ class Petition(db.Model):
 
         return state
 
+    # query helper method, will be expanded upon as project progresses
+    # returns a query object if dynamic == True
+    @classmethod
+    def get(cls, **kwargs):
+        filters = {}
+        if kwargs.get('state'):
+            filters['state'] = cls.STATE_LOOKUP[kwargs['state']]
+        if kwargs.get('id'):
+            filters['id'] = kwargs['id']
+        
+        query = cls.query.filter_by(**filters)
+        if kwargs.get('limit'):
+            query = query.limit(kwargs['limit'])
+        if kwargs.get('dynamic', False):
+            return query
+        else:
+            return query.all()
+
     # onboard multiple remote petitions from the result of query
     @classmethod
-    def populate(cls, query=[], count=False, state='open'):
+    def populate(cls, state, query=[], count=False):
         results = cls.remote.query(count=count, query=query, state=state)
 
         populated = []
         for item in results:
             id = item['id']
-            petition = cls.onboard(id=id, commit=False)
-            populated.append(petition)
-            db.session.add(petition)
+            if cls.query.get(id):
+                print("petition already exists for ID: {} (skipping)".format(id))
+                continue
+            else:
+                print("onboarding petition ID: {}".format(id))
+                petition = cls.onboard(id=id, commit=False)
+                populated.append(petition)
+                db.session.add(petition)
         
         db.session.commit()
         return populated
@@ -88,7 +111,6 @@ class Petition(db.Model):
             petition.records.append(record)
         if commit:
             db.session.add(petition)
-            breakpoint()
             db.session.commit()
         
         return petition
