@@ -22,6 +22,8 @@ def get_pagination_urls(pages, function):
 
     return {'next': next_url, 'prev': prev_url}
 
+# --- Local Views ---
+# Petition Views
 @bp.route('/petition/get/', methods=['GET'])
 def get_local_petition():
     template_name = 'local/petition.html'
@@ -30,16 +32,17 @@ def get_local_petition():
 
     context = {}
     context['petition'] = petition
-    context['records'] = petition.records.all()
+    context['records'] = petition.ordered_records().limit(10)
     context['latest_record'] = petition.latest_record()
     return render_template(template_name, **context)
 
 @bp.route('/petition/list/', methods=['GET'])
 def get_local_list():
     template_name = 'local/index.html'
+    items_per_page = 10
+
     state = request.args.get('state', 'all')
     index = request.args.get('index', 1, type=int)
-    items_per_page = 10
 
     if state == 'all':
         query = Petition.get(dynamic=True)
@@ -58,7 +61,63 @@ def get_local_list():
     
     return render_template(template_name, **context)
 
+# Record Views
+@bp.route('/petition/<petition_id>/records', methods=['GET'])
+def get_record_list(petition_id):
+    template_name = 'local/records/list.html'
+    items_per_page = 10
 
+    index = request.args.get('index', 1, type=int)
+    
+    signature_models = [
+
+    ]
+    # breakpoint()
+    petition = Petition.query.get(petition_id)
+    records = petition.ordered_records()
+    latest_record = records.first()
+
+    context = {}
+    context['petition'] = petition
+    context['records'] = records
+    context['latest_record '] = latest_record
+
+    return render_template(template_name, **context)
+
+
+@bp.route('/petition/<petition_id>/record/<record_id>', methods=['GET'])
+def get_record(petition_id, record_id):
+    template_name = 'local/records/record.html'
+
+    petition = Petition.query.get(petition_id)
+    record = Record.query.get(record_id)
+
+    context = {}
+    context['petition'] = petition
+    context['record'] = record
+
+    return render_template(template_name, **context)
+
+@bp.route('/petition/<petition_id>/record/<record_id>/signatures/<geography>', methods=['GET'])
+def get_signatures_by(petition_id, record_id, geography):
+    template_name = 'local/records/signatures.html'
+
+    petition = Petition.query.get(petition_id)
+    record = Record.query.get(record_id)
+
+    table, model = record.get_sig_model_attr(geography)
+
+    context = {}
+    context['geography'] = geography
+    context['petition'] = petition
+    context['record'] = record
+    breakpoint()
+    context['signatures'] = table.all()
+
+    return render_template(template_name, **context)
+
+
+# --- Remote Views ---
 @bp.route('/petition/remote/list', methods=['GET'])
 def fetch_remote_list():
     template_name = 'remote/index.html'

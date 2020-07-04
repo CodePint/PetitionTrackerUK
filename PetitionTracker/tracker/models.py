@@ -34,7 +34,7 @@ class Petition(db.Model):
 
     id = db.Column(Integer, primary_key=True, autoincrement=False)
     state = db.Column(ChoiceType(STATE_CHOICES), nullable=False)
-    records = relationship(lambda: Record, lazy='dynamic', back_populates="petition")
+    records = relationship(lambda: Record, lazy='dynamic', back_populates="petition", cascade="all,delete")
     action = db.Column(String(512), index=True, unique=True)
     signatures = db.Column(Integer)
     url = db.Column(String(2048), index=True, unique=True)
@@ -116,8 +116,8 @@ class Petition(db.Model):
         return petition
 
     # poll the remote petition and return a deserialised object (optional commit)
-    def poll(self, commit):
-        response = cls.remote.get(self.id, raise_404=True).json()
+    def poll(self, commit=True):
+        response = Petition.remote.get(self.id, raise_404=True).json()
         attributes = response['data']["attributes"]
         return self.create_record(commit=commit, attributes=attributes)
 
@@ -130,15 +130,18 @@ class Petition(db.Model):
 
         if any(signatures.values()):
             record = Record(petition_id=self)
+            record.signatures = attributes['signature_count']
+
             for geography in list(signatures.keys()):
                 table, model = record.get_sig_model_attr(geography)
                 code = 'code' if geography == 'country' else 'ons_code'
                 for locale in signatures[geography]:
+                    breakpoint()
                     table.append(model(code=locale[code], count=locale["signature_count"]))
             
             if commit:
                 self.records.append(record)
-                self.latest_data = response
+                self.latest_data = attributes
                 db.session.commit()
                 
             return record
@@ -163,19 +166,17 @@ class Petition(db.Model):
     def latest_record(self):
         return self.ordered_records().first()
 
-
-
 class Record(db.Model):
     __tablename__ = 'record'
 
     id = db.Column(Integer, primary_key=True)
     petition_id = db.Column(Integer, ForeignKey(Petition.id), nullable=False)
     petition = relationship(Petition, back_populates="records")
-    signatures_by_country = relationship("SignaturesByCountry", lazy='dynamic', back_populates="record")
-    signatures_by_region = relationship("SignaturesByRegion", lazy='dynamic', back_populates="record")
-    signatures_by_constituency = relationship("SignaturesByConstituency", lazy='dynamic', back_populates="record")
-    timestamp = db.Column(DateTime(timezone=True), default=sqlfunc.now())
-    signatures = db.Column(Integer)
+    signatures_by_country = relationship("SignaturesByCountry", lazy='dynamic', back_populates="record", cascade="all,delete")
+    signatures_by_region = relationship("SignaturesByRegion", lazy='dynamic', back_populates="record", cascade="all,delete")
+    signatures_by_constituency = relationship("SignaturesByConstituency", lazy='dynamic', back_populates="record", cascade="all,delete")
+    timestamp = db.Column(DateTime(timezone=True), default=sqlfunc.now(), nullable=False)
+    signatures = db.Column(Integer, nullable=False)
 
     # short hand query helper query for signature geography + code or name
     def signatures_by(self, geography, value):
@@ -220,6 +221,13 @@ class SignaturesByCountry(db.Model):
     def init_on_load(self):
         self.timestamp = self.record.timestamp
 
+    @validates('iso_code')
+    def validate_code_choice(self, key, value):
+        return ModelUtils.validate_geography_choice(self, key, value)
+    
+    def __str__(self):
+        return '{} - {}'.format(self.code.value, self.count)
+
 
 
 class SignaturesByRegion(db.Model):
@@ -240,6 +248,14 @@ class SignaturesByRegion(db.Model):
     @reconstructor
     def init_on_load(self):
         self.timestamp = self.record.timestamp
+
+    @validates('ons_code')
+    def validate_code_choice(self, key, value):
+        return ModelUtils.validate_geography_choice(self, key, value)
+    
+    def __str__(self):
+        return '{} - {}'.format(self.code.value, self.count)
+
 
 
 
@@ -265,6 +281,9 @@ class SignaturesByConstituency(db.Model):
     @validates('ons_code')
     def validate_code_choice(self, key, value):
         return ModelUtils.validate_geography_choice(self, key, value)
+    
+    def __str__(self):
+        return '{} - {}'.format(self.code.value, self.count)
 
 
 
@@ -272,6 +291,7 @@ class ModelUtils():
 
     @classmethod
     def validate_geography_choice(cls, instance, key, value):
+        breakpoint()
         model = instance.__class__
         choices = dict(model.CODE_CHOICES)
         

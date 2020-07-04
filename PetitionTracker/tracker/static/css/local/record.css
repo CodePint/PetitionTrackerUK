@@ -13,14 +13,6 @@ header {
   height: 5em;
 }
 
-nav {
-  flex: 1;
-}
-
-a:hover {
-  color: yellow;
-}
-
 .header h1 {
   border-bottom: 1px solid whitesmoke;
 }
@@ -29,7 +21,21 @@ a:hover {
   flex: 1;
 }
 
-#view-all-records {
+nav {
+  flex: 1;
+}
+
+h1 {
+  font-size: 2em;
+}
+
+h2 {
+  font-size: 1.5em;
+}
+
+
+.index a,
+.record a {
   text-decoration: underline;
 }
 
@@ -45,57 +51,22 @@ nav a:hover {
   border-bottom: 1px solid royalblue;
 
 }
-
-h3 {
-  font-size: 1.5em;
+a:hover {
+  color: yellow;
 }
 
-.petition, .index {
-  margin-top: 0.5em;
-  padding: 1em 3em;
-}
-
-.petition .title,
-.index .title {
-  padding: 1em 0;
-}
-
-.petition .title h3 {
-  margin-top: 0.25em;
-}
-
-.petition .data {
-  padding: 1em 0;
-}
-
-.data li {
-  padding: 0.2em 0;
+.title h1 {
+  padding-bottom: 0.1em;
+  margin-bottom: 0.2em;
+  border-bottom: 2px solid white;
+  width: max-content;
 }
 
 
-/* fetch index css */
+/* --- index styles --- */
 
-
-.index .petitions > li {
-  border: 1px solid whitesmoke;
+.index {
   padding: 1em;
-}
-
-.index .petitions .item li {
-  padding: 0.15em;
-}
-
-.index .petitions .item .detail {
-  margin-top: 1em;
-}
-
-.index .petitions .item .detail a {
-  display: inline-block;
-  border-bottom: 1px solid white;
-}
-
-.index .page-header {
-  margin-bottom: 2em;
 }
 
 .index .paginate ul {
@@ -126,6 +97,9 @@ h3 {
   color: whitesmoke
 }
 
-.records a {
-  text-decoration: underline;
+
+/* --- record styles --- */
+
+.record {
+  padding: 1em;
 }

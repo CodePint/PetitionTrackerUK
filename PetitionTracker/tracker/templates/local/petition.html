@@ -9,28 +9,42 @@
   <div class="petition">
     {% if petition %}
       <div class="title">
-        <h2>ID: {{ petition.id }}</h2>
-        <h2>Signatures: {{ petition.signatures }}</h2>
+        <h2>Petition ID: {{ petition.id }}</h2>
         <h2>Action: {{ petition.action }}</h2>
+        <h3>Signatures: {{ petition.signatures }}</h3>
+        <h3 id="view-all-records">
+          <a href="{{ url_for('tracker_bp.get_record_list', petition_id=petition.id)  }}">
+            View All Records -->
+          </a>
+        </h3>
       </div>
 
+      <br>
       <div class="records">
         {% if records %}
           <h3>Latest Record ID: {{ latest_record.id }}</h3>
           <h3>Timestamp: {{ latest_record.timestamp.strftime("%m/%d/%Y, %H:%M:%S") }}</h3>
-          <h3>View Detail --></h3>
-
+          <h3>
+            <a href="{{ url_for('tracker_bp.get_record', petition_id=petition.id, record_id=latest_record.id) }}">
+              <span>View Record Details</span>
+            </a>
+          </h3>
           <br>
           <br>
           <br>
-          <h3>All Records:</h3>
+          <h3>Last 10 Records:</h3>
           <ul>
             {% for item in records %}
             <br>
             <ul>
               <li>- Record ID: {{ item.id }}</li>
               <li>- Timestamp: {{ item.timestamp.strftime("%m/%d/%Y, %H:%M:%S") }}</li>
-              <li>- View Detail</li>
+              <li>- Signatures: {{ item.signatures }}</li>
+              <li>
+                <a href="{{ url_for('tracker_bp.get_record', petition_id=petition.id, record_id=item.id)  }}">
+                  <b>- View Record Details</b>
+                </a>
+              </li>
             </ul>
             {% endfor %}
           </ul>

@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 4582b6f696e0
+Revision ID: be9781e6f709
 Revises: 
-Create Date: 2020-06-30 15:20:32.452624
+Create Date: 2020-07-04 16:12:33.891401
 
 """
 from alembic import op
@@ -13,7 +13,7 @@ from PetitionTracker.tracker.models import *
 import sqlalchemy_utils
 
 # revision identifiers, used by Alembic.
-revision = '4582b6f696e0'
+revision = 'be9781e6f709'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -43,8 +43,8 @@ def upgrade():
     op.create_table('record',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('petition_id', sa.Integer(), nullable=False),
-    sa.Column('timestamp', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('signatures', sa.Integer(), nullable=True),
+    sa.Column('timestamp', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('signatures', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['petition_id'], ['petition.id'], ),
     sa.PrimaryKeyConstraint('id')
     )

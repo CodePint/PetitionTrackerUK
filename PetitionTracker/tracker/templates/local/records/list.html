@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block head %}
+  <link rel="stylesheet" href="{{ url_for('tracker_bp.static', filename='css/local/record.css' ) }}">
+{% endblock %}
+
+{% block content %}
+<div class="index">
+  <div class="page-header">
+    <div class="title">
+      <h1><b>Record List</b></h1>
+    </div>
+    <br>
+    <br>
+
+    <div class="title">
+      <h1><b>Petition ID:</b>  {{ petition.id }}</h1>
+      <h2><b>Petition Action:</b> {{ petition.action }}</h2>
+      <h2><b>Current Signatures:</b> {{ petition.signatures }}</h2>
+    </div>
+  </div>
+
+  <div class="record">
+  <ul>
+    {% for item in records %}
+    <br>
+    <div>-------------------------------------------</div>
+
+    <ul>
+      <li><b><h2>Record ID: {{ item.id }}</h2></b></li>
+      <li>
+        <a href="{{ url_for('tracker_bp.get_record', petition_id=petition.id, record_id=item.id)  }}">
+          <b>View Details</b>
+        </a>
+      </li>
+      <br>
+      <li><b>- Timestamp:</b> {{ item.timestamp.strftime("%m/%d/%Y, %H:%M:%S") }}</li>
+      <li><b>- Signatures:</b> {{ item.signatures }}</li>
+    </ul>
+    <div>-------------------------------------------</div>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
