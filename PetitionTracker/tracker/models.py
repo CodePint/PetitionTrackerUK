@@ -1,7 +1,7 @@
 import sqlalchemy
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect, Integer, String, ForeignKey, DateTime, UniqueConstraint
+from sqlalchemy import inspect, Integer, Boolean, String, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship, synonym, validates, reconstructor
 from sqlalchemy.sql import functions as sqlfunc
 from sqlalchemy_utils import *
@@ -34,6 +34,7 @@ class Petition(db.Model):
 
     id = db.Column(Integer, primary_key=True, autoincrement=False)
     state = db.Column(ChoiceType(STATE_CHOICES), nullable=False)
+    archived = db.Column(Boolean, default=False, nullable=False)
     records = relationship(lambda: Record, lazy='dynamic', back_populates="petition", cascade="all,delete")
     action = db.Column(String(512), index=True, unique=True)
     signatures = db.Column(Integer)
@@ -82,8 +83,8 @@ class Petition(db.Model):
 
     # onboard multiple remote petitions from the result of query
     @classmethod
-    def populate(cls, state, query=[], count=False):
-        results = cls.remote.query(count=count, query=query, state=state)
+    def populate(cls, state, query=[], count=False, archived=False):
+        results = cls.remote.query(count=count, query=query, state=state, archived=archived)
 
         populated = []
         for item in results:
@@ -117,8 +118,10 @@ class Petition(db.Model):
 
     # poll the remote petition and return a deserialised object (optional commit)
     def poll(self, commit=True):
-        response = Petition.remote.get(self.id, raise_404=True).json()
-        attributes = response['data']["attributes"]
+        responses = Petition.remote.get(self.id, raise_404=True)
+        remote = response.json()
+        attributes = remote['data']["attributes"]
+        self.archived = True if (remote['data']['type'] == 'archived-petition') else False
         return self.create_record(commit=commit, attributes=attributes)
 
     # create a new record for the petition from attributres json (optional commit)
@@ -136,7 +139,6 @@ class Petition(db.Model):
                 table, model = record.get_sig_model_attr(geography)
                 code = 'code' if geography == 'country' else 'ons_code'
                 for locale in signatures[geography]:
-                    breakpoint()
                     table.append(model(code=locale[code], count=locale["signature_count"]))
             
             if commit:
@@ -291,7 +293,9 @@ class ModelUtils():
 
     @classmethod
     def validate_geography_choice(cls, instance, key, value):
-        breakpoint()
+        if key == 'bat':
+            breakpoint()
+        
         model = instance.__class__
         choices = dict(model.CODE_CHOICES)
         

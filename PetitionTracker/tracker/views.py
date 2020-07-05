@@ -111,7 +111,6 @@ def get_signatures_by(petition_id, record_id, geography):
     context['geography'] = geography
     context['petition'] = petition
     context['record'] = record
-    breakpoint()
     context['signatures'] = table.all()
 
     return render_template(template_name, **context)

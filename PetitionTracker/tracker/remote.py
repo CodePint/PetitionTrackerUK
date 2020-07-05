@@ -29,6 +29,7 @@ class RemotePetition():
         params = {}
         params['id'] = petition['data']['id']
         params['url'] = petition['links']['self'].split(".json")[0]
+        params['archived'] = True if (petition['data']['type'] == 'archived-petition') else False
 
         attributes = petition['data']['attributes']
         params['state'] = attributes['state']
@@ -49,24 +50,28 @@ class RemotePetition():
     @classmethod
     def get(cls, id, raise_404=False):
         url = cls.base_url + '/' + str(id) + '.json'
+
         print("fetching petition ID: {}".format(id))
         response = requests.get(url)
 
         if (response.status_code == 200):
             return response
-        elif ((response.status_code == 404) and not raise_404):
-            return None
+        elif (response.status_code == 404):
+            print("could not find petition ID: {}".format(id))
+            if not raise_404:
+                return None
         else:
             response.raise_for_status()
 
     # fetches the page for a given list of query strings and a state
     # default returns first page, or index can be specificed.
     @classmethod
-    def get_page(cls, index=1, query=[], state="all"):
+    def get_page(cls, index=1, query=[], state="all", archived=False):
         if not state in cls.list_states:
             raise ValueError("Invalid state param, valids list states: {}".format(cls.list_states))
-    
-        url = cls.base_url + ".json?"
+
+        url = cls.base_url.replace("/petitions", "/archived/petitions") if archived else cls.base_url
+        url = url + ".json?"
 
         params = []
         params.append("page={}".format(index))
@@ -87,26 +92,26 @@ class RemotePetition():
     # default returns a single list of items with optional count param
     # or if paginate == True, returns the pages within page_range
     @classmethod
-    def query(cls, paginate=False, count=False, page_range=None, query=[], state='all'):
+    def query(cls, paginate=False, count=False, page_range=None, query=[], state='all', archived=False):
         if paginate:
-            first_page = cls.get_page(query=query, state=state).json()
+            first_page = cls.get_page(query=query, state=state, archived=archived).json()
             if not first_page['links']['next']:
                 pages = [first_page]
             else:
-                page_range = cls.find_page_range(first_page, page_range, query, state)
-                pages = [cls.get_page(index=i, query=query, state=state).json() for i in page_range]
+                page_range = cls.find_page_range(first_page, page_range)
+                pages = [cls.get_page(index=i, query=query, state=state, archived=archived).json() for i in page_range]
                 pages.insert(0, first_page)
             
             return pages
         else:
-            petitions = cls.get_items(count=count, query=query, state=state)
+            petitions = cls.get_items(count=count, query=query, state=state, archived=archived)
             return petitions
 
     # if page range: check it is valid and return it to query
     # if page range is None: return the full range
     # removes the first page from the range as we already have this from the initial get_page()
     @classmethod
-    def find_page_range(cls, page, page_range, query, state):
+    def find_page_range(cls, page, page_range):
         final_index = int(page['links']['last'].split("?page=")[1].split("&")[0])
 
         if page_range and (page_range[0] < 1 or (final_index + 1 > page_range[-1])):
@@ -119,14 +124,14 @@ class RemotePetition():
     # executes the query with get_page() and collects the items from each page
     # returns the results of the query when co
     @classmethod
-    def get_items(cls, count, query, state):
+    def get_items(cls, count=False, query=[], state='all', archived=False):
         results = []
 
         index = 1
         fetched = 0
         fetch = True
         while fetch:
-            page = cls.get_page(index=index, query=query, state=state).json()
+            page = cls.get_page(index=index, query=query, state=state, archived=archived).json()
             fetch = page['links']['next']
             index += 1
 
