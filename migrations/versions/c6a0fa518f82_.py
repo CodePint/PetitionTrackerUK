@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: fe096dae38ed
+Revision ID: c6a0fa518f82
 Revises: 
-Create Date: 2020-07-05 16:30:06.717517
+Create Date: 2020-07-06 17:44:33.827182
 
 """
 from alembic import op
@@ -13,7 +13,7 @@ from PetitionTracker.tracker.models import *
 import sqlalchemy_utils
 
 # revision identifiers, used by Alembic.
-revision = 'fe096dae38ed'
+revision = 'c6a0fa518f82'
 down_revision = None
 branch_labels = None
 depends_on = None

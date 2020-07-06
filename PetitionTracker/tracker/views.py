@@ -164,5 +164,3 @@ def fetch_remote_petition(id=None):
         context = {'petition': None, 'error': 404, 'id': id}
     
     return render_template(template_name, **context)
-
-

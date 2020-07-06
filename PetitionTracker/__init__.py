@@ -7,13 +7,10 @@ from celery import Celery
 from .config import Config
 from .celery import CeleryUtils
 
-db = SQLAlchemy()
-
-
 def load_models():
     from PetitionTracker.tracker import models
 
-def init_extensions(app):
+def init_data():
     from PetitionTracker.tracker.data import geographies
 
 def make_celery(app_name=__name__):
@@ -27,19 +24,30 @@ def init_views(app):
     app.register_blueprint(tracker.bp)
     app.register_blueprint(pages.bp)
 
-load_models()
+
+db = SQLAlchemy()
 celery = make_celery()
+
+migrate = Migrate()
+init_data()
+load_models()
+
 
 def create_app():
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(Config)
-    init_extensions(app)
 
     with app.app_context():
+        # configure celery
+        app.celery = celery
+        CeleryUtils.init(celery, app)
+
+        # configure database
         app.db = db
         db.init_app(app)
-        init_views(app)
-        Migrate(app, db)
+        migrate.init_app(app, db)
+
+        # configure views
         init_views(app)
 
     @app.shell_context_processor

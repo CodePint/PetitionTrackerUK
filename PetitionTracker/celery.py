@@ -1,9 +1,9 @@
 from celery import Celery
 
 class CeleryUtils():
-    
+
     @classmethod
-    def init_celery(cls, celery, app):
+    def init(cls, celery, app):
         celery.conf.update(app.config)
 
         class ContextTask(celery.Task):
