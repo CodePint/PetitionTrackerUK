@@ -2,7 +2,10 @@ import os
 from flask import Flask, current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from PetitionTracker.config import Config
+from celery import Celery
+
+from .config import Config
+from .celery import CeleryUtils
 
 db = SQLAlchemy()
 
@@ -10,11 +13,12 @@ db = SQLAlchemy()
 def load_models():
     from PetitionTracker.tracker import models
 
-load_models()
-
 def init_extensions(app):
     from PetitionTracker.tracker.data import geographies
-    db.init_app(app)
+
+def make_celery(app_name=__name__):
+    redis_uri = os.getenv('REDIS_URI')
+    return Celery(app_name, backend=redis_uri, broker=redis_uri)
 
 def init_views(app):
     from PetitionTracker import tracker
@@ -23,6 +27,8 @@ def init_views(app):
     app.register_blueprint(tracker.bp)
     app.register_blueprint(pages.bp)
 
+load_models()
+celery = make_celery()
 
 def create_app():
     app = Flask(__name__, instance_relative_config=False)
@@ -30,10 +36,10 @@ def create_app():
     init_extensions(app)
 
     with app.app_context():
-        app.db = db        
+        app.db = db
         db.init_app(app)
         init_views(app)
-        migrate = Migrate(app, db)
+        Migrate(app, db)
         init_views(app)
 
     @app.shell_context_processor

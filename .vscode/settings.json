@@ -1,10 +1,18 @@
 {
-    "python.pythonPath": "/home/rouger/.local/share/virtualenvs/PetitionTracker-WNFwicDt/bin/python",
-    "python.linting.pylintPath": "/home/rouger/.local/share/virtualenvs/PetitionTracker-WNFwicDt/bin/pylint",
+    "python.pythonPath": "/home/rouger/.local/share/virtualenvs/PetitionTrackerUK-RZBTrrhs/bin/python",
+    "python.linting.pylintPath": "/home/rouger/.local/share/virtualenvs/PetitionTrackerUK-RZBTrrhs/bin/pylint",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true,
+    "python.linting.lintOnSave": true,
+    "python.languageServer": "Microsoft",
+    "python.linting.pylintUseMinimalCheckers": true,
+    "python.linting.pylintCategorySeverity.refactor": "Warning",
+
+
 
     "python.linting.pylintArgs": [
         "--load-plugins",
         "pylint-flask",
-        "pyling-flask-sqlalchemy"
+        "pyling-flask-sqlalchemy",
     ]
 }

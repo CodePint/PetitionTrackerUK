@@ -17,6 +17,7 @@ pylint-flask-sqlalchemy = "*"
 sqlalchemy-utils = "*"
 flask-script = "*"
 requests = "*"
+celery = "*"
 
 [requires]
 python_version = "3.7"
