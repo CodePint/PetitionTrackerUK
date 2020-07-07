@@ -1,8 +1,8 @@
 from flask import render_template, jsonify, current_app
 from flask import request, url_for
 import requests, json
-from . import bp
 
+from . import bp
 from .remote import RemotePetition
 
 from .models import (
