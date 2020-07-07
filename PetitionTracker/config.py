@@ -14,4 +14,4 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JSONIFY_PRETTYPRINT_REGULAR = True
     DEBUG = True
-    # STATIC_FOLDER = 'static'
+    ENV_FILE = '.env'

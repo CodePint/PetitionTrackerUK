@@ -18,6 +18,7 @@ sqlalchemy-utils = "*"
 flask-script = "*"
 requests = "*"
 celery = "*"
+redis = "*"
 
 [requires]
 python_version = "3.7"

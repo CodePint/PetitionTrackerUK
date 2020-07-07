@@ -3,6 +3,7 @@ from flask import Flask, current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from celery import Celery
+from dotenv import load_dotenv
 
 from .config import Config
 from .celery import CeleryUtils
@@ -24,7 +25,7 @@ def init_views(app):
     app.register_blueprint(tracker.bp)
     app.register_blueprint(pages.bp)
 
-
+load_dotenv(dotenv_path=Config.ENV_FILE, override=True)
 db = SQLAlchemy()
 celery = make_celery()
 
@@ -32,8 +33,8 @@ migrate = Migrate()
 init_data()
 load_models()
 
-
 def create_app():
+    # create app and load configuration variables
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(Config)
 
