@@ -3,7 +3,7 @@ import requests, json
 import os
 
 from . import bp
-from PetitionTracker.tasks import celery_file_task
+from PetitionTracker import tasks as SharedTasks
 
 @bp.route('/', methods=['GET'])
 def site_index():
@@ -13,5 +13,5 @@ def site_index():
 def make_file(name, content):
     directory = 'development/celery'
     file_path = os.path.join(os.getcwd(), directory, name)
-    celery_file_task.delay(file_path, content)
+    SharedTasks.test_task.delay(file_path, content)
     return 'done'

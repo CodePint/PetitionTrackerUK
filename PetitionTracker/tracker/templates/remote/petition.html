@@ -10,7 +10,7 @@
 <div class="petition">
   {% if petition %}
     <div class="title">
-      <h2>Petition - {{ petition['data']['id'] }}</h2>
+      <h2>Petition - {{ id }}</h2>
       <h3>Action: {{ petition['data']['attributes']['action'] }}</h3>
       {% set petition_link = url.split(".json")[0] %}
 
@@ -18,9 +18,29 @@
         <h3>RemotePetition Link</h3>
       </a>
       <h3>URL: {{url}}</h3>
-
-
     </div>
+    
+    <div class="actions">
+    {% if local_petition %}
+      <div class="local">
+        <a href="{{ url_for('tracker_bp.get_local_petition', local_id=id)  }}">
+          <b>View Local Petition</b>
+        </a>
+      </div>
+    {% else %}
+      {% if onboarding_in_progress %}
+        <div class="onboarding">
+        <h3>Currently onboarding petition ID: {{ id }}</h3>
+      {% else %}
+        <div class="onboard">
+          <form action="{{ url_for('tracker_bp.onboard_petition', id=id) }}" method="post" name="petitionOnboardForm" id="petitionOnboardForm">
+            <button type="submit">Onboard Petition</button>
+          </form>
+        </div>
+      {% endif %}
+    {% endif %}
+    </div>
+
     <div></div>
     <div class="data">
       <h3>Attributes:</h3>

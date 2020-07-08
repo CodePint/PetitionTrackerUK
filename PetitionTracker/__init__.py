@@ -14,6 +14,11 @@ def load_models():
 def init_data():
     from PetitionTracker.tracker.data import geographies
 
+def init_tasks():
+    from . import tasks as shared_tasks
+    from PetitionTracker.tracker import tasks as tracker_tasks
+    return {'shared': shared_tasks, 'tracker': tracker_tasks}
+
 def make_celery(app_name=__name__):
     redis_uri = os.getenv('REDIS_URI')
     return Celery(app_name, backend=redis_uri, broker=redis_uri)
@@ -47,6 +52,9 @@ def create_app():
         app.db = db
         db.init_app(app)
         migrate.init_app(app, db)
+
+        # configure tasks
+        app.tasks = init_tasks()
 
         # configure views
         init_views(app)

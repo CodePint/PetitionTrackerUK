@@ -18,6 +18,11 @@
           </a>
         </h3>
       </div>
+      <div class="poll">
+        <form action="{{ url_for('tracker_bp.poll_petition', id=id) }}" method="post" name="petitionPollForm" id="petitionPollForm">
+          <button type="submit">Poll Petition</button>
+        </form>
+      </div>
 
       <br>
       <div class="records">

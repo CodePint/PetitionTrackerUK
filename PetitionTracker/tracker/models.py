@@ -118,10 +118,10 @@ class Petition(db.Model):
 
     # poll the remote petition and return a deserialised object (optional commit)
     def poll(self, commit=True):
-        responses = Petition.remote.get(self.id, raise_404=True)
-        remote = response.json()
-        attributes = remote['data']["attributes"]
-        self.archived = True if (remote['data']['type'] == 'archived-petition') else False
+        response = Petition.remote.get(self.id, raise_404=True).json()
+        attributes = response['data']["attributes"]
+        self.archived = True if (response['data']['type'] == 'archived-petition') else False
+        
         return self.create_record(commit=commit, attributes=attributes)
 
     # create a new record for the petition from attributres json (optional commit)
@@ -131,24 +131,22 @@ class Petition(db.Model):
         signatures['constituency'] = attributes.get('signatures_by_constituency', None)
         signatures['region'] = attributes.get('signatures_by_region', None)
 
-        if any(signatures.values()):
-            record = Record(petition_id=self)
-            record.signatures = attributes['signature_count']
+        record = Record(petition_id=self)
+        record.signatures = attributes['signature_count']
 
+        if any(signatures.values()):
             for geography in list(signatures.keys()):
                 table, model = record.get_sig_model_attr(geography)
                 code = 'code' if geography == 'country' else 'ons_code'
                 for locale in signatures[geography]:
                     table.append(model(code=locale[code], count=locale["signature_count"]))
             
-            if commit:
-                self.records.append(record)
-                self.latest_data = attributes
-                db.session.commit()
-                
-            return record
-        else:
-            return None
+        if commit:
+            self.records.append(record)
+            self.latest_data = attributes
+            db.session.commit()
+            
+        return record
 
     def __repr__(self):
         template = '<petition id: {}, signatures: {}, action: {}>'
@@ -197,10 +195,6 @@ class Record(db.Model):
         model = getattr(sys.modules[__name__], ('SignaturesBy' + geography.capitalize()))
         table = getattr(self, model.__tablename__)
         return table, model
-
-    @validates('ons_code')
-    def validate_iso_choice(self, key, value):
-        validate_code(self, key, value, COUNTRY_CODE_CHOICES)
 
 
 

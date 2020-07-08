@@ -1,8 +1,9 @@
-from flask import render_template, jsonify, current_app
+from flask import render_template, redirect, url_for, jsonify, current_app
 from flask import request, url_for
-import requests, json
+import requests, json, os
 
 from . import bp
+from . import tasks as TrackerTasks
 from .remote import RemotePetition
 
 from .models import (
@@ -31,6 +32,7 @@ def get_local_petition():
     petition = Petition.query.get(id)
 
     context = {}
+    context['id'] = id
     context['petition'] = petition
     context['records'] = petition.ordered_records().limit(10)
     context['latest_record'] = petition.latest_record()
@@ -147,7 +149,7 @@ def fetch_remote_list():
 
 
 @bp.route('/petition/remote/get', methods=['GET'])
-def fetch_remote_petition(id=None):
+def fetch_remote_petition():
     template_name = 'remote/petition.html'
     id = request.args.get('remote_id')
 
@@ -158,9 +160,36 @@ def fetch_remote_petition(id=None):
 
     if response:
         data = response.json()
-        url = response.url
-        context = {'petition': data, 'url': url}
+        context = {}
+        context['id'] = id
+        context['petition'] = response.json()
+        context['local_petition'] = Petition.query.get(id)
+        context['onboarding_in_progress'] = request.args.get('onboarding_in_progress', False)
+        context['url'] = response.url
     else:
         context = {'petition': None, 'error': 404, 'id': id}
     
     return render_template(template_name, **context)
+
+@bp.route('/petition/remote/onboard', methods=['POST'])
+def onboard_petition():
+    id = request.args.get('id')
+    TrackerTasks.onboard.delay(id)
+    return redirect(
+        url_for(
+            'tracker_bp.fetch_remote_petition',
+            remote_id=id,
+            onboarding_in_progress=True
+            )
+        )
+
+@bp.route('/petition/poll', methods=['POST'])
+def poll_petition():
+    id = request.args.get('id')
+    TrackerTasks.poll.delay(id)
+    return redirect(
+        url_for(
+            'tracker_bp.get_local_petition',
+            local_id=id
+            )
+        )
