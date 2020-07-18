@@ -3,7 +3,7 @@ from flask import request, url_for
 import requests, json, os
 
 from . import bp
-from . import tasks as TrackerTasks
+# from . import tasks as TrackerTasks
 from .remote import RemotePetition
 
 from .models import (
@@ -71,10 +71,6 @@ def get_record_list(petition_id):
 
     index = request.args.get('index', 1, type=int)
     
-    signature_models = [
-
-    ]
-    # breakpoint()
     petition = Petition.query.get(petition_id)
     records = petition.ordered_records()
     latest_record = records.first()
@@ -141,11 +137,10 @@ def fetch_remote_list():
         context['petitions'] = petitions
         context['paginate'] = RemotePetition.get_fetched_index_pagination(current_index, data)
         context['selected_state'] = state
-
-        return render_template(template_name, **context)
     else:
         context['petitions'] = []
-        return render_template(template_name, **context)
+    
+    return render_template(template_name, **context)
 
 
 @bp.route('/petition/remote/get', methods=['GET'])
