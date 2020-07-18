@@ -1,3 +1,4 @@
 /development
 PetitionTracker/debug.py
 **__pycache__
+celerybeat-schedule
