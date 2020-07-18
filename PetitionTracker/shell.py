@@ -3,8 +3,10 @@ from PetitionTracker.tracker.models import (
     Record,
     SignaturesByCountry,
     SignaturesByRegion,
-    SignaturesByConstituency
+    SignaturesByConstituency,
 )
+
+from PetitionTracker.models import Setting
 
 def make_context():
     context = {}
@@ -13,9 +15,10 @@ def make_context():
 
 def context_models():
     return {
+        'Setting': Setting,
         'Petition': Petition,
         'Record': Record,
         'SignaturesByCountry': SignaturesByCountry,
         'SignaturesByRegion': SignaturesByRegion,
-        'SignaturesByConstituency': SignaturesByConstituency,
+        'SignaturesByConstituency': SignaturesByConstituency
     }
