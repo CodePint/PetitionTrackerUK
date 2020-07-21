@@ -17,9 +17,10 @@ from requests.structures import CaseInsensitiveDict
 
 from PetitionTracker import db
 from .remote import RemotePetition
-from PetitionTracker.tracker.data.geographies.choices.regions import REGIONS
-from PetitionTracker.tracker.data.geographies.choices.constituencies import CONSTITUENCIES
-from PetitionTracker.tracker.data.geographies.choices.countries import COUNTRIES
+
+from .geographies.choices.regions import REGIONS
+from .geographies.choices.constituencies import CONSTITUENCIES
+from .geographies.choices.countries import COUNTRIES
 
 
 class Petition(db.Model):
@@ -85,7 +86,7 @@ class Petition(db.Model):
     @classmethod
     def populate(cls, state, query=[], count=False, archived=False):
         query = cls.remote.query(count=count, query=query, state=state, archived=archived)
-        ids = [query['id'] for item in query if not cls.query.get(item['id'])]
+        ids = [item['id'] for item in query if not cls.query.get(item['id'])]
         result = cls.remote.async_get(ids, retries=3)
         remotes = result.get('success')
 
