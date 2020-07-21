@@ -21,17 +21,22 @@ class CeleryUtils():
         return celery
 
     @classmethod
-    def init_beat(cls, celery):
-        schedule = schedule_tasks()
-        celery.conf.beat_schedule = schedule
-        return schedule
+    def init_beat(cls, app, celery):
+        with app.app_context():
+            schedule = schedule_tasks()
+            celery.conf.beat_schedule = schedule
+            return schedule
 
     @classmethod
-    def run_on_startup(cls):
-        for task_name, params in startup_tasks().items():
-            if cls.is_overdue(task_name):
-                print("Task: {}, overdue. Running now".format(task_name))
-                params['function'].apply_async(params['func_args'], **params['async_args'])
+    def run_overdue_tasks(cls, app=None):
+        if not app:
+            app = current_app
+        
+        with app.app_context():
+            for task_name, params in startup_tasks().items():
+                if cls.is_overdue(task_name):
+                    print("Task: {}, overdue. Running now".format(task_name))
+                    params['function'].apply_async(params['func_args'], **params['async_args'])
 
     @classmethod
     def is_overdue(cls, task_name):

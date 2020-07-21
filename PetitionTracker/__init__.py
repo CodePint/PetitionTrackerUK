@@ -11,7 +11,7 @@ def load_models():
     from PetitionTracker.tracker import models
 
 def init_data():
-    from PetitionTracker.tracker.data import geographies
+    from PetitionTracker.tracker import geographies
 
 def init_tasks():
     from PetitionTracker import tasks as shared_tasks
@@ -37,6 +37,11 @@ def init_views(app):
     app.register_blueprint(tracker.bp)
     app.register_blueprint(pages.bp)
 
+def init_beat(app=None):
+    if not app:
+        app = current_app
+    app.celery_utils.init_beat(app, app.celery)
+
 
 ENV_FILE = '.env'
 load_dotenv(dotenv_path=ENV_FILE, override=True)
@@ -49,33 +54,9 @@ migrate = Migrate(foo="hello")
 init_data()
 
 
-class SubFlask(Flask):
-    def run(self, host=None, port=None, debug=None, load_dotenv=True, **options):
-        print("running sub flask run()")
-        
-        if not self.debug or os.getenv('WERKZEUG_RUN_MAIN') == 'true':
-            print("inside run if statement")
-            self.after_create()
-        
-        print("calling super from subflask run()")
-        super(SubFlask, self).run(host=host, port=port, debug=debug, load_dotenv=load_dotenv, **options)
-
-    def test_func(self):
-        print("executing test function!")
-
-    def after_create(self):
-        print("running after create method")
-        with self.app_context():
-            print("inside after create app context")
-            self.app.settings.configure(self.config['DEFAULT_SETTINGS'])
-            self.app.tasks = init_tasks()
-            self.app.celery_utils.run_on_startup()
-            self.app.celery_utils.init_beat(self.celery)
-
 def create_app():
     # create app and load configuration variables
-    app = SubFlask(__name__, instance_relative_config=False)
-    app.test_func()
+    app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(Config)
 
     with app.app_context():
@@ -88,15 +69,18 @@ def create_app():
         # configure celery
         app.celery_utils = init_celery_utils()
         app.celery = app.celery_utils.init_celery(celery, app)
+        app.tasks = init_tasks()
 
         # configure view
         init_views(app)
 
-    @app.cli.command("test")
-    def after_run():
-        app.settings.configure(app.config['DEFAULT_SETTINGS'])
-        app.celery_utils.run_on_startup()
-        app.celery_utils.init_beat(app.celery)
+    @app.cli.command("configure")
+    def configure():
+            current_app.settings.configure(current_app.config['DEFAULT_SETTINGS'])
+
+    @app.cli.command("run-overdue-tasks")
+    def run_overdue_tasks():
+            current_app.celery_utils.run_overdue_tasks()
 
     @app.shell_context_processor
     def get_shell_context():
