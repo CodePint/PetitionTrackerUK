@@ -29,7 +29,7 @@ def populate_petitions_task(state):
     end = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     
     write_populate_petitions_task_result(start, end, petitions)
-    return petitions
+    return True
 
 @celery.task()
 def poll_petitions_task():
@@ -39,7 +39,7 @@ def poll_petitions_task():
 
     end = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     write_poll_petitions_task_result(start, end, records)
-    return records
+    return True
 
 def write_poll_petitions_task_result(start, end, records):
     directory = 'development/celery'
