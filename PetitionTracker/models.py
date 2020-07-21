@@ -11,6 +11,7 @@ class Setting(db.Model):
     id = db.Column(Integer, primary_key=True)
     key = db.Column(String, index=True, unique=True)
     value = db.Column(String)
+    meta = db.Column(String)
 
     def __repr__(self):
         return str({self.key: self.value})
