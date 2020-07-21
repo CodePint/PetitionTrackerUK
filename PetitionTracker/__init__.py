@@ -57,8 +57,8 @@ class SubFlask(Flask):
 
     def after_create(self):
         with self.app_context():
-            self.app.tasks = init_tasks()
             self.app.settings.configure(self.app.config['DEFAULT_SETTINGS'])
+            self.app.tasks = init_tasks()
             self.app.celery_utils.run_on_startup()
             self.app.celery_utils.init_beat(self.app.celery)
 
