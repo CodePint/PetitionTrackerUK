@@ -1,2 +1,2 @@
 #!/bin/bash
-celery -A PetitionTracker.lib.celery.worker.celery beat --loglevel=INFO
+celery -A PetitionTracker.lib.celery.workers.beat_worker.celery beat --loglevel=INFO
