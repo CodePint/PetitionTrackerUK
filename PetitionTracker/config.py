@@ -1,3 +1,4 @@
+import os
 
 class Config(object):
 
@@ -14,4 +15,9 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JSONIFY_PRETTYPRINT_REGULAR = True
     DEBUG = True
-    ENV_FILE = '.env'
+    
+    DEFAULT_SETTINGS = {
+        'poll_petitions_task__interval': os.getenv('POLL_PETITIONS_TASK_INTERVAL'),
+        'populate_petitions_task__interval': os.getenv('POPULATE_PETITIONS_TASK_INTERVAL'),
+        'test_task__interval': os.getenv('TEST_TASK_INTERVAL'),
+    }
