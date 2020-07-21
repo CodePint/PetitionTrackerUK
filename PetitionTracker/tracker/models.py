@@ -37,8 +37,8 @@ class Petition(db.Model):
     archived = db.Column(Boolean, default=False, nullable=False)
     records = relationship(lambda: Record, lazy='dynamic', back_populates="petition", cascade="all,delete")
     action = db.Column(String(512), index=True, unique=True)
-    signatures = db.Column(Integer)
     url = db.Column(String(2048), index=True, unique=True)
+    signatures = db.Column(Integer)
     background = db.Column(String)
     additional_details = db.Column(String)
     pt_created_at = db.Column(DateTime)
@@ -84,68 +84,85 @@ class Petition(db.Model):
     # onboard multiple remote petitions from the result of query
     @classmethod
     def populate(cls, state, query=[], count=False, archived=False):
-        results = cls.remote.query(count=count, query=query, state=state, archived=archived)
+        query = cls.remote.query(count=count, query=query, state=state, archived=archived)
+        ids = [query['id'] for item in query if not cls.query.get(item['id'])]
+        result = cls.remote.async_get(ids, retries=3)
+        remotes = result.get('success')
 
         populated = []
-        for item in results:
-            id = item['id']
-            if cls.query.get(id):
-                print("petition already exists for ID: {} (skipping)".format(id))
-                continue
-            else:
-                print("onboarding petition ID: {}".format(id))
-                petition = cls.onboard(id=id, commit=False)
-                populated.append(petition)
-                db.session.add(petition)
+        for item in remotes:
+            print("onboarding petition ID: {}".format(item.petition_id))
+            petition = cls.onboard(remote=item, commit=False)
+            db.session.add(petition)
+            populated.append(petition)
         
         db.session.commit()
         return populated
 
-    # onboard a remote petition by id (optional commit)
+    # onboard a remote petition by id (optional commit & attributes)
     @classmethod
-    def onboard(cls, id, commit=True):
-        response = cls.remote.get(id, raise_404=True).json()
-        params = cls.remote.deserialize(response)
+    def onboard(cls, id=None, remote=None, commit=True):
+        if not remote:
+            remote = cls.remote.get(id, raise_404=True)
+
+        params = cls.remote.deserialize(remote.data)
         petition = Petition(**params)
-        record = petition.create_record(attributes=response['data']["attributes"], commit=False)
-        if record:
-            petition.records.append(record)
+        record = petition.create_record(
+            attributes=remote.data['data']["attributes"],
+            timestamp=remote.timestamp,
+            commit=False
+        )
+
         if commit:
+            db.session.add(record)
             db.session.add(petition)
             db.session.commit()
+        else:
+            petition.records.append(record)
         
         return petition
 
+    @classmethod
+    def poll_all(cls):
+        petitions = cls.query.filter_by(state='O', archived=False).all()
+        results = cls.remote.async_poll(petitions, retries=3)
+        responses = results.get('success')
+        records = []
+    
+        for response in responses:
+            print("creating record for ID: {}".format(response.petition_id))
+            response.petition.archived = True if (response.data['data']['type'] == 'archived-petition') else False
+            record = response.petition.create_record(
+                attributes=response.data['data']['attributes'],
+                timestamp = response.timestamp,
+                commit=True
+            )
+            response.petition.records.append(record)
+            records.append(record)
+        
+        db.session.commit()
+        return records
+
+
     # poll the remote petition and return a deserialised object (optional commit)
     def poll(self, commit=True):
-        response = Petition.remote.get(self.id, raise_404=True).json()
-        attributes = response['data']["attributes"]
-        self.archived = True if (response['data']['type'] == 'archived-petition') else False
-        
-        return self.create_record(commit=commit, attributes=attributes)
+        remote = Petition.remote.get(self.id, raise_404=True)
+        self.archived = True if (remote.data['data']['type'] == 'archived-petition') else False
+
+        return self.create_record(
+            attributes=remote.data['data']["attributes"],
+            timestamp=remote.timestamp,
+            commit=commit    
+        )
 
     # create a new record for the petition from attributres json (optional commit)
-    def create_record(self, attributes, commit=True):
-        signatures = {}
-        signatures['country'] = attributes.get('signatures_by_country', None)
-        signatures['constituency'] = attributes.get('signatures_by_constituency', None)
-        signatures['region'] = attributes.get('signatures_by_region', None)
+    def create_record(self, attributes, timestamp, commit=True):
+        record = Record.create(self.id, attributes, timestamp, commit=False)
+        self.latest_data = attributes
 
-        record = Record(petition_id=self)
-        record.signatures = attributes['signature_count']
-
-        if any(signatures.values()):
-            for geography in list(signatures.keys()):
-                table, model = record.get_sig_model_attr(geography)
-                code = 'code' if geography == 'country' else 'ons_code'
-                for locale in signatures[geography]:
-                    table.append(model(code=locale[code], count=locale["signature_count"]))
-            
-        if commit:
-            self.records.append(record)
-            self.latest_data = attributes
+        if commit: 
             db.session.commit()
-            
+        
         return record
 
     def __repr__(self):
@@ -175,7 +192,8 @@ class Record(db.Model):
     signatures_by_country = relationship("SignaturesByCountry", lazy='dynamic', back_populates="record", cascade="all,delete")
     signatures_by_region = relationship("SignaturesByRegion", lazy='dynamic', back_populates="record", cascade="all,delete")
     signatures_by_constituency = relationship("SignaturesByConstituency", lazy='dynamic', back_populates="record", cascade="all,delete")
-    timestamp = db.Column(DateTime(timezone=True), default=sqlfunc.now(), nullable=False)
+    timestamp = db.Column(DateTime(timezone=True), nullable=False)
+    db_created_at = db.Column(DateTime(timezone=True), default=sqlfunc.now(), nullable=False)
     signatures = db.Column(Integer, nullable=False)
 
     # short hand query helper query for signature geography + code or name
@@ -187,7 +205,31 @@ class Record(db.Model):
         except KeyError:
             value = model.CODE_LOOKUP[value]
 
+        # *** needs a test added, might throw exception if no geography for that record ***
         return table.filter(model.code == value).one()
+
+    # create a new record for the petition from attributres json (optional commit)
+    @classmethod
+    def create(cls, petition_id, attributes, timestamp, commit=True):
+        signatures = {}
+        signatures['country'] = attributes.get('signatures_by_country', None)
+        signatures['constituency'] = attributes.get('signatures_by_constituency', None)
+        signatures['region'] = attributes.get('signatures_by_region', None)
+
+        record = Record(petition_id=petition_id)
+        record.timestamp = timestamp
+        record.signatures = attributes['signature_count']
+
+        if any(signatures.values()):
+            for geography in list(signatures.keys()):
+                table, model = record.get_sig_model_attr(geography)
+                code = 'code' if geography == 'country' else 'ons_code'
+                for locale in signatures[geography]:
+                    table.append(model(code=locale[code], count=locale["signature_count"]))
+            
+        if commit: db.session.commit()
+        
+        return record
 
     # get signature models attr for a geography
     # to do: clean this up in an init or class var
@@ -254,7 +296,6 @@ class SignaturesByRegion(db.Model):
 
 
 
-
 class SignaturesByConstituency(db.Model):
     __tablename__ = 'signatures_by_constituency'
     __table_args__ = (
@@ -287,9 +328,6 @@ class ModelUtils():
 
     @classmethod
     def validate_geography_choice(cls, instance, key, value):
-        if key == 'bat':
-            breakpoint()
-        
         model = instance.__class__
         choices = dict(model.CODE_CHOICES)
         

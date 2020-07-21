@@ -1,4 +1,10 @@
-import requests, json, itertools
+from requests_futures.sessions import FuturesSession
+from concurrent.futures import as_completed
+import requests
+import json
+import itertools
+import time, datetime
+
 
 class RemotePetition():
 
@@ -45,16 +51,22 @@ class RemotePetition():
 
         return params
 
+    @classmethod
+    def url_addr(cls, id):
+        return cls.base_url + '/' + str(id) + '.json'
+
     # get a remote petition by id
     # optionally raise on 404
     @classmethod
     def get(cls, id, raise_404=False):
-        url = cls.base_url + '/' + str(id) + '.json'
+        url = cls.url_addr(id)
 
         print("fetching petition ID: {}".format(id))
         response = requests.get(url)
+        response.timestamp = datetime.datetime.now()
 
         if (response.status_code == 200):
+            response.data = response.json()
             return response
         elif (response.status_code == 404):
             print("could not find petition ID: {}".format(id))
@@ -62,6 +74,89 @@ class RemotePetition():
                 return None
         else:
             response.raise_for_status()
+
+    # these two functions should be dryed up
+    # used with petition db objects for poll_all() task
+    @classmethod
+    def async_poll(cls, petitions, retries=0, backoff=5, **kwargs):
+        session = FuturesSession()
+        futures = [
+            session.get(cls.url_addr(p.id),
+            hooks={'response': cls.async_hook_factory(petition=p, id=p.id)})
+            for p in petitions
+        ]
+        results = cls.sort_async_results(futures)
+        results['success'] = results['success'] + kwargs.get('successful', [])
+        
+        if (retries > 0 and results['failed']):
+            retries -= 1
+            petitions = [r.petition for r in results['failed']]
+            print('Retrying async get for {} petitions'.format(len(petitions)))
+            time.sleep(backoff)
+            cls.async_poll(petitions=petitions, retries=retries, successful=results['success'])
+        
+        return results
+
+    
+    # these two functions should be dryed up
+    # used with list of petition IDs
+    @classmethod
+    def async_get(cls, ids, retries=0, backoff=5, **kwargs):
+        session = FuturesSession()
+        futures = [
+            session.get(cls.url_addr(id),
+            hooks={'response': cls.async_hook_factory(id=id)})
+            for id in ids
+        ]
+        results = cls.sort_async_results(futures)
+        results['success'] = results['success'] + kwargs.get('successful', [])
+        
+        if (retries > 0 and results['failed']):
+            retries -= 1
+            ids = [r.petition_id for r in results['failed']]
+            print('Retrying async get for: {}'.format(ids))
+            time.sleep(backoff)
+            cls.async_get(ids=ids, retries=retries, backoff=backoff, successful=results['success'])
+        
+        return results
+
+    @classmethod
+    def sort_async_results(cls, futures):
+        results = {}
+        results['failed'] = []
+        results['success'] = []
+        
+        for f in futures:
+            response = f.result()
+            if response.success:
+                results['success'].append(response)
+            else:
+                results['failed'].append(response)
+
+        return results
+
+# responses = [response.result() for response in futures]
+
+    @classmethod
+    def async_hook_factory(cls, **fkwargs):
+        def response_hook(response, *args, **kwargs):
+            response.timestamp = datetime.datetime.now()
+            response.petition_id = fkwargs['id']
+            response.petition = fkwargs.get('petition')
+
+            if response.status_code == 200:
+                response.data = response.json()
+                response.success = True
+                print('aync fetched ID: {}'.format(response.petition_id))
+            else:
+                response.success = False
+                print('HTTP error {}, when async fetching ID: {}'.format(
+                    response.status_code,
+                    response.petition_id)
+                )
+            
+        return response_hook
+
 
     # fetches the page for a given list of query strings and a state
     # default returns first page, or index can be specificed.
@@ -126,9 +221,9 @@ class RemotePetition():
     @classmethod
     def get_items(cls, count=False, query=[], state='all', archived=False):
         results = []
-
         index = 1
         fetched = 0
+
         fetch = True
         while fetch:
             page = cls.get_page(index=index, query=query, state=state, archived=archived).json()
