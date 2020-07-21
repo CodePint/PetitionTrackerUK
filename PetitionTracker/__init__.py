@@ -50,21 +50,32 @@ init_data()
 
 
 class SubFlask(Flask):
-  def run(self, host=None, port=None, debug=None, load_dotenv=True, **options):
-    if not self.debug or os.getenv('WERKZEUG_RUN_MAIN') == 'true':
-        self.after_create()
+    def run(self, host=None, port=None, debug=None, load_dotenv=True, **options):
+        print("running sub flask run()")
+        
+        if not self.debug or os.getenv('WERKZEUG_RUN_MAIN') == 'true':
+            print("inside run if statement")
+            self.after_create()
+        
+        print("calling super from subflask run()")
         super(SubFlask, self).run(host=host, port=port, debug=debug, load_dotenv=load_dotenv, **options)
 
+    def test_func(self):
+        print("executing test function!")
+
     def after_create(self):
+        print("running after create method")
         with self.app_context():
-            self.app.settings.configure(self.app.config['DEFAULT_SETTINGS'])
+            print("inside after create app context")
+            self.app.settings.configure(self.config['DEFAULT_SETTINGS'])
             self.app.tasks = init_tasks()
             self.app.celery_utils.run_on_startup()
-            self.app.celery_utils.init_beat(self.app.celery)
+            self.app.celery_utils.init_beat(self.celery)
 
 def create_app():
     # create app and load configuration variables
     app = SubFlask(__name__, instance_relative_config=False)
+    app.test_func()
     app.config.from_object(Config)
 
     with app.app_context():
@@ -78,7 +89,7 @@ def create_app():
         app.celery_utils = init_celery_utils()
         app.celery = app.celery_utils.init_celery(celery, app)
 
-        # configure views
+        # configure view
         init_views(app)
 
     @app.cli.command("test")
