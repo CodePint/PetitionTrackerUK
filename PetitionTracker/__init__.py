@@ -1,9 +1,10 @@
-import os
 from flask import Flask, current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from celery import Celery
 from dotenv import load_dotenv
+import os
+import click
 
 def load_models():
     from PetitionTracker import models
@@ -25,9 +26,8 @@ def init_celery_utils():
     from PetitionTracker.lib.celery.utils import CeleryUtils as celery_utils
     return celery_utils
 
-def init_setting_model(app):
+def init_settings(app):
     from PetitionTracker.models import Setting
-    Setting.configure(app.config['DEFAULT_SETTING_CONFIG'])
     return Setting
 
 def init_views(app):
@@ -44,15 +44,27 @@ from .config import Config
 
 db = SQLAlchemy()
 celery = make_celery()
-
-migrate = Migrate()
-init_data()
 load_models()
+migrate = Migrate(foo="hello")
+init_data()
 
+
+class SubFlask(Flask):
+  def run(self, host=None, port=None, debug=None, load_dotenv=True, **options):
+    if not self.debug or os.getenv('WERKZEUG_RUN_MAIN') == 'true':
+        self.after_create()
+        super(SubFlask, self).run(host=host, port=port, debug=debug, load_dotenv=load_dotenv, **options)
+
+    def after_create(self):
+        with self.app_context():
+            self.app.tasks = init_tasks()
+            self.app.settings.configure(self.app.config['DEFAULT_SETTINGS'])
+            self.app.celery_utils.run_on_startup()
+            self.app.celery_utils.init_beat(self.app.celery)
 
 def create_app():
     # create app and load configuration variables
-    app = Flask(__name__, instance_relative_config=False)
+    app = SubFlask(__name__, instance_relative_config=False)
     app.config.from_object(Config)
 
     with app.app_context():
@@ -60,17 +72,20 @@ def create_app():
         app.db = db
         db.init_app(app)
         migrate.init_app(app, db)
-        app.settings = init_setting_model(app)
+        app.settings = init_settings(app)
 
         # configure celery
         app.celery_utils = init_celery_utils()
         app.celery = app.celery_utils.init_celery(celery, app)
-        app.tasks = init_tasks()
-        app.celery_utils.init_beat(celery)
-        app.celery_utils.run_on_startup()
 
         # configure views
         init_views(app)
+
+    @app.cli.command("test")
+    def after_run():
+        app.settings.configure(app.config['DEFAULT_SETTINGS'])
+        app.celery_utils.run_on_startup()
+        app.celery_utils.init_beat(app.celery)
 
     @app.shell_context_processor
     def get_shell_context():
@@ -83,3 +98,5 @@ def create_app():
         return context
 
     return app
+
+
