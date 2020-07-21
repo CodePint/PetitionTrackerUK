@@ -28,6 +28,7 @@ class CeleryUtils():
 
     @classmethod
     def run_on_startup(cls):
+        print("run_on_startup!")
         for task_name, params in startup_tasks().items():
             if cls.is_overdue(task_name):
                 print("Task: {}, overdue. Running now".format(task_name))

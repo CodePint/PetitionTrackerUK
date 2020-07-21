@@ -4,14 +4,14 @@ from flask_migrate import Migrate
 from celery import Celery
 from dotenv import load_dotenv
 import os
-import click
+# import click
 
 def load_models():
     from PetitionTracker import models
     from PetitionTracker.tracker import models
 
-def init_data():
-    from PetitionTracker.tracker.data import geographies
+def init_seeds():
+    from PetitionTracker.tracker.seeds import geographies
 
 def init_tasks():
     from PetitionTracker import tasks as shared_tasks
@@ -45,8 +45,8 @@ from .config import Config
 db = SQLAlchemy()
 celery = make_celery()
 load_models()
-migrate = Migrate(foo="hello")
-init_data()
+migrate = Migrate()
+init_seeds()
 
 
 class SubFlask(Flask):
@@ -57,8 +57,9 @@ class SubFlask(Flask):
 
     def after_create(self):
         with self.app_context():
-            self.app.settings.configure(self.app.config['DEFAULT_SETTINGS'])
+            print("running")
             self.app.tasks = init_tasks()
+            self.app.settings.configure(self.app.config['DEFAULT_SETTINGS'])
             self.app.celery_utils.run_on_startup()
             self.app.celery_utils.init_beat(self.app.celery)
 

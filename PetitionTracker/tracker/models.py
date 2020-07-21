@@ -17,9 +17,9 @@ from requests.structures import CaseInsensitiveDict
 
 from PetitionTracker import db
 from .remote import RemotePetition
-from PetitionTracker.tracker.data.geographies.choices.regions import REGIONS
-from PetitionTracker.tracker.data.geographies.choices.constituencies import CONSTITUENCIES
-from PetitionTracker.tracker.data.geographies.choices.countries import COUNTRIES
+from PetitionTracker.tracker.seeds.geographies.choices.regions import REGIONS
+from PetitionTracker.tracker.seeds.geographies.choices.constituencies import CONSTITUENCIES
+from PetitionTracker.tracker.seeds.geographies.choices.countries import COUNTRIES
 
 
 class Petition(db.Model):
