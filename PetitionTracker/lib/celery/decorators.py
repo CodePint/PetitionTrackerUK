@@ -1,7 +1,6 @@
 from .utils import CeleryUtils
 from flask import current_app
 from functools import wraps
-# from sqlalchemy import select, func
 import time
 
 
