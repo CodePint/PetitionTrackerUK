@@ -3,8 +3,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from celery import Celery
 from dotenv import load_dotenv
-import os
+
+import logging
 import click
+import os
 
 def load_models():
     from PetitionTracker import models
@@ -46,11 +48,12 @@ def init_beat(app=None):
 ENV_FILE = '.env'
 load_dotenv(dotenv_path=ENV_FILE, override=True)
 from .config import Config
+logging.basicConfig(filename=Config.LOG_FILE, level=Config.LOG_LEVEL)
 
 db = SQLAlchemy()
 celery = make_celery()
 load_models()
-migrate = Migrate(foo="hello")
+migrate = Migrate()
 init_data()
 
 

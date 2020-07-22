@@ -15,6 +15,10 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JSONIFY_PRETTYPRINT_REGULAR = True
     DEBUG = True
+
+    LOG_FILE= os.getenv('LOG_FILE')
+    LOG_LEVEL = os.getenv('LOG_LEVEL')
+
     
     DEFAULT_SETTINGS = {
         'poll_petitions_task__interval': os.getenv('POLL_PETITIONS_TASK_INTERVAL'),

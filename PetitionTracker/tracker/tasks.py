@@ -7,8 +7,11 @@ from .models import (
 )
 from flask import current_app
 from PetitionTracker import celery
+import datetime as dt
 import os
-import time, datetime
+
+from celery.utils.log import get_task_logger
+task_logger = get_task_logger(__name__)
 
 @celery.task()
 def onboard_task(id):
@@ -23,44 +26,23 @@ def poll_task(id):
 
 @celery.task()
 def populate_petitions_task(state):
-    print('celery worker populating petitions - [State: {}]'.format(state))
-    start = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    task_logger.info('populating petitions - [State: {}]'.format(state))
+    start = strfttime()
+
     petitions = Petition.populate(state=state)
-    end = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-    
-    write_populate_petitions_task_result(start, end, petitions)
+
+    end = strfttime()
+    task_logger.info("start: {}, end: {}, populated: {}".format(start, end, str(len(petitions))))
     return True
 
 @celery.task()
 def poll_petitions_task():
-    print('celery worker polling petitions')
-    start = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    task_logger.info('polling all petitions')
+    start = strfttime()
     records = Petition.poll_all()
-
-    end = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-    write_poll_petitions_task_result(start, end, records)
+    end = strfttime()
+    task_logger.info("start: {}, end: {}, polled: {}.".format(start, end, str(len(records))))
     return True
 
-def write_poll_petitions_task_result(start, end, records):
-    directory = 'development/celery'
-    file = 'polled.txt'
-    path = os.path.join(os.getcwd(), directory, file)
-    num_records = len(records)
-    with open(path, "a") as file:
-        file.write("started poll at: {}".format(start))
-        file.write("\n")
-        file.write("finished poll at: {}".format(end))
-        file.write("\n")
-        file.write("Records created: {}".format(str(num_records)))
-
-def write_populate_petitions_task_result(start, end, petitions):
-    directory = 'development/celery'
-    file = 'populated.txt'
-    path = os.path.join(os.getcwd(), directory, file)
-    num_petitions = len(petitions)
-    with open(path, "a") as file:
-        file.write("started populating at: {}".format(start))
-        file.write("\n")
-        file.write("finished populating at: {}".format(end))
-        file.write("\n")
-        file.write("Petitions created: {}".format(str(num_petitions)))
+def strfttime():
+    return dt.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
