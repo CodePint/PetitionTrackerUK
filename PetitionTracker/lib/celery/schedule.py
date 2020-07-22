@@ -10,7 +10,7 @@ def schedule_tasks():
             'periodic': True,
         },
         'options': {
-            'queue':'periodic_remote_petition',
+            'queue':'tracker',
             'retry': True,
         },
         'schedule': current_app.celery_utils.get_interval('poll_petitions_task'),
@@ -23,7 +23,7 @@ def schedule_tasks():
             'state': 'open',
         },
         'options': {
-            'queue':'periodic_remote_petition',
+            'queue':'tracker',
             'retry': True,
         },
         'schedule': current_app.celery_utils.get_interval('populate_petitions_task'),
@@ -68,7 +68,7 @@ def startup_tasks():
             'state': 'open',
         },
         'async_kwargs': {
-            'queue': 'periodic_remote_petition',
+            'queue': 'tracker',
             'retry': True,
         }
     },
@@ -80,7 +80,7 @@ def startup_tasks():
             'periodic': True,
         },
         'async_kwargs': {
-            'queue': 'periodic_remote_petition',
+            'queue': 'tracker',
             'retry': True,
         }
     },
