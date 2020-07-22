@@ -34,9 +34,7 @@ class CeleryUtils():
         
         with app.app_context():
             for task_name, params in startup_tasks().items():
-                if cls.is_overdue(task_name):
-                    print("Task: {}, overdue. Running now".format(task_name))
-                    params['function'].apply_async(params['func_args'], **params['async_args'])
+                params['function'].s(**params['func_kwargs']).apply_async(**params['async_kwargs'])
 
     @classmethod
     def is_overdue(cls, task_name):
