@@ -22,7 +22,6 @@ from .geographies.choices.regions import REGIONS
 from .geographies.choices.constituencies import CONSTITUENCIES
 from .geographies.choices.countries import COUNTRIES
 
-
 class Petition(db.Model):
     __tablename__ = "petition"
 
