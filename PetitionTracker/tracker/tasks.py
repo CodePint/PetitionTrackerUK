@@ -34,7 +34,3 @@ def poll_petitions_task(task_name='poll_petitions_task', *args, **kwargs):
     records = Petition.poll_all()
     task_logger.info("Petitions polled: {}".format(str(len(records))))
     return True
-
-
-def strfttime():
-    return dt.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")

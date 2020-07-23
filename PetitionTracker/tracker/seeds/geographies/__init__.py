@@ -16,7 +16,6 @@ def deserialize():
         output_file = os.path.join(path, output_folder, (geography + '.py'))
         init_choice(geography, input_file, output_file)
 
-
 def init_choice(geography, source, dest):
     with open(source, 'r') as json_file:
         data = json.loads(json_file.read())
