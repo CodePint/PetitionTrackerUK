@@ -14,5 +14,6 @@
         "--load-plugins",
         "pylint-flask",
         "pyling-flask-sqlalchemy",
-    ]
+    ],
+    "git.ignoreLimitWarning": true
 }

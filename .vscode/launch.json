@@ -9,9 +9,9 @@
             "name": "Python: Flask",
             "type": "python",
             "request": "launch",
-            "module": "PetitionTracker",
+            "module": "application",
             "env": {
-                "FLASK_APP": "PetitionTracker",
+                "FLASK_APP": "application",
                 "FLASK_ENV": "development",
                 "FLASK_DEBUG": "0"
             },

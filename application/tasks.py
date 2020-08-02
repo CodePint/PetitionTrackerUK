@@ -1,6 +1,6 @@
 from flask import current_app
-from PetitionTracker import celery
-from PetitionTracker.lib.celery.decorators import task_handler
+from application import celery
+from application.lib.celery.decorators import task_handler
 from datetime import datetime
 import time
 import os

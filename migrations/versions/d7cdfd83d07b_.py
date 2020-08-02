@@ -8,8 +8,8 @@ Create Date: 2020-07-18 18:35:19.577129
 from alembic import op
 import sqlalchemy as sa
 import sqlalchemy_utils
-from PetitionTracker.models import *
-from PetitionTracker.tracker.models import *
+from application.models import *
+from application.tracker.models import *
 
 
 

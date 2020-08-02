@@ -1,7 +1,7 @@
 from flask import current_app
 from .models import Petition, Record
-from PetitionTracker import celery
-from PetitionTracker.lib.celery.decorators import task_handler
+from application import celery
+from application.lib.celery.decorators import task_handler
 import datetime as dt
 import os
 

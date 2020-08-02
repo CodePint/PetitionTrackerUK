@@ -1,4 +1,4 @@
-/development
-PetitionTracker/debug.py
+development/
+
 **__pycache__
 celerybeat-schedule

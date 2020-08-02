@@ -5,7 +5,7 @@ from sqlalchemy.orm import relationship, synonym, validates, reconstructor
 from sqlalchemy.sql import functions as sqlfunc
 from sqlalchemy_utils import *
 
-from PetitionTracker import db
+from application import db
 
 class Setting(db.Model):
     id = db.Column(Integer, primary_key=True)

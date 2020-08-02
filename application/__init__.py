@@ -5,19 +5,20 @@ from celery import Celery
 from dotenv import load_dotenv
 
 import logging
+import subprocess
 import click
 import os
 
 def load_models():
-    from PetitionTracker import models
-    from PetitionTracker.tracker import models
+    from application import models
+    from application.tracker import models
 
 def init_data():
-    from PetitionTracker.tracker import geographies
+    from application.tracker import geographies
 
 def init_tasks():
-    from PetitionTracker import tasks as shared_tasks
-    from PetitionTracker.tracker import tasks as tracker_tasks
+    from application import tasks as shared_tasks
+    from application.tracker import tasks as tracker_tasks
     return {'shared': shared_tasks, 'tracker': tracker_tasks}
 
 def make_celery(app_name=__name__):
@@ -25,16 +26,16 @@ def make_celery(app_name=__name__):
     return Celery(app_name, backend=redis_uri, broker=redis_uri)
 
 def init_celery_utils():
-    from PetitionTracker.lib.celery.utils import CeleryUtils as celery_utils
+    from application.lib.celery.utils import CeleryUtils as celery_utils
     return celery_utils
 
 def init_settings(app):
-    from PetitionTracker.models import Setting
+    from application.models import Setting
     return Setting
 
 def init_views(app):
-    from PetitionTracker import tracker
-    from PetitionTracker import pages
+    from application import tracker
+    from application import pages
 
     app.register_blueprint(tracker.bp)
     app.register_blueprint(pages.bp)
@@ -79,15 +80,22 @@ def create_app():
 
     @app.cli.command("configure")
     def configure():
-            current_app.settings.configure(current_app.config['DEFAULT_SETTINGS'])
+        print("configuring default values for settings table")
+        current_app.settings.configure(current_app.config['DEFAULT_SETTINGS'])
 
     @app.cli.command("run-overdue-tasks")
     def run_overdue_tasks():
-            current_app.celery_utils.run_overdue_tasks()
+        print("checking for overdue celery tasks")
+        current_app.celery_utils.run_overdue_tasks()
 
+    @app.cli.command("react")
+    def run_yarn():
+        print("starting react frontend")
+        subprocess.run('cd frontend && yarn start', shell=True)
+    
     @app.shell_context_processor
     def get_shell_context():
-        from PetitionTracker import shell
+        from application import shell
 
         context = shell.make_context()
         context['db'] = db

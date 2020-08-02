@@ -7,4 +7,4 @@ bp = Blueprint(
     static_url_path='/tracker/static'
 )
 
-from PetitionTracker.tracker import views
+from application.tracker import views

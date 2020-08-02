@@ -1,4 +1,4 @@
-from PetitionTracker.tracker.models import (
+from application.tracker.models import (
     Petition,
     Record,
     SignaturesByCountry,
@@ -6,7 +6,7 @@ from PetitionTracker.tracker.models import (
     SignaturesByConstituency,
 )
 
-from PetitionTracker.models import Setting
+from application.models import Setting
 
 def make_context():
     context = {}

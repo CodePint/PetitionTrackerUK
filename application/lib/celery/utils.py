@@ -1,4 +1,4 @@
-from PetitionTracker.models import Setting
+from application.models import Setting
 from .schedule import schedule_tasks, startup_tasks
 from celery import Celery
 from flask import current_app

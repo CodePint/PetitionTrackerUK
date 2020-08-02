@@ -1,9 +1,9 @@
 from flask import render_template, redirect, url_for, jsonify, current_app
 from flask import request, url_for
 import requests, json, os
+import datetime as dt
 
 from . import bp
-# from . import tasks as TrackerTasks
 from .remote import RemotePetition
 
 from .models import (
@@ -166,25 +166,7 @@ def fetch_remote_petition():
     
     return render_template(template_name, **context)
 
-@bp.route('/petition/remote/onboard', methods=['POST'])
-def onboard_petition():
-    id = request.args.get('id')
-    TrackerTasks.onboard.delay(id)
-    return redirect(
-        url_for(
-            'tracker_bp.fetch_remote_petition',
-            remote_id=id,
-            onboarding_in_progress=True
-            )
-        )
-
-@bp.route('/petition/poll', methods=['POST'])
-def poll_petition():
-    id = request.args.get('id')
-    TrackerTasks.poll.delay(id)
-    return redirect(
-        url_for(
-            'tracker_bp.get_local_petition',
-            local_id=id
-            )
-        )
+@bp.route('/react_flask_test', methods=['GET'])
+def react_flask_test():
+    now = dt.datetime.now()
+    return {'response': 'SUCCESS', 'time': now.strftime("%m/%d/%Y, %H:%M:%S")}

@@ -15,7 +15,7 @@ import json
 from requests.exceptions import HTTPError
 from requests.structures import CaseInsensitiveDict
 
-from PetitionTracker import db
+from application import db
 from .remote import RemotePetition
 
 from .geographies.choices.regions import REGIONS
