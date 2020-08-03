@@ -1,6 +1,8 @@
 from flask import Flask, current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_cors import CORS
+
 from celery import Celery
 from dotenv import load_dotenv
 
@@ -61,6 +63,7 @@ init_data()
 def create_app():
     # create app and load configuration variables
     app = Flask(__name__, instance_relative_config=False)
+    cors = CORS(app, resources={r"*": {"origins": "http://127.0.0.1:3000"}})
     app.config.from_object(Config)
 
     with app.app_context():

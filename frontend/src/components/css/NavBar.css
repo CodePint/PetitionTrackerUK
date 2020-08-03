@@ -1,0 +1,38 @@
+.MainNav {
+  min-height: 10vh;
+  padding: 0.5em;
+  background: #080;
+  color: #F5F5F5;
+  font-size: 1.5rem;
+  display: flex;
+}
+
+.MainNav .Header {
+  margin: auto;
+  display: flex;
+}
+
+.Logo {
+  font-size: 1.25em;
+  width: 1.75em;
+  object-fit: contain;
+  margin: 0.25em 1.25em;
+}
+
+.Logo img {
+  object-fit: contain;
+  height: auto;
+  width: 100%;
+}
+
+.MainNav .Header h1 {
+  font-size: 1.75em;
+  font-weight: 800;
+  margin: 0.25em 0em;
+}
+
+.MainNav .Header h3 {
+  font-size: 1.25em;
+  font-weight: 500;
+}
+

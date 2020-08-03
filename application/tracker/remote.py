@@ -135,8 +135,6 @@ class RemotePetition():
 
         return results
 
-# responses = [response.result() for response in futures]
-
     @classmethod
     def async_hook_factory(cls, **fkwargs):
         def response_hook(response, *args, **kwargs):

@@ -23,6 +23,13 @@ def get_pagination_urls(pages, function):
 
     return {'next': next_url, 'prev': prev_url}
 
+
+@bp.route('/react_flask_test', methods=['GET'])
+def react_flask_test():
+    now = dt.datetime.now()
+    return {'response': 'SUCCESS', 'time': now.strftime("%m/%d/%Y, %H:%M:%S")}
+
+
 # --- Local Views ---
 # Petition Views
 @bp.route('/petition/get/', methods=['GET'])
@@ -37,6 +44,27 @@ def get_local_petition():
     context['records'] = petition.ordered_records().limit(10)
     context['latest_record'] = petition.latest_record()
     return render_template(template_name, **context)
+
+@bp.route('/react/petition/get/', methods=['GET'])
+def react_get_local_petition():
+    # template_name = 'local/petition.html'
+    id = request.args.get('id')
+    petition = Petition.query.get(id)
+
+    context = {}
+    context['id'] = id
+    context['petition'] = petition
+    context['records'] = petition.ordered_records().limit(10)
+    context['latest_record'] = petition.latest_record()
+    # return render_template(template_name, **context)
+    # breakpoint()
+    # return context['petition']
+    breakpoint()
+    return {'success': 'yes'}
+
+
+
+
 
 @bp.route('/petition/list/', methods=['GET'])
 def get_local_list():
@@ -165,8 +193,3 @@ def fetch_remote_petition():
         context = {'petition': None, 'error': 404, 'id': id}
     
     return render_template(template_name, **context)
-
-@bp.route('/react_flask_test', methods=['GET'])
-def react_flask_test():
-    now = dt.datetime.now()
-    return {'response': 'SUCCESS', 'time': now.strftime("%m/%d/%Y, %H:%M:%S")}

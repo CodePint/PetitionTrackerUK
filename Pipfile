@@ -22,6 +22,7 @@ gevent = "*"
 requests-futures = "*"
 celery = "*"
 redis = "*"
+flask-cors = "*"
 
 [requires]
 python_version = "3.7"
