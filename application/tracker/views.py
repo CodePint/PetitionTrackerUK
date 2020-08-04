@@ -8,10 +8,16 @@ from .remote import RemotePetition
 
 from .models import (
     Petition,
+    PetitionSchema,
     Record,
+    RecordSchema,
+    RecordAbrvSchema,
     SignaturesByCountry,
+    SignaturesByCountrySchema,
     SignaturesByRegion,
-    SignaturesByConstituency
+    SignaturesByRegionSchema,
+    SignaturesByConstituency,
+    SignaturesByConstituencySchema
 )
 
 def get_pagination_urls(pages, function):

@@ -1,10 +1,13 @@
 import sqlalchemy
-
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect, Integer, Boolean, String, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship, synonym, validates, reconstructor
 from sqlalchemy.sql import functions as sqlfunc
 from sqlalchemy_utils import *
+from marshmallow_sqlalchemy import SQLAlchemySchema, SQLAlchemyAutoSchema, auto_field
+from marshmallow_sqlalchemy.fields import Nested
+from marshmallow import fields as ma_fields
+
 
 import datetime
 import enum
@@ -196,6 +199,9 @@ class Record(db.Model):
     db_created_at = db.Column(DateTime(timezone=True), default=sqlfunc.now(), nullable=False)
     signatures = db.Column(Integer, nullable=False)
 
+    def __repr__(self):
+        return {'id': self.id, 'timestamp': self.timestamp, 'signatures': self.signatures}
+
     # short hand query helper query for signature geography + code or name
     def signatures_by(self, geography, value):
         table, model = self.get_sig_model_attr(geography)
@@ -337,3 +343,57 @@ class ModelUtils():
             value = model.CODE_LOOKUP[value]
         
         return value
+
+
+
+# model serialisation schemas
+class SignaturesBySuperSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        include_relationships = True
+        load_instance = True
+
+    def get_code_field(self, obj):
+        return obj.code.code
+
+    code = ma_fields.Method("get_code_field")
+
+class SignaturesByConstituencySchema(SignaturesBySuperSchema):
+    class Meta(SignaturesBySuperSchema.Meta):
+        model = SignaturesByConstituency
+        exclude = ("ons_code",)
+    constituency = auto_field("ons_code", dump_only=True)
+
+class SignaturesByCountrySchema(SignaturesBySuperSchema):
+    class Meta(SignaturesBySuperSchema.Meta):
+        model = SignaturesByCountry
+        exclude = ("iso_code",)
+    country = auto_field("iso_code", dump_only=True)
+
+class SignaturesByRegionSchema(SignaturesBySuperSchema):
+    class Meta(SignaturesBySuperSchema.Meta):
+        model = SignaturesByRegion
+        exclude = ("ons_code",)
+    region = auto_field("ons_code", dump_only=True)
+
+class RecordSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Record
+        include_relationships = True
+        load_instance = True
+    
+    signatures_by_country = Nested(SignaturesByCountrySchema, many=True)
+    signatures_by_region = Nested(SignaturesByRegionSchema, many=True)
+    signatures_by_constituency = Nested(SignaturesByConstituencySchema, many=True)
+
+class RecordAbrvSchema(SQLAlchemySchema):
+    class Meta:
+        model = Record
+        fields = ('id', 'signatures', 'timestamp') 
+
+class PetitionSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Petition
+        include_relationships = True
+        load_instance = True
+
+    records = Nested(RecordAbrvSchema, many=True)

@@ -23,6 +23,8 @@ requests-futures = "*"
 celery = "*"
 redis = "*"
 flask-cors = "*"
+marshmallow-sqlalchemy = "*"
+marshmallow = "*"
 
 [requires]
 python_version = "3.7"
