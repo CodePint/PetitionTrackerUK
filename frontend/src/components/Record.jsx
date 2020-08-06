@@ -15,12 +15,10 @@ function Record({ match }) {
   }, []);
 
   async function fetchRecord() {
-    const params = {
-      params: { petition_id: petition_id, record_id: record_id },
-    };
-
     try {
-      let response = await axios.get("/react/petition/record", params);
+      let response = await axios.get(
+        `/petition/${petition_id}/record/${record_id}`
+      );
       const data = response["data"];
       setRecord(data["record"]);
       setPetition(data["petition"]);
@@ -33,6 +31,7 @@ function Record({ match }) {
   return (
     <div className="Record">
       <div>
+        <div>----Record Page----</div>
         <h1>Petition ID: {petition_id}:</h1>
         <JSONPretty id="json-pretty" data={petition}></JSONPretty>
       </div>

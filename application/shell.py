@@ -6,6 +6,7 @@ from application.tracker.models import (
     Record,
     RecordNestedSchema,
     RecordSchema,
+    SignaturesBySchema,
     SignaturesByCountry,
     SignaturesByCountrySchema,
     SignaturesByRegion,
@@ -36,6 +37,7 @@ def context_schemas():
         'PetitionNestedSchema': PetitionNestedSchema,
         'RecordSchema': RecordSchema,
         'RecordNestedSchema': RecordNestedSchema,
+        'SignaturesBySchema': SignaturesBySchema,
         'SignaturesByCountrySchema': SignaturesByCountrySchema,
         'SignaturesByRegionSchema': SignaturesByRegion,
         'SignaturesByConstituencySchema': SignaturesByConstituency

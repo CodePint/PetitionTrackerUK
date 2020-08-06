@@ -336,7 +336,7 @@ class SignaturesByConstituency(db.Model):
         return '{} - {}'.format(self.code.value, self.count)
 
 
-
+# model helper utils
 class ModelUtils():
 
     @classmethod
@@ -354,30 +354,35 @@ class ModelUtils():
 
 
 # model serialisation schemas
-class SignaturesBySuperSchema(SQLAlchemyAutoSchema):
+class SignaturesBySchema(SQLAlchemyAutoSchema):
     class Meta:
         include_relationships = True
         load_instance = True
 
+    @classmethod
+    def get_schema_for(cls, model):
+        return getattr(sys.modules[__name__], (model.__name__ + 'Schema'))
+
     def get_code_field(self, obj):
         return obj.code.code
 
+
     code = ma_fields.Method("get_code_field")
 
-class SignaturesByConstituencySchema(SignaturesBySuperSchema):
-    class Meta(SignaturesBySuperSchema.Meta):
+class SignaturesByConstituencySchema(SignaturesBySchema):
+    class Meta(SignaturesBySchema.Meta):
         model = SignaturesByConstituency
         exclude = ("ons_code",)
     constituency = auto_field("ons_code", dump_only=True)
 
-class SignaturesByCountrySchema(SignaturesBySuperSchema):
-    class Meta(SignaturesBySuperSchema.Meta):
+class SignaturesByCountrySchema(SignaturesBySchema):
+    class Meta(SignaturesBySchema.Meta):
         model = SignaturesByCountry
         exclude = ("iso_code",)
     country = auto_field("iso_code", dump_only=True)
 
-class SignaturesByRegionSchema(SignaturesBySuperSchema):
-    class Meta(SignaturesBySuperSchema.Meta):
+class SignaturesByRegionSchema(SignaturesBySchema):
+    class Meta(SignaturesBySchema.Meta):
         model = SignaturesByRegion
         exclude = ("ons_code",)
     region = auto_field("ons_code", dump_only=True)

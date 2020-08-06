@@ -14,8 +14,8 @@ function PetitionList({ match }) {
   async function fetchPetitionList() {
     const params = { params: { state: queryState } };
     try {
-      let response = await axios.get("/react/petition/list", params);
-      setPetitionList(response);
+      let response = await axios.get("/petitions", params);
+      setPetitionList(response["data"]["petitions"]);
     } catch (error) {
       // handle application not reachable
       console.log("error:", error);

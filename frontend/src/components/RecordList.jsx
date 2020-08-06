@@ -4,7 +4,7 @@ import JSONPretty from "react-json-pretty";
 import "./css/RecordList.css";
 
 function RecordList({ match }) {
-  const id = match.params.id;
+  const petition_id = match.params.petition_id;
   const [petition, setPetition] = useState({});
   const [records, setRecords] = useState([]);
 
@@ -13,12 +13,8 @@ function RecordList({ match }) {
   }, []);
 
   async function fetchRecords() {
-    const params = {
-      params: { id: id },
-    };
-
     try {
-      let response = await axios.get("/react/petition/records/list", params);
+      let response = await axios.get(`/petition/${petition_id}/records`);
       const data = response["data"];
       setRecords(data["records"]);
       setPetition(data["petition"]);
@@ -31,7 +27,7 @@ function RecordList({ match }) {
   return (
     <div className="Record">
       <div>
-        <h1>Petition ID: {id}:</h1>
+        <h1>Petition ID: {petition_id}:</h1>
         <JSONPretty id="json-pretty" data={petition}></JSONPretty>
       </div>
 
