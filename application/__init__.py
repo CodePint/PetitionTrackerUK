@@ -63,7 +63,7 @@ init_data()
 def create_app():
     # create app and load configuration variables
     app = Flask(__name__, instance_relative_config=False)
-    cors = CORS(app, resources={r"*": {"origins": "http://127.0.0.1:3000"}})
+    cors = CORS(app, resources={r"*": {"origins": Config.CORS_RESOURCE_ORIGINS}})
     app.config.from_object(Config)
 
     with app.app_context():

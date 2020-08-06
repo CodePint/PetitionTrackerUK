@@ -14,7 +14,7 @@ function Petition({ match }) {
   async function fetchPetition() {
     const params = { params: { id: petition_id } };
     try {
-      let response = await axios.get(`/react/petition/get`, params);
+      let response = await axios.get("/react/petition/get", params);
       setPetition(response);
     } catch (error) {
       // handle application not reachable
@@ -23,12 +23,11 @@ function Petition({ match }) {
   }
 
   return (
-    <div className="About">
+    <div className="Petition">
       <h1>Petition ID: {petition_id}</h1>
       <h2>Petition Data:</h2>
       <div>
-        <div>{JSON.stringify(petition)}</div>
-        {/* <JSONPretty id="json-pretty" data={petition}></JSONPretty> */}
+        <JSONPretty id="json-pretty" data={petition}></JSONPretty>
       </div>
     </div>
   );

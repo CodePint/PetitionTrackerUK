@@ -2,12 +2,13 @@
   background-color: #282c34;
   color: #F5F5F5;
   min-height: 100vh;
+  min-width: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: auto;
 }
 
 .content {
-  border: 1px solid white;
   flex-grow: 1;
   padding: 1em;
 }

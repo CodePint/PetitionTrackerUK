@@ -9,9 +9,10 @@ from .remote import RemotePetition
 from .models import (
     Petition,
     PetitionSchema,
+    PetitionNestedSchema,
     Record,
     RecordSchema,
-    RecordAbrvSchema,
+    RecordNestedSchema,
     SignaturesByCountry,
     SignaturesByCountrySchema,
     SignaturesByRegion,
@@ -53,23 +54,21 @@ def get_local_petition():
 
 @bp.route('/react/petition/get/', methods=['GET'])
 def react_get_local_petition():
-    # template_name = 'local/petition.html'
     id = request.args.get('id')
     petition = Petition.query.get(id)
+    records = petition.ordered_records().limit(10).all()
+    latest_record = petition.latest_record()
+
+    petition_schema = PetitionSchema()
+    records_schema = RecordSchema(many=True)
+    record_nested_schema = RecordNestedSchema()
 
     context = {}
     context['id'] = id
-    context['petition'] = petition
-    context['records'] = petition.ordered_records().limit(10)
-    context['latest_record'] = petition.latest_record()
-    # return render_template(template_name, **context)
-    # breakpoint()
-    # return context['petition']
-    breakpoint()
-    return {'success': 'yes'}
-
-
-
+    context['petition'] = petition_schema.dump(petition)
+    context['records'] = records_schema.dump(records)
+    context['latest_record'] = record_nested_schema.dumps(latest_record)
+    return context
 
 
 @bp.route('/petition/list/', methods=['GET'])
@@ -97,14 +96,38 @@ def get_local_list():
     
     return render_template(template_name, **context)
 
+@bp.route('/react/petition/list/', methods=['GET'])
+def react_get_local_petition_list():
+    items_per_page = 10
+    state = request.args.get('state', 'all')
+    index = request.args.get('index', 1, type=int)
+
+    if state == 'all':
+        query = Petition.get(dynamic=True)
+    else:
+        query = Petition.get(state=state, dynamic=True)
+
+    pages = query.paginate(index, items_per_page, False)
+    page_links = get_pagination_urls(pages, 'tracker_bp.get_local_list')
+    petitions_schema = PetitionSchema(many=True)
+
+    context = {}
+    context['petitions'] = petitions_schema.dump(pages.items)
+    context['next_url'] = page_links['next']
+    context['prev_url'] = page_links['prev']
+    context['selected_state'] = state
+    context['states'] = list(Petition.STATE_LOOKUP.keys()) + ['all']
+    
+    return context
+
+
 # Record Views
 @bp.route('/petition/<petition_id>/records', methods=['GET'])
 def get_record_list(petition_id):
-    template_name = 'local/records/list.html'
     items_per_page = 10
-
+    template_name = 'local/records/list.html'
     index = request.args.get('index', 1, type=int)
-    
+
     petition = Petition.query.get(petition_id)
     records = petition.ordered_records()
     latest_record = records.first()
@@ -116,6 +139,31 @@ def get_record_list(petition_id):
 
     return render_template(template_name, **context)
 
+@bp.route('/react/petition/records/list', methods=['GET'])
+def react_get_record_list():
+    items_per_page = 10
+    index = request.args.get('index', 1, type=int)
+    id = request.args.get('id')
+
+    petition = Petition.query.get(id)
+    query = petition.ordered_records()
+    latest_record = query.first()
+    pages = query.paginate(index, items_per_page, False)
+    page_links = get_pagination_urls(pages, 'tracker_bp.get_local_list')
+    records = pages.items
+
+    petition_schema = PetitionSchema()
+    records_schema = RecordSchema(many=True)
+    record_nested_schema = RecordNestedSchema()
+
+    context = {}
+    context['next_url'] = page_links['next']
+    context['prev_url'] = page_links['prev']
+    context['records'] = records_schema.dumps(pages.items)
+    context['petition'] = petition_schema.dumps(petition)
+    context['latest_record '] = record_nested_schema.dump(latest_record)
+
+    return context
 
 @bp.route('/petition/<petition_id>/record/<record_id>', methods=['GET'])
 def get_record(petition_id, record_id):
@@ -129,6 +177,22 @@ def get_record(petition_id, record_id):
     context['record'] = record
 
     return render_template(template_name, **context)
+
+@bp.route('/react/petition/record/', methods=['GET'])
+def react_get_record():
+    petition_id = request.args.get('petition_id')
+    record_id = request.args.get('record_id')
+
+    petition = Petition.query.get(petition_id)
+    record = Record.query.get(record_id)
+    petition_schema = PetitionSchema()
+    record_nested_schema = RecordNestedSchema()
+
+    context = {}
+    context['petition'] = petition_schema.dump(petition)
+    context['record'] = record_nested_schema.dump(record)
+    
+    return context
 
 @bp.route('/petition/<petition_id>/record/<record_id>/signatures/<geography>', methods=['GET'])
 def get_signatures_by(petition_id, record_id, geography):

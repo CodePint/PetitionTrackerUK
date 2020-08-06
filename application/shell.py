@@ -2,9 +2,10 @@ from application.models import Setting
 from application.tracker.models import (
     Petition,
     PetitionSchema,
+    PetitionNestedSchema,
     Record,
+    RecordNestedSchema,
     RecordSchema,
-    RecordAbrvSchema,
     SignaturesByCountry,
     SignaturesByCountrySchema,
     SignaturesByRegion,
@@ -32,8 +33,9 @@ def context_models():
 def context_schemas():
     return {
         'PetitionSchema': PetitionSchema,
+        'PetitionNestedSchema': PetitionNestedSchema,
         'RecordSchema': RecordSchema,
-        'RecordAbrvSchema': RecordAbrvSchema,
+        'RecordNestedSchema': RecordNestedSchema,
         'SignaturesByCountrySchema': SignaturesByCountrySchema,
         'SignaturesByRegionSchema': SignaturesByRegion,
         'SignaturesByConstituencySchema': SignaturesByConstituency

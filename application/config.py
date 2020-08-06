@@ -19,7 +19,8 @@ class Config(object):
     LOG_FILE= os.getenv('LOG_FILE')
     LOG_LEVEL = os.getenv('LOG_LEVEL')
 
-    
+    CORS_RESOURCE_ORIGINS = os.getenv('CORS_RESOURCE_ORIGINS').split(",")
+
     DEFAULT_SETTINGS = {
         'poll_petitions_task__interval': os.getenv('POLL_PETITIONS_TASK_INTERVAL'),
         'populate_petitions_task__interval': os.getenv('POPULATE_PETITIONS_TASK_INTERVAL'),

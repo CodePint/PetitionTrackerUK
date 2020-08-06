@@ -6,6 +6,9 @@ import Home from "./components/Home";
 import About from "./components/About";
 import Petition from "./components/Petition";
 import PetitionList from "./components/PetitionList";
+import Record from "./components/Record";
+import RecordList from "./components/RecordList";
+
 import RouteNotFound from "./components/RouteNotFound";
 
 function App() {
@@ -17,14 +20,29 @@ function App() {
           <Switch>
             <Route path="/" exact component={Home} />
             <Route path="/about" component={About} />
-            <Route path="/petitions" component={PetitionList} />
-            <Route path="/petition/:id" component={Petition} />
+            <Route path="/petition/:id(\d+)" exact component={Petition} />
+            <Route
+              path="/petition/:petition_id(\d+)/record/:record_id(\d+)"
+              exact
+              component={Record}
+            />
+            <Route
+              path="/petitions/list/:state?"
+              exact
+              component={PetitionList}
+            />
+            <Route
+              path="/petition/records/list/:id(\d+)"
+              exact
+              component={RecordList}
+            />
+            |
             <Route path="*" component={RouteNotFound} />
           </Switch>
+          <footer className="Flask-Status">
+            <div>Flask - React</div>
+          </footer>
         </div>
-        <footer className="Flask-Status">
-          <div>Flask - React</div>
-        </footer>
       </div>
     </Router>
   );

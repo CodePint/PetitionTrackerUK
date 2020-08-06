@@ -169,11 +169,12 @@ class Petition(db.Model):
         return record
 
     def __repr__(self):
-        template = '<petition id: {}, signatures: {}, action: {}>'
-        return template.format(self.id, self.signatures, self.action)
+        template = 'id: {}, url: {}, created_at: {}'
+        return template.format(self.id, self.signatures, self.db_created_at)
 
     def __str__(self):
-        return self.action
+        template = 'petiton id: {}, action: {}'
+        return template.format(self.id, self.action)
 
     def ordered_records(self, order="DESC"):
         if order == "DESC":
@@ -200,7 +201,13 @@ class Record(db.Model):
     signatures = db.Column(Integer, nullable=False)
 
     def __repr__(self):
-        return {'id': self.id, 'timestamp': self.timestamp, 'signatures': self.signatures}
+        template = 'record_id: {}, petition_id: {}, timestamp: {}'
+        return template.format(self.id, self.petition_id, self.timestamp)
+
+    def __str__(self):
+        template = 'Total signatures for petition id: {}, at {} - {}'
+        return template.format(self.petition_id, self.timestamp, self.signatures)
+
 
     # short hand query helper query for signature geography + code or name
     def signatures_by(self, geography, value):
@@ -375,25 +382,32 @@ class SignaturesByRegionSchema(SignaturesBySuperSchema):
         exclude = ("ons_code",)
     region = auto_field("ons_code", dump_only=True)
 
-class RecordSchema(SQLAlchemyAutoSchema):
+class RecordSchema(SQLAlchemySchema):
+    class Meta:
+        model = Record
+        fields = ('id','petition_id', 'timestamp', 'signatures') 
+
+class RecordNestedSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = Record
         include_relationships = True
         load_instance = True
+        exclude = ['db_created_at']
     
     signatures_by_country = Nested(SignaturesByCountrySchema, many=True)
     signatures_by_region = Nested(SignaturesByRegionSchema, many=True)
     signatures_by_constituency = Nested(SignaturesByConstituencySchema, many=True)
 
-class RecordAbrvSchema(SQLAlchemySchema):
-    class Meta:
-        model = Record
-        fields = ('id', 'signatures', 'timestamp') 
-
 class PetitionSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Petition
+        load_instance = True
+        exclude = ['initial_data', 'latest_data']
+
+class PetitionNestedSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = Petition
         include_relationships = True
         load_instance = True
 
-    records = Nested(RecordAbrvSchema, many=True)
+    records = Nested(RecordSchema, many=True)
