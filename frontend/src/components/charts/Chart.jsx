@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import Chartjs from "chart.js";
 import "./css/Chart.css";
-import { barChartConfig } from "./BarChartConfig";
+// import { barChartConfig } from "./BarChartConfig";
+import lineChartConfig from "./LineChartConfig";
 
-function Chart({ chartData }) {
+function Chart({ chartData, chartLabels }) {
   const chartContainer = useRef(null);
-  const chartConfig = barChartConfig;
+  const chartConfig = lineChartConfig;
   const [chartInstance, setChartInstance] = useState(null);
 
   useEffect(() => {
@@ -18,6 +19,7 @@ function Chart({ chartData }) {
   useEffect(() => {
     if (chartInstance) {
       chartInstance.data.datasets[0].data = chartData;
+      chartInstance.data.labels = chartLabels;
       chartInstance.update();
     }
   });
