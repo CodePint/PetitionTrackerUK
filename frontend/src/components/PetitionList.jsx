@@ -12,7 +12,7 @@ function PetitionList({ match }) {
   }, []);
 
   async function fetchPetitionList() {
-    const params = { params: { state: queryState } };
+    const params = { params: { state: JSON.stringify(queryState) } };
     try {
       let response = await axios.get("/petitions", params);
       setPetitionList(response["data"]["petitions"]);

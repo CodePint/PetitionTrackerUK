@@ -19,9 +19,8 @@ const lineChartConfig = {
           display: true,
           type: "time",
           time: {
-            parser: "DD-MM-YY HH:mm:ss", //<- use 'parser'
-            unit: "hour",
-            unitStepSize: 1,
+            parser: "DD-MM-YY HH:mm:ss",
+            // unitStepSize: 1,
             displayFormats: {
               hour: "DD-MM-YY HH:ss:mm",
             },
@@ -33,6 +32,3 @@ const lineChartConfig = {
 };
 
 export default lineChartConfig;
-
-// https://stackoverflow.com/questions/54334676/chart-js-format-date-in-label
-// https://stackoverflow.com/questions/53669361/how-to-display-date-as-label-on-x-axis-in-chart-js

@@ -31,17 +31,21 @@ def get_pagination_urls(pages, function, **url_kwargs):
 
     return {'next': next_url, 'prev': prev_url}
 
-
-@bp.route('/react_flask_test', methods=['GET'])
-def react_flask_test():
-    now = dt.datetime.now()
-    return {'response': 'SUCCESS', 'time': now.strftime("%m/%d/%Y, %H:%M:%S")}
+def select_records(petition, time_period):
+    time_range = dt.datetime.now() - dt.timedelta(**time_period)
+    records = petition.records.filter(Record.timestamp > time_range)
 
 @bp.route('/petition/<id>', methods=['GET'])
 def get_petition(id):
+    time_ago = request.args.get('time_ago', {}, type=json.loads)
     petition = Petition.query.get(id)
-    records = petition.ordered_records().limit(10).all()
     latest_record = petition.latest_record()
+
+    if time_ago.get('all'):
+        records = petition.ordered_records().all()
+    else:
+        records = petition.records_since(time_ago).all()
+
 
     petition_schema = PetitionSchema()
     records_schema = RecordSchema(many=True)
@@ -140,7 +144,6 @@ def get_signatures_by(petition_id, record_id, geography):
 # untested since react migration, may still be used
 @bp.route('/remote/petitions/<petition_id>', methods=['GET'])
 def fetch_remote_petition(petition_id):
-    template_name = 'remote/petition.html'
     id = request.args.get('remote_id')
 
     try:
@@ -163,7 +166,6 @@ def fetch_remote_petition(petition_id):
 
 @bp.route('/remote/petitions', methods=['GET'])
 def fetch_remote_petitions():
-    template_name = 'remote/index.html'
     current_index = int(request.args.get('index', '1'))
     state = request.args.get('state', 'all')
     response = RemotePetition.get_page(current_index, state)
@@ -178,7 +180,6 @@ def fetch_remote_petitions():
     context = {}
     context['states'] = RemotePetition.list_states
     context['url'] = response.url
-    id
     if petitions:
         context['petitions'] = petitions
         context['paginate'] = RemotePetition.get_fetched_index_pagination(current_index, data)

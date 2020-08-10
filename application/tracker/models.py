@@ -9,7 +9,7 @@ from marshmallow_sqlalchemy.fields import Nested
 from marshmallow import fields as ma_fields
 
 
-import datetime
+import datetime as dt
 import enum
 import sys
 import requests
@@ -186,6 +186,11 @@ class Petition(db.Model):
             db.session.commit()
         
         return record
+
+    # ago ex: {'hours': 12}, {'days': 7}, {'month': 1}
+    def records_since(self, ago):
+        time_range = dt.datetime.now() - dt.timedelta(**ago)
+        return self.records.filter(Record.timestamp > time_range)
 
     def __repr__(self):
         template = 'id: {}, url: {}, created_at: {}'
