@@ -7,23 +7,23 @@ import lineChartConfig from "./charts/LineChartConfig";
 
 // const lineData = [
 //   {
-//     timestamp: new Date(2020, 1, 1, 12),
+//     x: new Date(2020, 1, 1, 12),
 //     y: 100,
 //   },
 //   {
-//     timestamp: new Date(2020, 1, 2, 12),
+//     x: new Date(2020, 1, 2, 12),
 //     y: 200,
 //   },
 //   {
-//     timestamp: new Date(2020, 1, 3, 12),
+//     x: new Date(2020, 1, 3, 12),
 //     y: 400,
 //   },
 //   {
-//     timestamp: new Date(2020, 1, 4, 12),
+//     x: new Date(2020, 1, 4, 12),
 //     y: 400,
 //   },
 //   {
-//     timestamp: new Date(2020, 1, 5, 12),
+//     x: new Date(2020, 1, 5, 12),
 //     y: 1200,
 //   },
 // ];
@@ -43,7 +43,6 @@ function Petition({ match }) {
   const [latestRecord, setlatestRecord] = useState({});
   const [latestRecords, setLatestRecords] = useState([]);
   const [chartData, setChartData] = useState([]);
-  const [chartLabels, setChartLabels] = useState([]);
 
   useEffect(() => {
     fetchPetition();
@@ -68,12 +67,10 @@ function Petition({ match }) {
 
   function generateChartData() {
     if (latestRecords.length > 0) {
-      const timestampLabels = latestRecords.map((r) => new Date(r.timestamp));
       const signatureData = latestRecords.map((r) => ({
-        timestamp: new Date(r.timestamp),
+        x: r.timestamp,
         y: r.signatures,
       }));
-      setChartLabels(timestampLabels);
       setChartData(signatureData);
     }
   }
@@ -90,9 +87,10 @@ function Petition({ match }) {
           <button onClick={fetchPetition}>Fetch Latest Data!</button>
         </div>
         <br></br>
+
         <br></br>
         <div className="ChartWrapper">
-          <Chart chartData={chartData} chartLabels={chartLabels} />
+          <Chart chartData={chartData} />
         </div>
         <br></br>
       </div>

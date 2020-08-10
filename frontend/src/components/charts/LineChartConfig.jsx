@@ -5,7 +5,7 @@ const lineChartConfig = {
     datasets: [
       {
         data: [],
-        label: "Petition ID: 99999",
+        label: "Petition",
         backgroundColor: ["rgba(255, 99, 132, 0.2)"],
         borderColor: ["rgba(255, 99, 132, 1)"],
         borderWidth: 1,
@@ -18,15 +18,14 @@ const lineChartConfig = {
         {
           display: true,
           type: "time",
-          // time: {
-          //   parser: "MM/DD/YYYY HH:mm",
-          //   // tooltipFormat: "ll HH:mm",
-          //   // unit: "hour",
-          //   unitStepSize: 1,
-          //   displayFormats: {
-          //     day: "MM/DD/YYYY HH:mm",
-          //   },
-          // },
+          time: {
+            parser: "DD-MM-YY HH:mm:ss", //<- use 'parser'
+            unit: "hour",
+            unitStepSize: 1,
+            displayFormats: {
+              hour: "DD-MM-YY HH:ss:mm",
+            },
+          },
         },
       ],
     },

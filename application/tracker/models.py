@@ -133,14 +133,19 @@ class Petition(db.Model):
         records = []
     
         for response in responses:
-            print("creating record for ID: {}".format(response.petition_id))
-            response.petition.archived = True if (response.data['data']['type'] == 'archived-petition') else False
-            record = response.petition.create_record(
-                attributes=response.data['data']['attributes'],
-                timestamp = response.timestamp,
+            petition = response.petition
+            attributes = response.data['data']['attributes']            
+            petition.set_archive_state(response.data['data']['type'])
+            petition.update(attributes)
+
+            print("creating record for petition ID: {}".format(petition.id))
+            record = petition.create_record(
+                attributes=attributes,
+                timestamp=response.timestamp,
                 commit=True
             )
-            response.petition.records.append(record)
+
+            petition.records.append(record)
             records.append(record)
         
         db.session.commit()
@@ -149,21 +154,28 @@ class Petition(db.Model):
 
     # poll the remote petition and return a deserialised object (optional commit)
     def poll(self, commit=True):
-        remote = Petition.remote.get(self.id, raise_404=True)
-        self.signatures = remote.data['data']["attributes"]['signature_count']
-        self.archived = True if (remote.data['data']['type'] == 'archived-petition') else False
-
+        response = Petition.remote.get(self.id, raise_404=True)
+        self.update(response.data['data']["attributes"])
+        self.set_archive_state(response.data['data']['type'])
+        
+        print("creating record for petition ID: {}".format(self.id))
         return self.create_record(
-            attributes=remote.data['data']["attributes"],
-            timestamp=remote.timestamp,
+            attributes=response.data['data']["attributes"],
+            timestamp=response.timestamp,
             commit=commit    
         )
 
-    # TO DO: (HIGH PRIORITY)
-    # Currently the petition attribute i.e signature_count, closed_at, thresholds etc
-    # are not being updated when poll()/poll_all() are being called. 
-    def update_attributes(self, attributes):
-        pass
+    # To Do: add these details to petition db model
+    # --- "moderation_threshold_reached_at" (timestamp)
+    # --- "response_threshold_reached_at" (timestamp)
+    def update(self, attributes):
+        self.signatures = attributes['signature_count']
+        self.pt_updated_at = attributes['updated_at']
+        self.pt_rejected_at = attributes['rejected_at']
+
+    def set_archive_state(self, type):
+        self.archived = True if (type == 'archived-petition') else False
+        return self.archived
 
     # create a new record for the petition from attributres json (optional commit)
     def create_record(self, attributes, timestamp, commit=True):
@@ -373,7 +385,6 @@ class SignaturesBySchema(SQLAlchemyAutoSchema):
     def get_code_field(self, obj):
         return obj.code.code
 
-
     code = ma_fields.Method("get_code_field")
 
 class SignaturesByConstituencySchema(SignaturesBySchema):
@@ -394,10 +405,17 @@ class SignaturesByRegionSchema(SignaturesBySchema):
         exclude = ("ons_code",)
     region = auto_field("ons_code", dump_only=True)
 
-class RecordSchema(SQLAlchemySchema):
+class RecordSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = Record
-        fields = ('id','petition_id', 'timestamp', 'signatures') 
+        # TO DO: check data needed here
+        # Had to add auto schema to format timestamp (react char.js compatible)
+        # fields = ('id','petition_id', 'timestamp', 'signatures', 'timestamp_formatted')
+    
+    def format_timestamp(self, obj):
+        return obj.timestamp.strftime("%d-%m-%Y %H:%M:%S")
+
+    timestamp = ma_fields.Method("format_timestamp")
 
 class RecordNestedSchema(SQLAlchemyAutoSchema):
     class Meta:
