@@ -150,6 +150,7 @@ class Petition(db.Model):
     # poll the remote petition and return a deserialised object (optional commit)
     def poll(self, commit=True):
         remote = Petition.remote.get(self.id, raise_404=True)
+        self.signatures = remote.data['data']["attributes"]['signature_count']
         self.archived = True if (remote.data['data']['type'] == 'archived-petition') else False
 
         return self.create_record(
@@ -157,6 +158,12 @@ class Petition(db.Model):
             timestamp=remote.timestamp,
             commit=commit    
         )
+
+    # TO DO: (HIGH PRIORITY)
+    # Currently the petition attribute i.e signature_count, closed_at, thresholds etc
+    # are not being updated when poll()/poll_all() are being called. 
+    def update_attributes(self, attributes):
+        pass
 
     # create a new record for the petition from attributres json (optional commit)
     def create_record(self, attributes, timestamp, commit=True):
