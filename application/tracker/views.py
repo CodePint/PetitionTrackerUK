@@ -41,11 +41,10 @@ def get_petition(id):
     petition = Petition.query.get(id)
     latest_record = petition.latest_record()
 
-    if time_ago.get('all'):
+    if time_ago.get('all', False):
         records = petition.ordered_records().all()
     else:
         records = petition.records_since(time_ago).all()
-
 
     petition_schema = PetitionSchema()
     records_schema = RecordSchema(many=True)

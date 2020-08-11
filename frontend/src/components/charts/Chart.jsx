@@ -4,7 +4,7 @@ import "./css/Chart.css";
 // import { barChartConfig } from "./BarChartConfig";
 import lineChartConfig from "./LineChartConfig";
 
-function Chart({ chartData }) {
+function Chart({ data, label }) {
   const chartContainer = useRef(null);
   const chartConfig = lineChartConfig;
   const [chartInstance, setChartInstance] = useState(null);
@@ -18,7 +18,9 @@ function Chart({ chartData }) {
 
   useEffect(() => {
     if (chartInstance) {
-      chartInstance.data.datasets[0].data = chartData;
+      chartInstance.data.datasets[0].data = data;
+      chartInstance.data.datasets[0].label = label;
+
       chartInstance.update();
     }
   });

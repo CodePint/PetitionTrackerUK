@@ -66,6 +66,14 @@ class Petition(db.Model):
 
         return state
 
+    def __repr__(self):
+        template = 'id: {}, url: {}, created_at: {}'
+        return template.format(self.id, self.signatures, self.db_created_at)
+
+    def __str__(self):
+        template = 'petiton id: {}, action: {}'
+        return template.format(self.id, self.action)
+
     # query helper method, will be expanded upon as project progresses
     # returns a query object if dynamic == True
     @classmethod
@@ -191,14 +199,6 @@ class Petition(db.Model):
     def records_since(self, ago):
         time_range = dt.datetime.now() - dt.timedelta(**ago)
         return self.records.filter(Record.timestamp > time_range)
-
-    def __repr__(self):
-        template = 'id: {}, url: {}, created_at: {}'
-        return template.format(self.id, self.signatures, self.db_created_at)
-
-    def __str__(self):
-        template = 'petiton id: {}, action: {}'
-        return template.format(self.id, self.action)
 
     def ordered_records(self, order="DESC"):
         if order == "DESC":
@@ -418,7 +418,7 @@ class RecordSchema(SQLAlchemyAutoSchema):
         # fields = ('id','petition_id', 'timestamp', 'signatures', 'timestamp_formatted')
     
     def format_timestamp(self, obj):
-        return obj.timestamp.strftime("%d-%m-%Y %H:%M:%S")
+        return obj.timestamp.strftime("%d-%m-%YT%H:%M:%S")
 
     timestamp = ma_fields.Method("format_timestamp")
 

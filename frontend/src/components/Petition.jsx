@@ -7,14 +7,16 @@ import lineChartConfig from "./charts/LineChartConfig";
 
 function Petition({ match }) {
   const petition_id = match.params.petition_id;
+  const chartLabel = `Petition ID: ${petition_id}`;
   const [petition, setPetition] = useState({});
   const [latestRecord, setlatestRecord] = useState({});
-  const [records, setRecords] = useState([]);
-  const [chartTime, setChartTime] = useState({ days: 1 });
+  const [records, setRecords] = useState(null);
+  const [chartTime, setChartTime] = useState({ days: 7 });
   const [chartData, setChartData] = useState([]);
+  const [noRecordsFound, setNoRecordsFound] = useState(false);
 
   useEffect(() => {
-    fetchPetition();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -22,10 +24,10 @@ function Petition({ match }) {
   }, [records]);
 
   useEffect(() => {
-    fetchPetition();
+    fetchData();
   }, [chartTime]);
 
-  async function fetchPetition() {
+  async function fetchData() {
     const params = { params: { time_ago: chartTime } };
     try {
       let response = await axios.get(`/petition/${petition_id}`, params);
@@ -34,18 +36,21 @@ function Petition({ match }) {
       setPetition(data.petition);
       setRecords(data.records);
     } catch (error) {
-      // handle application not reachable
+      // handle backend not reachable
       console.log("error:", error);
     }
   }
 
   function generateChartData() {
-    if (records.length > 0) {
-      const signatureData = records.map((r) => ({
+    if (records && records.length > 0) {
+      let signatureData = records.map((r) => ({
         x: r.timestamp,
         y: r.signatures,
       }));
       setChartData(signatureData);
+      setNoRecordsFound(false);
+    } else {
+      setNoRecordsFound(true);
     }
   }
 
@@ -63,6 +68,18 @@ function Petition({ match }) {
     setChartTime(chartTimeObj);
   };
 
+  function dataSinceString() {
+    if (chartTime["all"]) {
+      return "All Time";
+    } else {
+      return Object.values(chartTime)[0] + " " + Object.keys(chartTime)[0];
+    }
+  }
+
+  function hasRecords() {
+    return records && records.length > 0;
+  }
+
   return (
     <div className="Petition">
       <h1>Petition ID: {petition_id}</h1>
@@ -72,15 +89,12 @@ function Petition({ match }) {
       <div className="PetitionChart">
         <br></br>
         <div className="FetchLatestData">
-          <button onClick={fetchPetition}>Fetch Latest Data!</button>
+          <button onClick={fetchData}>Fetch Latest Data!</button>
         </div>
         <br></br>
         <div className="ChangeChartTime">
           <form onSubmit={handleChartTimeChange}>
-            <h3>
-              View data since: {Object.values(chartTime)[0]}{" "}
-              {Object.keys(chartTime)[0]}
-            </h3>
+            <h3>View data since: {hasRecords() ? dataSinceString() : ""}</h3>
             <select name="units">
               <option value="minutes">minutes</option>
               <option value="hours">hours</option>
@@ -96,9 +110,16 @@ function Petition({ match }) {
           </button>
         </div>
         <br></br>
-        <div className="ChartWrapper">
-          <Chart chartData={chartData} />
+        <div>
+          {noRecordsFound
+            ? `No records found for last ${dataSinceString()}`
+            : ""}
         </div>
+
+        <div className="ChartWrapper">
+          <Chart data={chartData} label={chartLabel} />
+        </div>
+
         <br></br>
       </div>
 
@@ -108,10 +129,10 @@ function Petition({ match }) {
           <JSONPretty id="json-pretty" data={petition}></JSONPretty>
         </div>
 
-        <h2>Records ({records.length}):</h2>
+        <h2>Records ({records && records.length}):</h2>
         <div>
           First Record ID:&nbsp;
-          {records.length > 0 ? records[0]["id"] : "N/A"}
+          {hasRecords() ? records[0]["id"] : "N/A"}
         </div>
         <div>
           <JSONPretty id="json-pretty" data={records}></JSONPretty>
