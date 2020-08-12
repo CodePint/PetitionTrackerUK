@@ -45,11 +45,16 @@ def get_petition(id):
         records = petition.ordered_records().all()
     else:
         records = petition.records_since(time_ago).all()
-
+    ## need to rework the API somewhat to allow programatic and frontend use
+    ## below is begioning of geographic end point
+    region_schema = SignaturesByRegionSchema(many=True)
+    region_records = [r.signatures_by("region", "East Midlands") for r in records]
+    region_records_json = region_schema.dumps(region_records)
+    
     petition_schema = PetitionSchema()
     records_schema = RecordSchema(many=True)
     record_nested_schema = RecordNestedSchema()
-
+    breakpoint()
     context = {}
     context['id'] = id
     context['petition'] = petition_schema.dump(petition)
@@ -62,7 +67,7 @@ def get_petitions():
     items_per_page = 10
     state = request.args.get('state', 'all')
     index = request.args.get('index', 1, type=int)
-
+    
     if state == 'all':
         query = Petition.get(dynamic=True)
     else:

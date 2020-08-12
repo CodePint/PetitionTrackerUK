@@ -15,9 +15,6 @@ def load_models():
     from application import models
     from application.tracker import models
 
-def init_data():
-    from application.tracker import geographies
-
 def init_tasks():
     from application import tasks as shared_tasks
     from application.tracker import tasks as tracker_tasks
@@ -47,7 +44,6 @@ def init_beat(app=None):
         app = current_app
     app.celery_utils.init_beat(app, app.celery)
 
-
 ENV_FILE = '.env'
 load_dotenv(dotenv_path=ENV_FILE, override=True)
 from .config import Config
@@ -57,8 +53,6 @@ db = SQLAlchemy()
 celery = make_celery()
 load_models()
 migrate = Migrate()
-init_data()
-
 
 def create_app():
     # create app and load configuration variables
@@ -91,10 +85,16 @@ def create_app():
         print("checking for overdue celery tasks")
         current_app.celery_utils.run_overdue_tasks()
 
+    @app.cli.command("update-geographies")
+    def update_geography_data():
+        print("updating geography application choices")
+        from application.tracker import geographies
+
     @app.cli.command("react")
     def run_yarn():
         print("starting react frontend")
         subprocess.run('cd frontend && yarn start', shell=True)
+
     
     @app.shell_context_processor
     def get_shell_context():

@@ -5,14 +5,23 @@ import "./css/Petition.css";
 import Chart from "./charts/Chart";
 import lineChartConfig from "./charts/LineChartConfig";
 
+const geographies = {
+  region: [],
+  constituency: [],
+  country: [],
+};
+
 function Petition({ match }) {
   const petition_id = match.params.petition_id;
   const chartLabel = `Petition ID: ${petition_id}`;
+
   const [petition, setPetition] = useState({});
-  const [latestRecord, setlatestRecord] = useState({});
   const [records, setRecords] = useState(null);
+
   const [chartTime, setChartTime] = useState({ days: 7 });
   const [chartData, setChartData] = useState([]);
+  const [chartGeoSelections, setChartGeoSelections] = useState(geographies);
+
   const [noRecordsFound, setNoRecordsFound] = useState(false);
 
   useEffect(() => {
@@ -32,7 +41,6 @@ function Petition({ match }) {
     try {
       let response = await axios.get(`/petition/${petition_id}`, params);
       let data = response["data"];
-      setlatestRecord(JSON.parse(data.latest_record));
       setPetition(data.petition);
       setRecords(data.records);
     } catch (error) {
@@ -40,6 +48,19 @@ function Petition({ match }) {
       console.log("error:", error);
     }
   }
+
+  // async function fetchGeography() {
+  //   const params = { params: { time_ago: chartTime } };
+  //   try {
+  //     let response = await axios.get(`/petition/${petition_id}`, params);
+  //     let data = response["data"];
+  //     setPetition(data.petition);
+  //     setRecords(data.records);
+  //   } catch (error) {
+  //     // handle backend not reachable
+  //     console.log("error:", error);
+  //   }
+  // }
 
   function generateChartData() {
     if (records && records.length > 0) {
@@ -84,7 +105,7 @@ function Petition({ match }) {
     <div className="Petition">
       <h1>Petition ID: {petition_id}</h1>
       <h1>Action: {petition["action"]}</h1>
-      <h2>Total signatures: {latestRecord["signatures"]}</h2>
+      <h2>Total signatures: {petition["siignatures"]}</h2>
 
       <div className="PetitionChart">
         <br></br>
@@ -92,6 +113,7 @@ function Petition({ match }) {
           <button onClick={fetchData}>Fetch Latest Data!</button>
         </div>
         <br></br>
+
         <div className="ChangeChartTime">
           <form onSubmit={handleChartTimeChange}>
             <h3>View data since: {hasRecords() ? dataSinceString() : ""}</h3>
@@ -109,6 +131,7 @@ function Petition({ match }) {
             View All
           </button>
         </div>
+
         <br></br>
         <div>
           {noRecordsFound
@@ -136,11 +159,6 @@ function Petition({ match }) {
         </div>
         <div>
           <JSONPretty id="json-pretty" data={records}></JSONPretty>
-        </div>
-
-        <h2>Lastest Record:</h2>
-        <div>
-          <JSONPretty id="json-pretty" data={latestRecord}></JSONPretty>
         </div>
       </div>
     </div>

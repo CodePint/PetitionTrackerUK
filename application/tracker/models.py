@@ -389,6 +389,11 @@ class SignaturesBySchema(SQLAlchemyAutoSchema):
 
     def get_code_field(self, obj):
         return obj.code.code
+        
+    def format_timestamp(self, obj):
+        return obj.timestamp.strftime("%d-%m-%YT%H:%M:%S")
+
+    timestamp = ma_fields.Method("format_timestamp")
 
     code = ma_fields.Method("get_code_field")
 
