@@ -2,6 +2,7 @@ from flask import Flask, current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
+from flask_compress import Compress
 
 from celery import Celery
 from dotenv import load_dotenv
@@ -53,6 +54,7 @@ db = SQLAlchemy()
 celery = make_celery()
 load_models()
 migrate = Migrate()
+compress = Compress()
 
 def create_app():
     # create app and load configuration variables
@@ -72,7 +74,8 @@ def create_app():
         app.celery = app.celery_utils.init_celery(celery, app)
         app.tasks = init_tasks()
 
-        # configure view
+        # configure views
+        compress.init_app(app)
         init_views(app)
 
     @app.cli.command("configure")

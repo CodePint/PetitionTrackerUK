@@ -1,11 +1,5 @@
-from flask import render_template, redirect, url_for, jsonify, current_app
-from flask import request, url_for
-import requests, json, os
-import datetime as dt
-
 from . import bp
-from .remote import RemotePetition
-
+from .utils  import ViewUtils
 from .models import (
     Petition,
     PetitionSchema,
@@ -19,176 +13,274 @@ from .models import (
     SignaturesByRegion,
     SignaturesByRegionSchema,
     SignaturesByConstituency,
-    SignaturesByConstituencySchema
+    SignaturesByConstituencySchema,
 )
 
-def get_pagination_urls(pages, function, **url_kwargs):
-    next_url = url_for(function, **url_kwargs) \
-        if pages.has_next else None
+from flask import (
+    render_template,
+    redirect,
+    url_for,
+    jsonify,
+    current_app,
+    request,
+    abort
+)
 
-    prev_url = url_for(function, **url_kwargs) \
-        if pages.has_prev else None
+from sqlalchemy import or_, and_
+import requests, json, os
+import datetime as dt
 
-    return {'next': next_url, 'prev': prev_url}
-
-def select_records(petition, time_period):
-    time_range = dt.datetime.now() - dt.timedelta(**time_period)
-    records = petition.records.filter(Record.timestamp > time_range)
-
-@bp.route('/petition/<id>', methods=['GET'])
-def get_petition(id):
-    time_ago = request.args.get('time_ago', {}, type=json.loads)
-    petition = Petition.query.get(id)
-    latest_record = petition.latest_record()
-
-    if time_ago.get('all', False):
-        records = petition.ordered_records().all()
-    else:
-        records = petition.records_since(time_ago).all()
-    ## need to rework the API somewhat to allow programatic and frontend use
-    ## below is begioning of geographic end point
-    region_schema = SignaturesByRegionSchema(many=True)
-    region_records = [r.signatures_by("region", "East Midlands") for r in records]
-    region_records_json = region_schema.dumps(region_records)
-    
-    petition_schema = PetitionSchema()
-    records_schema = RecordSchema(many=True)
-    record_nested_schema = RecordNestedSchema()
-    breakpoint()
-    context = {}
-    context['id'] = id
-    context['petition'] = petition_schema.dump(petition)
-    context['records'] = records_schema.dump(records)
-    context['latest_record'] = record_nested_schema.dumps(latest_record)
-    return context
-
+# returns a list of petitions
 @bp.route('/petitions', methods=['GET'])
 def get_petitions():
-    items_per_page = 10
-    state = request.args.get('state', 'all')
     index = request.args.get('index', 1, type=int)
-    
+    items_per_page = request.args.get('items', type=int)
+    state = request.args.get('state', 'all')
+    params = {'items': items_per_page, 'state': state}
+
+    context = {'state': state, 'petitions':[]}
+    context['meta'] = {'query': params}
+
     if state == 'all':
-        query = Petition.get(dynamic=True)
+        query = Petition.query
     else:
-        query = Petition.get(state=state, dynamic=True)
+        # breakpoint()
+        # query = Petition.query.filter_by(state=Petition.STATE_LOOKUP[state])
+        query = Petition.query.filter_by(state="GG")
 
-    pages = query.paginate(index, items_per_page, False)
-    page_links = get_pagination_urls(pages, 'tracker_bp.get_petitions', state=state)
+
+    if items_per_page:
+        page = query.paginate(index,  items_per_page , False)
+        page.curr_num = index
+        petitions = page.items
+
+        context['meta']['items'] = ViewUtils.items_for(page)
+        context['meta']['pages'] = page.pages
+        context['meta']['links'] = ViewUtils.get_pagination_urls(
+            page,
+            'tracker_bp.get_petitions',
+            **params
+        )
+    else:
+        petitions = query.all()
+
+    if not petitions:
+        return context
+        
     petitions_schema = PetitionSchema(many=True)
-
-    context = {}
-    context['petitions'] = petitions_schema.dump(pages.items)
-    context['next_url'] = page_links['next']
-    context['prev_url'] = page_links['prev']
-    context['selected_state'] = state
-    context['states'] = list(Petition.STATE_LOOKUP.keys()) + ['all']
+    context['petitions'] = petitions_schema.dump(petitions)
     
     return context
 
-@bp.route('/petition/<petition_id>/record/<record_id>', methods=['GET'])
-def get_record(petition_id, record_id):
-    petition = Petition.query.get(petition_id)
-    record = Record.query.get(record_id)
-    petition_schema = PetitionSchema()
-    record_nested_schema = RecordNestedSchema()
 
+@bp.route('/petition/<petition_id>', methods=['GET'])
+def get_petition(petition_id):
     context = {}
-    context['petition'] = petition_schema.dump(petition)
-    context['record'] = record_nested_schema.dump(record)
-    
+    petition = Petition.get_or_404(petition_id)
+    context['petition'] = PetitionSchema().dump(petition)
+
+    if petition and request.args.get('signatures'):
+        record = petition.latest_record()
+        record_nested_schema = RecordNestedSchema(exclude=["id", "petition"])
+        context['signatures'] = record_nested_schema.dump(record)
+
     return context
 
-@bp.route('/petition/<petition_id>/records', methods=['GET'])
-def get_records(petition_id):
-    items_per_page = 10
+# returns timestamped list of total signatures for a petition
+@bp.route('/petition/<petition_id>/signatures', methods=['GET'])
+def get_petition_signatures(petition_id):
     index = request.args.get('index', 1, type=int)
+    items_per_page = request.args.get('items', type=int)
+    params = {'petition_id': petition_id}
+    params['since'] = request.args.get('since', type=json.loads)
+    params['between'] = request.args.get('between', type=json.loads)
+    params['items_per_page'] = items_per_page
 
-    petition = Petition.query.get(petition_id)
-    query = petition.ordered_records()
-    latest_record = query.first()
-    pages = query.paginate(index, items_per_page, False)
-    page_links = get_pagination_urls(pages, 'tracker_bp.get_records', petition_id=petition_id)
-    records = pages.items
-
-    petition_schema = PetitionSchema()
-    records_schema = RecordSchema(many=True)
-    record_nested_schema = RecordNestedSchema()
-
-    context = {}
-    context['next_url'] = page_links['next']
-    context['prev_url'] = page_links['prev']
-    context['records'] = records_schema.dumps(pages.items)
-    context['petition'] = petition_schema.dumps(petition)
-    context['latest_record '] = record_nested_schema.dump(latest_record)
-
-    return context
-
-@bp.route('/petition/<petition_id>/record/<record_id>/signatures/<geography>', methods=['GET'])
-def get_signatures_by(petition_id, record_id, geography):
-    petition = Petition.query.get(petition_id)
-    record = Record.query.get(record_id)
-    table, model = record.get_sig_model_attr(geography)
-    signatures = table.all()
-
-    signatures_schema_class = SignaturesBySchema.get_schema_for(model)
-    signatures_schema = signatures_schema_class(many=True)
-    petition_schema = PetitionSchema()
-    record_schema = RecordSchema()
-
-    context = {}
-    context['geography'] = geography
-    context['petition'] = petition_schema.dumps(petition)
-    context['record'] = record_schema.dumps(record)
-    context['signatures'] = signatures_schema.dumps(table.all())
-
-    return context
-
-# remote views
-# untested since react migration, may still be used
-@bp.route('/remote/petitions/<petition_id>', methods=['GET'])
-def fetch_remote_petition(petition_id):
-    id = request.args.get('remote_id')
-
-    try:
-        response = RemotePetition.get(id)
-    except requests.exceptions.HTTPError as e:
-        return render_template(template_name, {'error': response.status_code} )
-
-    if response:
-        data = response.json()
-        context = {}
-        context['id'] = id
-        context['petition'] = response.json()
-        context['local_petition'] = Petition.query.get(petition_id)
-        context['onboarding_in_progress'] = request.args.get('onboarding_in_progress', False)
-        context['url'] = response.url
-    else:
-        context = {'petition': None, 'error': 404, 'petition_id': petition_id}
+    context = {'signatures': []}
+    context['meta'] = {'query': params}
+    petition = Petition.get_or_404(petition_id)
+    context['petition']  = PetitionSchema().dump(petition)
+    query = ViewUtils.record_timestamp_query(petition, params.get('since'), params.get('between'))
     
+    page = query.paginate(index, params['items_per_page'], False)
+    page.curr_num = index
+
+    if items_per_page:
+        page = query.paginate(index,  items_per_page , False)
+        page.curr_num = index
+        records = page.items
+
+        context['meta']['items'] = ViewUtils.items_for(page)
+        context['meta']['pages'] = page.pages
+        context['meta']['links'] = ViewUtils.get_pagination_urls(
+            page,
+            'tracker_bp.get_petition_signatures',
+            **params
+        )
+    else:
+        records = query.all()
+        context['meta']['items'] = {'total': len(records)}
+
+    if not records:
+        return context
+
+    records_schema = RecordSchema(many=True, exclude=["id"])
+    context['signatures'] = records_schema.dump(records)
+
     return context
 
-@bp.route('/remote/petitions', methods=['GET'])
-def fetch_remote_petitions():
-    current_index = int(request.args.get('index', '1'))
-    state = request.args.get('state', 'all')
-    response = RemotePetition.get_page(current_index, state)
+# returns a timestamped geographical list of signatures for a petition
+@bp.route('/petition/<petition_id>/signatures_by/<geography>/', methods=['GET'])
+def get_petition_signatures_by_geography(petition_id, geography):
+    index = request.args.get('index', 1, type=int)
+    items_per_page = request.args.get('items', type=int)
+    params = {'petition_id': petition_id, 'geography': geography}
+    params['since'] = request.args.get('since', type=json.loads)
+    params['between'] = request.args.get('between', type=json.loads)
+    params['items_per_page'] = items_per_page
 
-    try: 
-        response = RemotePetition.get_page(index=current_index, state=state)
-        data = response.json()
-        petitions = data['data']
-    except requests.exceptions.HTTPError as e: 
-        return render_template(template_name, {'error': response.status_code} )
-
-    context = {}
-    context['states'] = RemotePetition.list_states
-    context['url'] = response.url
-    if petitions:
-        context['petitions'] = petitions
-        context['paginate'] = RemotePetition.get_fetched_index_pagination(current_index, data)
-        context['selected_state'] = state
-    else:
-        context['petitions'] = []
+    context = {'signatures': []}
+    context['meta'] = {'query': params}
+    petition = Petition.get_or_404(petition_id)
+    context['petition']  = PetitionSchema().dump(petition)
+    query = ViewUtils.record_timestamp_query(petition, params['since'],  params['between'])
     
+    if items_per_page:
+        page = query.paginate(index,  items_per_page , False)
+        page.curr_num = index
+        records = page.items
+
+        context['meta']['items'] = ViewUtils.items_for(page)
+        context['meta']['pages'] = page.pages
+        context['meta']['links'] = ViewUtils.get_pagination_urls(
+            page,
+            'tracker_bp.get_petition_signatures_by_geography',
+            **params
+        )
+    else:
+        records = query.all()
+        context['meta']['items'] = {'total': len(records)}
+    
+    if not records:
+        return context
+
+    record_schema = RecordSchema(exclude=["id"])
+    name = 'SignaturesBy' + geography.capitalize()
+    sig_exclude = ["id", "record", "timestamp", geography]
+    sig_schema = SignaturesBySchema.get_schema_for(geography)(many=True, exclude=sig_exclude)
+    
+    for rec in records:
+        record_dump = record_schema.dump(rec)
+        signatures = getattr(rec, 'by_' + geography)
+        record_dump[name] = sig_schema.dump(signatures)
+        context['signatures'].append(record_dump)
+
+    return context
+
+# returns timestamped list of signatures for a petition, for a given geographical locale
+@bp.route('/petition/<petition_id>/signatures_by/<geography>/<locale>', methods=['GET'])
+def get_petition_signatures_by_locale(petition_id, geography, locale):
+    index = request.args.get('index', 1, type=int)
+    items_per_page = request.args.get('items', type=int)
+    params = {'petition_id': petition_id, 'geography': geography, 'locale': locale}
+    params['since'] = request.args.get('since', type=json.loads)
+    params['between'] = request.args.get('between', type=json.loads)
+    params['items_per_page'] = items_per_page
+
+    context = {'signatures': []}
+    context['meta'] = {'query': params}
+    petition = Petition.get_or_404(petition_id)
+    context['petition']  = PetitionSchema().dump(petition)
+
+    sig_attrs = Record.signature_model_attributes([geography])
+    locale = Record.get_sig_choice(geography, locale)['code']
+    query = ViewUtils.record_timestamp_query(petition, params['since'], params['between'] )
+    query = query.filter(sig_attrs[geography]['relationship'].any(sig_attrs[geography]['model'].code == locale))
+    
+    if items_per_page:
+        page = query.paginate(index,  items_per_page, False)
+        page.curr_num = index
+        records = page.items
+
+        context['meta']['items'] = ViewUtils.items_for(page)
+        context['meta']['pages'] = page.pages
+        context['meta']['links'] = ViewUtils.get_pagination_urls(
+            page,
+            'tracker_bp.get_petition_signatures_by_locale',
+            **params
+        )
+    else:
+        records = query.all()
+        context['meta']['items'] = {'total': len(records)}
+
+    if not records:
+        return context
+
+    record_schema = RecordSchema(exclude=["id"])
+    sig_exclude = ["id", "record", geography, "timestamp"]
+    sig_schema = sig_attrs[geography]['schema_class'](exclude=sig_exclude)
+    for rec in records:
+        record_dump = record_schema.dump(rec)
+        sig_by = rec.signatures_by(geography, locale)
+        record_dump[sig_attrs[geography]['name']] = sig_schema.dump(sig_by)
+        context['signatures'].append(record_dump)
+
+    return context
+
+@bp.route('/petition/<petition_id>/signatures_by', methods=['POST'])
+def get_petition_signatures_comparison(petition_id):
+    index = request.args.get('index', 1, type=int)
+    items_per_page = request.args.get('items', type=int)
+    params = request.json
+    params['items_per_page'] = items_per_page
+    params['petition_id'] = petition_id
+
+    context = {'signatures': []}
+    context['meta'] = {'query': params}
+    petition = Petition.get_or_404(petition_id)
+    context['petition']  = PetitionSchema().dump(petition)
+    query = ViewUtils.record_timestamp_query(petition, params.get('since'), params.get('between'))
+
+    geographies = params['signatures_by'].keys()
+    sig_exclude = ["id", "record", "timestamp"]
+    sig_attrs = Record.signature_model_attributes(geographies)
+
+    selects = []
+    for geo in geographies:
+        sig_attrs[geo]['schema'] = sig_attrs[geo]['schema_class'](exclude=sig_exclude + [geo])
+        sig_attrs[geo]['locales'] = [
+            Record.get_sig_choice(geo, l)['code']
+            for l in params['signatures_by'][geo]
+        ]
+        selects.append(
+            sig_attrs[geo]['relationship'].any(
+            sig_attrs[geo]['model'].code.in_(
+            sig_attrs[geo]['locales']
+        )))
+
+    query = query.filter(or_(*selects))
+
+    if items_per_page:
+        page = query.paginate(index, items_per_page, False)
+        page.curr_num = index
+        records = page.items
+        
+        context['meta']['items'] = ViewUtils.items_for(page)
+        context['meta']['pages'] = page.pages
+        context['links'] = ViewUtils.get_pagination_urls(
+            page,
+            'tracker_bp.get_petition_signatures_comparison',
+            petition_id=petition_id,
+            items=items_per_page
+        )
+    else:
+        records = query.all()
+        context['meta']['items'] = {'total': len(records)}
+
+    if not records:
+        return context
+
+    record_schema = RecordSchema(exclude=["id"])
+    context['signatures'] = [r.signatures_comparison(record_schema, sig_attrs) for r in records]
+
     return context

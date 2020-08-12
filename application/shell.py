@@ -14,11 +14,13 @@ from application.tracker.models import (
     SignaturesByConstituency,
     SignaturesByConstituencySchema
 )
+from application.tracker.utils import ViewUtils as TrackerViewUtils
 
 def make_context():
     context = {}
     context.update(context_models())
     context.update(context_schemas())
+    context.update(context_utils())
     return context
 
 def context_models():
@@ -41,4 +43,9 @@ def context_schemas():
         'SignaturesByCountrySchema': SignaturesByCountrySchema,
         'SignaturesByRegionSchema': SignaturesByRegion,
         'SignaturesByConstituencySchema': SignaturesByConstituency
+    }
+
+def context_utils():
+    return {
+        'TrackerViewUtils': TrackerViewUtils
     }
