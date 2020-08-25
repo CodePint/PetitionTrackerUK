@@ -20,7 +20,6 @@ const lineChartConfig = {
           type: "time",
           time: {
             parser: "DD-MM-YYThh:mm:ss",
-            // unitStepSize: 1,
             displayFormats: {
               hour: "DD-MM-YYThh:ss:mm",
               millisecond: "DD-MM-YYThh:ss:mm",

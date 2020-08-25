@@ -44,9 +44,7 @@ def get_petitions():
     if state == 'all':
         query = Petition.query
     else:
-        # breakpoint()
-        # query = Petition.query.filter_by(state=Petition.STATE_LOOKUP[state])
-        query = Petition.query.filter_by(state="GG")
+        query = Petition.query.filter_by(state=state)
 
 
     if items_per_page:
@@ -89,6 +87,7 @@ def get_petition(petition_id):
 # returns timestamped list of total signatures for a petition
 @bp.route('/petition/<petition_id>/signatures', methods=['GET'])
 def get_petition_signatures(petition_id):
+    # breakpoint()
     index = request.args.get('index', 1, type=int)
     items_per_page = request.args.get('items', type=int)
     params = {'petition_id': petition_id}
@@ -102,9 +101,6 @@ def get_petition_signatures(petition_id):
     context['petition']  = PetitionSchema().dump(petition)
     query = ViewUtils.record_timestamp_query(petition, params.get('since'), params.get('between'))
     
-    page = query.paginate(index, params['items_per_page'], False)
-    page.curr_num = index
-
     if items_per_page:
         page = query.paginate(index,  items_per_page , False)
         page.curr_num = index
@@ -117,15 +113,18 @@ def get_petition_signatures(petition_id):
             'tracker_bp.get_petition_signatures',
             **params
         )
+        ViewUtils.abort_404_if_no_result(petition, records, params)
+        latest_record = query.limit(1).first()
     else:
         records = query.all()
+        ViewUtils.abort_404_if_no_result(petition, records, params)
+        latest_record = records[0]
         context['meta']['items'] = {'total': len(records)}
-
-    if not records:
-        return context
-
-    records_schema = RecordSchema(many=True, exclude=["id"])
-    context['signatures'] = records_schema.dump(records)
+    
+    single_record_schema = RecordSchema(exclude=["id"])
+    many_record_schema = RecordSchema(many=True, exclude=["id"])
+    context['meta']['latest_data'] = single_record_schema.dump(latest_record)
+    context['signatures'] = many_record_schema.dump(records)
 
     return context
 
@@ -134,6 +133,9 @@ def get_petition_signatures(petition_id):
 def get_petition_signatures_by_geography(petition_id, geography):
     index = request.args.get('index', 1, type=int)
     items_per_page = request.args.get('items', type=int)
+
+    ViewUtils.abort_400_if_invalid_geography(geography)
+
     params = {'petition_id': petition_id, 'geography': geography}
     params['since'] = request.args.get('since', type=json.loads)
     params['between'] = request.args.get('between', type=json.loads)
@@ -161,8 +163,7 @@ def get_petition_signatures_by_geography(petition_id, geography):
         records = query.all()
         context['meta']['items'] = {'total': len(records)}
     
-    if not records:
-        return context
+    ViewUtils.abort_404_if_no_result(petition, records, query)
 
     record_schema = RecordSchema(exclude=["id"])
     name = 'SignaturesBy' + geography.capitalize()
@@ -182,7 +183,9 @@ def get_petition_signatures_by_geography(petition_id, geography):
 def get_petition_signatures_by_locale(petition_id, geography, locale):
     index = request.args.get('index', 1, type=int)
     items_per_page = request.args.get('items', type=int)
-    params = {'petition_id': petition_id, 'geography': geography, 'locale': locale}
+    locale_choice = ViewUtils.abort_404_or_get_locale_choice(geography, locale)
+
+    params = {'petition_id': petition_id, 'geography': geography, 'locale': locale_choice}
     params['since'] = request.args.get('since', type=json.loads)
     params['between'] = request.args.get('between', type=json.loads)
     params['items_per_page'] = items_per_page
@@ -193,12 +196,18 @@ def get_petition_signatures_by_locale(petition_id, geography, locale):
     context['petition']  = PetitionSchema().dump(petition)
 
     sig_attrs = Record.signature_model_attributes([geography])
-    locale = Record.get_sig_choice(geography, locale)['code']
+    sig_exclude = ["id", "record", geography, "timestamp"]
+    sig_schema = sig_attrs[geography]['schema_class'](exclude=sig_exclude)
+
     query = ViewUtils.record_timestamp_query(petition, params['since'], params['between'] )
-    query = query.filter(sig_attrs[geography]['relationship'].any(sig_attrs[geography]['model'].code == locale))
-    
+    query = query.filter(
+        sig_attrs[geography]['relationship'].any(
+            sig_attrs[geography]['model'].code == locale_choice["code"]
+        )
+    )
+
     if items_per_page:
-        page = query.paginate(index,  items_per_page, False)
+        page = query.paginate(index, items_per_page, False)
         page.curr_num = index
         records = page.items
 
@@ -209,25 +218,29 @@ def get_petition_signatures_by_locale(petition_id, geography, locale):
             'tracker_bp.get_petition_signatures_by_locale',
             **params
         )
+        latest_record = query.limit(1).first()
+        ViewUtils.abort_404_if_no_result(petition, records, params)
     else:
         records = query.all()
-        context['meta']['items'] = {'total': len(records)}
+        ViewUtils.abort_404_if_no_result(petition, records, params)
+        latest_record = records[0]
 
-    if not records:
-        return context
+    latest_data = latest_record.signatures_by(geography, locale_choice['code'])
+    latest_data_schema = sig_attrs[geography]['schema_class'](exclude=[geography])
+    context['meta']['latest_data'] = latest_data_schema.dump(latest_data)
+    context['meta']['items'] = {'total': len(records)}
+
 
     record_schema = RecordSchema(exclude=["id"])
-    sig_exclude = ["id", "record", geography, "timestamp"]
-    sig_schema = sig_attrs[geography]['schema_class'](exclude=sig_exclude)
     for rec in records:
         record_dump = record_schema.dump(rec)
-        sig_by = rec.signatures_by(geography, locale)
+        sig_by = rec.signatures_by(geography, locale_choice['code'])
         record_dump[sig_attrs[geography]['name']] = sig_schema.dump(sig_by)
         context['signatures'].append(record_dump)
 
     return context
 
-@bp.route('/petition/<petition_id>/signatures_by', methods=['POST'])
+@bp.route('/petition/<petition_id>/signatures/compare', methods=['POST'])
 def get_petition_signatures_comparison(petition_id):
     index = request.args.get('index', 1, type=int)
     items_per_page = request.args.get('items', type=int)
@@ -277,8 +290,7 @@ def get_petition_signatures_comparison(petition_id):
         records = query.all()
         context['meta']['items'] = {'total': len(records)}
 
-    if not records:
-        return context
+    ViewUtils.abort_404_if_no_result(petition, records, query)
 
     record_schema = RecordSchema(exclude=["id"])
     context['signatures'] = [r.signatures_comparison(record_schema, sig_attrs) for r in records]

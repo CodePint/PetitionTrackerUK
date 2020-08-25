@@ -6,9 +6,6 @@ import Home from "./components/Home";
 import About from "./components/About";
 import Petition from "./components/Petition";
 import PetitionList from "./components/PetitionList";
-import Record from "./components/Record";
-import RecordList from "./components/RecordList";
-import SignaturesByList from "./components/SignaturesByList";
 import RouteNotFound from "./components/RouteNotFound";
 
 function App() {
@@ -21,26 +18,7 @@ function App() {
             <Route path="/" exact component={Home} />
             <Route path="/about" component={About} />
             <Route path="/petitions/:state?" exact component={PetitionList} />
-            <Route
-              path="/petition/:petition_id(\d+)"
-              exact
-              component={Petition}
-            />
-            <Route
-              path="/petition/:petition_id(\d+)/records"
-              exact
-              component={RecordList}
-            />
-            <Route
-              path="/petition/:petition_id(\d+)/record/:record_id(\d+)"
-              exact
-              component={Record}
-            />
-            <Route
-              path="/petition/:petition_id(\d+)/record/:record_id/signatures/:geography"
-              exact
-              component={SignaturesByList}
-            />
+            <Route path="/petition/:petition_id(\d+)" exact component={Petition} />
             <Route path="*" component={RouteNotFound} />
           </Switch>
           <footer className="Flask-Status">

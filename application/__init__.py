@@ -6,20 +6,30 @@ from flask_compress import Compress
 
 from celery import Celery
 from dotenv import load_dotenv
+from types import SimpleNamespace
 
 import logging
 import subprocess
 import click
 import os
 
-def load_models():
-    from application import models
-    from application.tracker import models
+from application import context
 
-def init_tasks():
+def init_namespaced_context(app, name, data):
+    namespace = SimpleNamespace(name=name)
+    for k, v in data.items(): setattr(namespace, k, v)
+    setattr(app, name, namespace)
+
+def init_models(app):
+    init_namespaced_context(app, 'models', context.import_models())
+
+def init_schemas(app):
+    init_namespaced_context(app, 'schemas', context.import_schemas())
+
+def init_tasks(app):
     from application import tasks as shared_tasks
     from application.tracker import tasks as tracker_tasks
-    return {'shared': shared_tasks, 'tracker': tracker_tasks}
+    app.tasks = {'shared': shared_tasks, 'tracker': tracker_tasks}
 
 def make_celery(app_name=__name__):
     redis_uri = os.getenv('REDIS_URI')
@@ -31,7 +41,7 @@ def init_celery_utils():
 
 def init_settings(app):
     from application.models import Setting
-    return Setting
+    app.settings = Setting
 
 def init_views(app):
     from application import tracker
@@ -44,6 +54,10 @@ def init_beat(app=None):
     if not app:
         app = current_app
     app.celery_utils.init_beat(app, app.celery)
+
+def load_models():
+    from application import models
+    from application.tracker import models
 
 ENV_FILE = '.env'
 load_dotenv(dotenv_path=ENV_FILE, override=True)
@@ -67,16 +81,20 @@ def create_app():
         app.db = db
         db.init_app(app)
         migrate.init_app(app, db)
-        app.settings = init_settings(app)
 
         # configure celery
         app.celery_utils = init_celery_utils()
         app.celery = app.celery_utils.init_celery(celery, app)
-        app.tasks = init_tasks()
 
         # configure views
         compress.init_app(app)
         init_views(app)
+
+        # configure imports
+        init_settings(app)
+        init_models(app)
+        init_schemas(app)
+        init_tasks(app)
 
     @app.cli.command("configure")
     def configure():
@@ -101,9 +119,9 @@ def create_app():
     
     @app.shell_context_processor
     def get_shell_context():
-        from application import shell
+        from application import context
 
-        context = shell.make_context()
+        context = context.make()
         context['db'] = db
         context['app'] = app
         

@@ -20,6 +20,7 @@ from requests.structures import CaseInsensitiveDict
 
 from application import db
 from .remote import RemotePetition
+from .utils import ViewUtils
 
 from .geographies.choices.regions import REGIONS
 from .geographies.choices.constituencies import CONSTITUENCIES
@@ -120,7 +121,8 @@ class Petition(db.Model):
     # since ex: {'hours': 12}, {'days': 7}, {'month': 1}
     def query_records_since(self, since):
         ago = dt.datetime.now() - dt.timedelta(**since)
-        return self.records.filter(Record.timestamp > ago)
+        query = self.records.filter(Record.timestamp > ago)
+        return query.order_by(Record.timestamp.desc())
 
     def ordered_records(self, order="DESC"):
         if order == "DESC":
@@ -135,8 +137,8 @@ class Petition(db.Model):
 
     @classmethod
     def get_or_404(cls, id):
-        petition = Petition.query.get(id) 
-        return petition if petition else abort(404)
+        petition = Petition.query.get(id)
+        return petition or ViewUtils.json_abort(404, "Petition ID: {}, not found".format(id))
 
     # onboard multiple remote petitions from the result of query
     @classmethod
