@@ -87,7 +87,6 @@ def get_petition(petition_id):
 # returns timestamped list of total signatures for a petition
 @bp.route('/petition/<petition_id>/signatures', methods=['GET'])
 def get_petition_signatures(petition_id):
-    # breakpoint()
     index = request.args.get('index', 1, type=int)
     items_per_page = request.args.get('items', type=int)
     params = {'petition_id': petition_id}

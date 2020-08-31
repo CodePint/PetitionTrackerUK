@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "uniqolor": "^1.0.0",
+    "uuid-by-string": "^3.0.2"
+  }
+}
