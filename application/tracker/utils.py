@@ -72,7 +72,7 @@ class ViewUtils():
     @classmethod
     def record_timestamp_query(cls, petition, since=None, between=None):
         if since:
-            return petition.query_records_since(since)
+            return petition.query_records_since(**since)
         elif between:
             return petition.query_records_between(**between)
         else:

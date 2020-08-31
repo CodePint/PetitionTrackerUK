@@ -1,22 +1,28 @@
 import sqlalchemy
-from flask import abort, current_app
+from sqlalchemy_utils import *
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect, Integer, Boolean, String, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship, synonym, validates, reconstructor
 from sqlalchemy.sql import functions as sqlfunc
-from sqlalchemy_utils import *
-from marshmallow_sqlalchemy import SQLAlchemySchema, SQLAlchemyAutoSchema, auto_field
+from sqlalchemy import (
+    and_,
+    inspect,
+    Integer,
+    Boolean,
+    String,
+    ForeignKey,
+    DateTime,
+    UniqueConstraint
+)
+from marshmallow import fields as ma_fields
 from marshmallow_sqlalchemy.fields import Nested
-from marshmallow import fields as ma_fields, pre_dump
+from marshmallow_sqlalchemy import SQLAlchemySchema, SQLAlchemyAutoSchema, auto_field
 
-import datetime as dt
-import enum
 import sys
 import requests
 import json
-
-from requests.exceptions import HTTPError
-from requests.structures import CaseInsensitiveDict
+import datetime
+from datetime import datetime as dt
+from requests.structures import CaseInsensitiveDict as LazyDict
 
 from application import db
 from .remote import RemotePetition
@@ -34,7 +40,7 @@ class Petition(db.Model):
         ('R', 'rejected'),
         ('O', 'open'),
     ]
-    STATE_LOOKUP = CaseInsensitiveDict({v: k for k, v in dict(STATE_CHOICES).items()})
+    STATE_LOOKUP = LazyDict({v: k for k, v in dict(STATE_CHOICES).items()})
 
     id = db.Column(Integer, primary_key=True, autoincrement=False)
     state = db.Column(ChoiceType(STATE_CHOICES), nullable=False)
@@ -116,11 +122,14 @@ class Petition(db.Model):
     # between ex: {'lt': dt(), 'gt': gt()}
     #### *** Need to test *** ###
     def query_records_between(self, lt, gt):
-        return self.records.timestamp.between(lt, gt)
+        query = self.records.filter(Record.timestamp < lt)
+        query = query.filter(and_(Record.timestamp < (gt)))
+        return query
 
     # since ex: {'hours': 12}, {'days': 7}, {'month': 1}
-    def query_records_since(self, since):
-        ago = dt.datetime.now() - dt.timedelta(**since)
+    def query_records_since(self, since, now=None):
+        now = dt.strptime(now, "%d-%m-%YT%H:%M:%S") if now else dt.now()
+        ago = now - datetime.timedelta(**since)
         query = self.records.filter(Record.timestamp > ago)
         return query.order_by(Record.timestamp.desc())
 
@@ -326,7 +335,7 @@ class SignaturesByCountry(db.Model):
         db.UniqueConstraint('record_id', 'iso_code', name="uniq_sig_country_for_record"),
     )
     CODE_CHOICES = COUNTRIES
-    CODE_LOOKUP = CaseInsensitiveDict({v: k for k, v in dict(CODE_CHOICES).items()})
+    CODE_LOOKUP = LazyDict({v: k for k, v in dict(CODE_CHOICES).items()})
     code = synonym("iso_code")
 
     id = db.Column(Integer, primary_key=True)
@@ -354,7 +363,7 @@ class SignaturesByRegion(db.Model):
         db.UniqueConstraint('record_id', 'ons_code', name="uniq_sig_region_for_record"),
     )
     CODE_CHOICES = REGIONS
-    CODE_LOOKUP = CaseInsensitiveDict({v: k for k, v in dict(CODE_CHOICES).items()})
+    CODE_LOOKUP = LazyDict({v: k for k, v in dict(CODE_CHOICES).items()})
     code = synonym("ons_code")
 
     id = db.Column(Integer, primary_key=True)
@@ -382,7 +391,7 @@ class SignaturesByConstituency(db.Model):
         db.UniqueConstraint('record_id', 'ons_code', name="uniq_sig_constituency_for_record"),
     )
     CODE_CHOICES = CONSTITUENCIES
-    CODE_LOOKUP = CaseInsensitiveDict({v: k for k, v in dict(CODE_CHOICES).items()})
+    CODE_LOOKUP = LazyDict({v: k for k, v in dict(CODE_CHOICES).items()})
     code = synonym("ons_code")
 
     id = db.Column(Integer, primary_key=True)

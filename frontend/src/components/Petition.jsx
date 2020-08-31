@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
-import usePrev from "./utils/usePrev";
 import useIsFirstRender from "./utils/useIsFirstRender";
+import usePrev from "./utils/usePrev";
 import JSONPretty from "react-json-pretty";
 import axios from "axios";
 import "./css/Petition.css";
+import ConstituenciesSrc from "../geographies/json/constituencies.json";
+import RegionsSrc from "../geographies/json/regions.json";
+import CountriesSrc from "../geographies/json/countries.json";
 import Chart from "./charts/Chart";
-import lineChartConfig from "./charts/LineChartConfig";
-import _, { set, has, isNull } from "lodash";
+import _, { set, has, isNull, last } from "lodash";
+import uuid_by_string from "uuid-by-string";
+import moment from "moment";
 
 function geoConfTemplate() {
   return {
@@ -18,7 +22,10 @@ function geoConfTemplate() {
 
 function Petition({ match }) {
   const petition_id = match.params.petition_id;
-  const pollInterval = 120;
+  const CONSTITUENCIES = ConstituenciesSrc;
+  const REGIONS = RegionsSrc;
+  const COUNTRIES = CountriesSrc;
+  const maxDatsets = 10;
 
   const isFirstRender = useIsFirstRender();
   const isPollOverdue = useRef(true);
@@ -36,19 +43,6 @@ function Petition({ match }) {
   const [chartTime, setChartTime] = useState({ days: 30 });
 
   const [chartError, setChartError] = useState({ status: false, error: { msg: "" } });
-  function resetChartError() {
-    setChartError({ status: false, error: { msg: "" } });
-  }
-
-  // Internal Effect Hooks
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!isCacheValid()) {
-        fetchandBuildFromConfig();
-      }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     resetChartError();
@@ -73,9 +67,41 @@ function Petition({ match }) {
 
   useEffect(() => {
     if (!isFirstRender) {
-      fetchandBuildFromConfig();
+      fetchAndBuildFromConfig();
     }
   }, [chartTime]);
+
+  // Lifecycle functions
+  function resetChartError() {
+    setChartError({ status: false, error: { msg: "" } });
+  }
+
+  function resetCacheAndConfig() {
+    showTotalSigs.current = true;
+    chartDataCache.current = [];
+    geoChartConfig.current = geoConfTemplate();
+    geoChartConfigCache.current = geoConfTemplate();
+  }
+
+  // Cache functions
+  function updatePolledAt() {
+    lastPolledAt.current = new Date();
+  }
+
+  function updateChartCache(dataset) {
+    const locale = dataset.meta.code;
+    const geography = dataset.geography;
+    if (!fetchCachedDataset(locale || "Total")) {
+      let dataCache = [...chartDataCache.current];
+      dataCache.push(dataset);
+      chartDataCache.current = dataCache;
+      if (geography && locale) {
+        let geoCache = _.cloneDeep(geoChartConfigCache.current);
+        geoCache[geography].push(dataset.meta);
+        geoChartConfigCache.current = geoCache;
+      }
+    }
+  }
 
   async function addChartDataset(geoLocale) {
     let data = null;
@@ -98,9 +124,8 @@ function Petition({ match }) {
         showTotalSigs.current = false;
         datasets = [];
       }
-
       datasets.push(data);
-      addToGeoConf(geography, locale);
+      addToGeoConf(geography, data.meta);
       setChartData(datasets);
     }
   }
@@ -111,24 +136,27 @@ function Petition({ match }) {
     if (isFinalInGeoConf()) {
       let data = fetchCachedDataset("Total");
       showTotalSigs.current = true;
-      deleteFromGeoConf(geography, locale);
+      delFromGeoConf(geography, locale);
       setChartData([data]);
     } else {
-      deleteFromGeoConf(geography, locale);
+      delFromGeoConf(geography, locale);
       let datasets = deleteDataSet(locale);
       setChartData(datasets);
     }
   }
 
   async function fetchAndBuildBaseData() {
+    updatePolledAt();
     const response = await fetchSignatures();
     if (response.status === 200) {
+      resetCacheAndConfig();
+
       let datasets = [];
       let responseData = response.data;
       let petitionData = responseData.petition;
       let totalSigData = buildTotalSignaturesDataset(responseData);
       datasets.push(totalSigData);
-      updatePolledAt();
+
       updateChartCache(totalSigData);
       setPetition(petitionData);
       setChartData(datasets);
@@ -143,31 +171,43 @@ function Petition({ match }) {
     let response = await fetchSignaturesBy(geography, locale);
     if (response.status === 200) {
       let data = buildGeographicDataset(response.data, geography);
-      updateChartCache(data, geography, locale);
+      updateChartCache(data);
       return data;
     } else if (response.status === 404) {
       if (allow404) {
-        return { label: toLabel(geography, locale, 0) };
+        return { label: toLabel(geography, locale), total: 0 };
       } else {
         setChartError({ status: true, error: { msg: response.log.msg } });
       }
     }
   }
 
-  async function fetchandBuildFromConfig() {
-    let datasets = [];
+  async function fetchAndBuildFromConfig() {
+    updatePolledAt();
     let response = await fetchSignatures();
     if (response.status === 200) {
+      let datasets = [];
       let responseData = response.data;
+      let geoConfig = geoConfTemplate();
       let geoData = await fetchSignaturesFromConfig();
-      let sigData = buildTotalSignaturesDataset(responseData);
+      geoChartConfig.current = geoConfig;
+      geoChartConfigCache.current = geoConfig;
+      let totalSigData = buildTotalSignaturesDataset(responseData);
 
       datasets = datasets.concat(geoData);
-      let datacache = [...datasets];
-      (showTotalSigs.current ? datasets : datacache).push(sigData);
-      chartDataCache.current = datacache;
+      geoData.forEach((data) => {
+        geoConfig[data.geography].push(data.meta);
+      });
 
-      updatePolledAt();
+      let datacache = _.cloneDeep(datasets);
+      datacache.push(totalSigData);
+      if (showTotalSigs.current) {
+        datasets.push(totalSigData);
+      }
+
+      // To Do:
+      // Reindex new datasets against old chartData
+      chartDataCache.current = datacache;
       setPetition(responseData.petition);
       setChartData(datasets);
     } else if (response.status === 404) {
@@ -178,7 +218,9 @@ function Petition({ match }) {
 
   // API Fetch functions
   async function fetchSignatures() {
-    let params = { since: chartTime };
+    let params = {};
+    let now = moment(lastPolledAt.current).format("DD-MM-YYYYThh:mm:ss");
+    params["since"] = { since: chartTime, now: now };
     let url = `/petition/${petition_id}/signatures`;
     try {
       return await axios.get(url, { params: params });
@@ -196,7 +238,9 @@ function Petition({ match }) {
   }
 
   async function fetchSignaturesBy(geography, locale) {
-    let params = { since: chartTime };
+    let params = {};
+    let now = moment(lastPolledAt.current).format("DD-MM-YYYYThh:mm:ss");
+    params["since"] = { since: chartTime, now: now };
     let url = `/petition/${petition_id}/signatures_by/${geography}/${locale}`;
     try {
       return await axios.get(url, { params: params });
@@ -220,15 +264,17 @@ function Petition({ match }) {
   }
 
   async function fetchSignaturesFromConfig() {
-    if (hasGeoConf) {
+    if (hasGeoConf()) {
+      console.log("fetching from config");
       let pending = [];
       Object.keys(geoChartConfig.current).forEach((geo) => {
         const locales = geoChartConfig.current[geo];
         let promises = locales.map(async (locale) => {
-          return await fetchAndBuildGeoData(geo, locale, true);
+          return await fetchAndBuildGeoData(geo, locale.code, true);
         });
         pending.push(promises);
       });
+      console.log("fetch from config completed");
       return await Promise.all(pending.flat());
     } else {
       return [];
@@ -237,62 +283,38 @@ function Petition({ match }) {
 
   // Build dataset functions
   function buildTotalSignaturesDataset(input) {
-    let data = {};
-    const latestCount = input.meta.latest_data.total;
-    data["label"] = `Total Signatures: ${latestCount}`;
-    data["data"] = input.signatures.map((r) => ({
+    let dataset = {};
+    let dataset_name = "Total";
+    dataset.meta = input.meta.latest_data;
+    dataset.meta.name = dataset_name;
+    dataset.key = dataset_name;
+    dataset.label = dataset_name;
+    dataset.data = input.signatures.map((r) => ({
       x: r.timestamp,
       y: r.total,
     }));
-    return data;
+    return dataset;
   }
 
   function buildGeographicDataset(input, geography) {
-    let data = {};
+    let dataset = {};
     const choice = input.meta.query.locale;
-    const latestCount = input.meta.latest_data.count;
-    data["label"] = toLabel(choice.value, choice.code, latestCount);
+    dataset.meta = input.meta.latest_data;
+    dataset.geography = geography;
+    dataset.key = `${choice.value}-${choice.code}`;
+    dataset.label = toLabel(choice.value, choice.code);
 
     geography = "signatures_by_" + geography;
-    data["data"] = input.signatures.map((r) => ({
+    dataset.data = input.signatures.map((r) => ({
       x: r.timestamp,
       y: r[geography].count,
     }));
-    return data;
-  }
-
-  // Cache functions
-  function updatePolledAt() {
-    lastPolledAt.current = Math.round(new Date() / 1000);
-    isPollOverdue.current = false;
-  }
-
-  function updateChartCache(dataset, geography = null, locale = null) {
-    if (!fetchCachedDataset(geography, locale)) {
-      let cache = [...chartDataCache.current];
-      cache.push(dataset);
-      chartDataCache.current = cache;
-      if (geography && locale) {
-        let geoCache = { ...geoChartConfigCache.current };
-        geoCache[geography].push(locale);
-        geoChartConfigCache.current = geoCache;
-      }
-    }
-  }
-
-  function isCacheValid() {
-    const time_now = Math.round(new Date() / 1000);
-    if (time_now - lastPolledAt.current > pollInterval) {
-      isPollOverdue.current = true;
-    } else {
-      isPollOverdue.current = false;
-    }
-    return !isPollOverdue.current;
+    return dataset;
   }
 
   // Helper functions
-  function toLabel(value, code, count = 0) {
-    return `${value} (${code}) - ${count}`;
+  function toLabel(value, code) {
+    return `${value} (${code})`;
   }
 
   function flatGeoConf() {
@@ -308,36 +330,44 @@ function Petition({ match }) {
   }
 
   function existsInGeoConf(geo, locale) {
-    return geoChartConfig.current[geo].includes(locale);
+    return geoChartConfig.current[geo].find(
+      (data) => data && (data.name === locale || data.code === locale)
+    );
   }
 
   function existsInCachedGeoConf(geo, locale) {
-    return geoChartConfigCache.current[geo].includes(locale);
+    return geoChartConfigCache.current[geo].find(
+      (data) => data && (data.name === locale || data.code === locale)
+    );
   }
 
-  function deleteFromGeoConf(geography, locale) {
+  function delFromGeoConf(geography, locale) {
     let config = _.cloneDeep(geoChartConfig.current);
-    config[geography] = config[geography].filter((item) => item !== locale);
+    let configArray = [...config[geography]];
+    configArray = config[geography].filter((data) => {
+      return data && data.name !== locale && data.code !== locale;
+    });
+    config[geography] = configArray;
     geoChartConfig.current = config;
   }
 
-  function addToGeoConf(geography, locale) {
+  function addToGeoConf(geography, data) {
     let config = _.cloneDeep(geoChartConfig.current);
-    config[geography].push(locale);
+    config[geography].push(data);
     geoChartConfig.current = config;
   }
 
-  function findDataset(label) {
-    return chartData.find((data) => data.label.includes(label));
+  function findDataset(identifier) {
+    return chartData.find((data) => data && data.label.includes(identifier));
   }
 
-  function fetchCachedDataset(label) {
-    return chartDataCache.current.find((data) => data.label.includes(label));
+  function fetchCachedDataset(identifier) {
+    return chartDataCache.current.find((data) => data && data.label.includes(identifier));
   }
 
   function deleteDataSet(locale) {
     let datasets = [...chartData];
-    let index = datasets.findIndex((data) => data.label.includes(locale));
+    let index = datasets.findIndex((data) => data && data.label.includes(locale));
     if (index != -1) {
       datasets.splice(index, 1);
     }
@@ -345,22 +375,28 @@ function Petition({ match }) {
   }
 
   // Form Handlers
-
-  function toggleTotalSignatures() {
+  const toggleTotalSignatures = (event) => {
     let found = findDataset("Total");
+
     if (!showTotalSigs.current && !found) {
       let data = null;
       let datasets = [...chartData];
       data = fetchCachedDataset("Total");
-      datasets.push(data);
-      showTotalSigs.current = true;
-      setChartData(datasets);
+
+      if (data) {
+        datasets.push(data);
+        showTotalSigs.current = true;
+        setChartData(datasets);
+      } else {
+        let error = { msg: "Could not find cache for Total Signature, Please refresh." };
+        setChartError({ status: true, error: error });
+      }
     } else if (showTotalSigs.current && hasGeoConf() && found) {
       showTotalSigs.current = false;
       let datasets = deleteDataSet("Total");
       setChartData(datasets);
     }
-  }
+  };
 
   const handleChartTimeForm = (event) => {
     event.preventDefault();
@@ -375,19 +411,23 @@ function Petition({ match }) {
     }
   };
 
-  const handleAddGeographiesForm = (event) => {
+  const handleAddGeoSigForm = (event) => {
     event.preventDefault();
     const geography = event.target.geography.value;
     const locale = event.target.locale.value;
-    if (existsInGeoConf(geography, locale)) {
-      let error = { msg: `locale already configured: ${locale}` };
+    const found = existsInGeoConf(geography, locale);
+    if (flatGeoConf().length >= maxDatsets) {
+      let error = { msg: `Max datsets (${maxDatsets}) reached` };
+      setChartError({ status: true, error: error });
+    } else if (found) {
+      let error = { msg: `locale already configured: ${found.name} (${found.code})` };
       setChartError({ status: true, error: error });
     } else {
       setGeoToAdd({ geography: geography, locale: locale });
     }
   };
 
-  const handleDelGeographiesForm = (event) => {
+  const handleDelGeoSigForm = (event) => {
     event.preventDefault();
     const { geography, locale } = JSON.parse(event.target.value);
     if (!existsInGeoConf(geography, locale)) {
@@ -400,7 +440,7 @@ function Petition({ match }) {
 
   const handleRefreshChartForm = (event) => {
     event.preventDefault();
-    fetchandBuildFromConfig();
+    fetchAndBuildFromConfig();
   };
 
   const handleResetChartForm = (event) => {
@@ -427,6 +467,7 @@ function Petition({ match }) {
       <h1>Action: {petition["action"]}</h1>
       <h2>Total signatures: {petition["signatures"]}</h2>
       <div>{chartError.status ? renderChartError() : ""}</div>
+
       <div className="PetitionChart">
         <div className="ChangeChartTime">
           <form onSubmit={handleChartTimeForm}>
@@ -441,6 +482,7 @@ function Petition({ match }) {
             <input type="text" name="amount" />
             <input type="submit" value="Submit" />
           </form>
+
           <button name="viewAll" value="all" onClick={handleChartTimeForm}>
             View All
           </button>
@@ -472,7 +514,7 @@ function Petition({ match }) {
       </div>
 
       <div className="addGeographiesForm">
-        <form onSubmit={handleAddGeographiesForm}>
+        <form onSubmit={handleAddGeoSigForm}>
           <label htmlFor="geographyInput">Geography: &nbsp;</label>
           <input type="text" name="geography" id="geographyInput" />
           <br></br>
@@ -500,10 +542,14 @@ function Petition({ match }) {
             return (
               <div key={`${geo}-form`}>
                 <h2>{geo}</h2>
-                {geoChartConfig.current[geo].map((locale) => {
+                {/* Needs to map from object or use values inside loop */}
+                {geoChartConfig.current[geo].map((data) => {
+                  let locale = data.name;
                   return (
                     <div key={`${geo}-${locale}-cb`}>
-                      <label htmlFor={`${geo}-${locale}-cb`}>{locale} &nbsp;</label>
+                      <label htmlFor={`${geo}-${locale}-cb`}>
+                        {locale} ({data.code}) - {data.count} &nbsp;
+                      </label>
                       <input
                         id={`${geo}-${locale}-cb`}
                         value={JSON.stringify({
@@ -513,7 +559,7 @@ function Petition({ match }) {
                         name={locale}
                         type="checkbox"
                         checked={true}
-                        onChange={handleDelGeographiesForm}
+                        onChange={handleDelGeoSigForm}
                       />
                     </div>
                   );
