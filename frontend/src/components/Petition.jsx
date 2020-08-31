@@ -18,7 +18,7 @@ function geoConfTemplate() {
 
 function Petition({ match }) {
   const petition_id = match.params.petition_id;
-  const pollInterval = 60;
+  const pollInterval = 120;
 
   const isFirstRender = useIsFirstRender();
   const isPollOverdue = useRef(true);
@@ -30,8 +30,8 @@ function Petition({ match }) {
   const geoChartConfigCache = useRef(geoConfTemplate());
 
   const [petition, setPetition] = useState({});
-  const [geoToAdd, setGeoToAdd] = useState(null);
-  const [geoToDel, setGeoToDel] = useState(null);
+  const [sigToAdd, setGeoToAdd] = useState(null);
+  const [sigToDel, setGeoToDel] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [chartTime, setChartTime] = useState({ days: 30 });
 
@@ -39,15 +39,14 @@ function Petition({ match }) {
   function resetChartError() {
     setChartError({ status: false, error: { msg: "" } });
   }
-  // Effect Hooks
 
-  // Internal effects
+  // Internal Effect Hooks
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isCacheValid()) {
         fetchandBuildFromConfig();
       }
-    }, pollInterval);
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -55,81 +54,89 @@ function Petition({ match }) {
     resetChartError();
   }, [chartData]);
 
-  // User effects
+  // User Effect Hooks
   useEffect(() => {
-    (async () => {
-      const response = await fetchSignatures();
-      if (response.status === 200) {
-        let responseData = response.data;
-        let datasets = [...chartData];
-        let petitionData = responseData.petition;
-        let totalSigData = buildTotalSignaturesDataset(responseData);
-        datasets.push(totalSigData);
-        updatePolledAt();
-        updateChartCache(totalSigData);
-        setPetition(petitionData);
-        setChartData(datasets);
-      } else if (response.status === 404) {
-        let error = { msg: response.data };
-        setChartError({ status: true, error: error });
-      }
-    })();
+    fetchAndBuildBaseData();
   }, []);
 
   useEffect(() => {
-    if (geoToAdd) {
-      (async () => {
-        let data = null;
-        const geography = geoToAdd.geography;
-        const locale = geoToAdd.locale;
-
-        const localeIsCached = existsInCachedGeoConf(geography, locale);
-        const localeCacheData = fetchCachedDataset(locale);
-        if (localeIsCached && localeCacheData) {
-          data = localeCacheData;
-        } else {
-          data = await fetchAndBuildGeoData(geography, locale);
-        }
-
-        if (data) {
-          let datasets = null;
-          if (hasGeoConf()) {
-            datasets = [...chartData];
-          } else {
-            showTotalSigs.current = false;
-            datasets = [];
-          }
-
-          datasets.push(data);
-          addToGeoConf(geography, locale);
-          setChartData(datasets);
-        }
-      })();
+    if (sigToAdd) {
+      addChartDataset(sigToAdd);
     }
-  }, [geoToAdd]);
+  }, [sigToAdd]);
 
   useEffect(() => {
-    if (geoToDel) {
-      let geography = geoToDel.geography;
-      let locale = geoToDel.locale;
-      if (isFinalInGeoConf()) {
-        let data = fetchCachedDataset("Total");
-        showTotalSigs.current = true;
-        deleteFromGeoConf(geography, locale);
-        setChartData([data]);
-      } else {
-        deleteFromGeoConf(geography, locale);
-        let datasets = deleteDataSet(locale);
-        setChartData(datasets);
-      }
+    if (sigToDel) {
+      delChartDataset(sigToDel);
     }
-  }, [geoToDel]);
+  }, [sigToDel]);
 
   useEffect(() => {
     if (!isFirstRender) {
       fetchandBuildFromConfig();
     }
   }, [chartTime]);
+
+  async function addChartDataset(geoLocale) {
+    let data = null;
+    const geography = geoLocale.geography;
+    const locale = geoLocale.locale;
+
+    const localeIsCached = existsInCachedGeoConf(geography, locale);
+    const localeCacheData = fetchCachedDataset(locale);
+    if (localeIsCached && localeCacheData) {
+      data = localeCacheData;
+    } else {
+      data = await fetchAndBuildGeoData(geography, locale);
+    }
+
+    if (data) {
+      let datasets = null;
+      if (hasGeoConf()) {
+        datasets = [...chartData];
+      } else {
+        showTotalSigs.current = false;
+        datasets = [];
+      }
+
+      datasets.push(data);
+      addToGeoConf(geography, locale);
+      setChartData(datasets);
+    }
+  }
+
+  async function delChartDataset(geoLocale) {
+    let geography = geoLocale.geography;
+    let locale = geoLocale.locale;
+    if (isFinalInGeoConf()) {
+      let data = fetchCachedDataset("Total");
+      showTotalSigs.current = true;
+      deleteFromGeoConf(geography, locale);
+      setChartData([data]);
+    } else {
+      deleteFromGeoConf(geography, locale);
+      let datasets = deleteDataSet(locale);
+      setChartData(datasets);
+    }
+  }
+
+  async function fetchAndBuildBaseData() {
+    const response = await fetchSignatures();
+    if (response.status === 200) {
+      let datasets = [];
+      let responseData = response.data;
+      let petitionData = responseData.petition;
+      let totalSigData = buildTotalSignaturesDataset(responseData);
+      datasets.push(totalSigData);
+      updatePolledAt();
+      updateChartCache(totalSigData);
+      setPetition(petitionData);
+      setChartData(datasets);
+    } else if (response.status === 404) {
+      let error = { msg: response.data };
+      setChartError({ status: true, error: error });
+    }
+  }
 
   // Fetch/Build functions
   async function fetchAndBuildGeoData(geography, locale, allow404 = false) {
@@ -180,6 +187,10 @@ function Petition({ match }) {
         console.log(error.response.data);
         return error.response;
       } else {
+        let log = { msg: "Server Error", url: url, details: error };
+        console.log(JSON.stringify(log));
+        setChartError({ status: true, error: log });
+        return error.response;
       }
     }
   }
@@ -198,10 +209,12 @@ function Petition({ match }) {
         let log = { msg: error.response.data.message, url: url, details: error };
         console.log(JSON.stringify(log));
         setChartError({ status: true, error: log });
+        return error.response;
       } else {
         let log = { msg: "Server Error", url: url, details: error };
         console.log(JSON.stringify(log));
         setChartError({ status: true, error: log });
+        return error.response;
       }
     }
   }
@@ -332,18 +345,34 @@ function Petition({ match }) {
   }
 
   // Form Handlers
+
+  function toggleTotalSignatures() {
+    let found = findDataset("Total");
+    if (!showTotalSigs.current && !found) {
+      let data = null;
+      let datasets = [...chartData];
+      data = fetchCachedDataset("Total");
+      datasets.push(data);
+      showTotalSigs.current = true;
+      setChartData(datasets);
+    } else if (showTotalSigs.current && hasGeoConf() && found) {
+      showTotalSigs.current = false;
+      let datasets = deleteDataSet("Total");
+      setChartData(datasets);
+    }
+  }
+
   const handleChartTimeForm = (event) => {
     event.preventDefault();
-    let chartTimeObj = {};
-
     if (event.target.name === "viewAll") {
-      chartTimeObj["all"] = true;
+      setChartTime(null);
     } else {
+      let chartTimeObj = {};
       let timeAmount = event.target.amount.value;
       let timeUnit = event.target.units.value;
       chartTimeObj[timeUnit] = parseInt(timeAmount);
+      setChartTime(chartTimeObj);
     }
-    setChartTime(chartTimeObj);
   };
 
   const handleAddGeographiesForm = (event) => {
@@ -369,28 +398,22 @@ function Petition({ match }) {
     }
   };
 
-  function toggleTotalSignatures() {
-    let found = findDataset("Total");
-    if (!showTotalSigs.current && !found) {
-      let data = null;
-      let datasets = [...chartData];
-      data = fetchCachedDataset("Total");
-      datasets.push(data);
-      showTotalSigs.current = true;
-      setChartData(datasets);
-    } else if (showTotalSigs.current && hasGeoConf() && found) {
-      showTotalSigs.current = false;
-      let datasets = deleteDataSet("Total");
-      setChartData(datasets);
-    }
-  }
+  const handleRefreshChartForm = (event) => {
+    event.preventDefault();
+    fetchandBuildFromConfig();
+  };
+
+  const handleResetChartForm = (event) => {
+    event.preventDefault();
+    fetchAndBuildBaseData();
+  };
 
   // Presentation Helpers
   function dataSinceString() {
-    if (chartTime["all"]) {
-      return "All Time";
-    } else {
+    if (chartTime) {
       return Object.values(chartTime)[0] + " " + Object.keys(chartTime)[0];
+    } else {
+      return "All Time";
     }
   }
 
@@ -421,6 +444,21 @@ function Petition({ match }) {
           <button name="viewAll" value="all" onClick={handleChartTimeForm}>
             View All
           </button>
+        </div>
+
+        <div className="RefreshChart">
+          <form>
+            <button name="refresh" value="refresh" onClick={handleRefreshChartForm}>
+              Refresh Chart
+            </button>
+          </form>
+        </div>
+        <div className="ResetChart">
+          <form>
+            <button name="reset" value="reset" onClick={handleResetChartForm}>
+              Reset Chart
+            </button>
+          </form>
         </div>
 
         <br></br>
