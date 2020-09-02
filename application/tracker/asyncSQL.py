@@ -1,12 +1,12 @@
 from concurrent.futures import ThreadPoolExecutor
 import concurrent
-from flask import currrent_app
+from flask import current_app
 
 class AsyncSQL():
 
     @classmethod
-    def get_app():
-
+    def get_app(cls):
+        pass
 
     @classmethod
     def async_query(cls, function, iterable, workers=6, **kwargs):

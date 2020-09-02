@@ -27,23 +27,27 @@ function Chart({ datasets }) {
 
   useEffect(() => {
     if (chartInstance) {
-      if (datasets.length > 0) {
+      if (isValidInputs(datasets)) {
         datasets = datasets.map((data, index) => {
-          if (data) {
-            data.borderColor = Object.values(chartColors)[index];
-            let config = { ...baseDataConfig };
-            if (data.label.includes("Total")) {
-              config = merge(config, { ...totalSigDataConfig });
-            }
-            return merge(data, config);
+          data.borderColor = Object.values(chartColors)[index];
+          let config = { ...baseDataConfig };
+          if (data.label.includes("Total")) {
+            config = merge(config, { ...totalSigDataConfig });
           }
+          return merge(data, config);
         });
 
         chartInstance.data.datasets = datasets;
         chartInstance.update();
+      } else {
+        console.log(`Invalid input for chart: ${datasets}`);
       }
     }
   });
+
+  function isValidInputs(input) {
+    return input.length > 0 && !input.includes(null) && !input.includes(undefined);
+  }
 
   // function base
 
