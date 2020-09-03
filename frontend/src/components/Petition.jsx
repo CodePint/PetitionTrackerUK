@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
+import _, { set, has, isNull, last } from "lodash";
+import axios from "axios";
+import JSONPretty from "react-json-pretty";
+import uuid_by_string from "uuid-by-string";
+import moment from "moment";
+
 import useIsFirstRender from "./utils/useIsFirstRender";
 import usePrev from "./utils/usePrev";
-import JSONPretty from "react-json-pretty";
-import axios from "axios";
 import "./css/Petition.css";
 import ConstituenciesSrc from "../geographies/json/constituencies.json";
 import RegionsSrc from "../geographies/json/regions.json";
 import CountriesSrc from "../geographies/json/countries.json";
 import Chart from "./charts/Chart";
-import _, { set, has, isNull, last } from "lodash";
-import uuid_by_string from "uuid-by-string";
-import moment from "moment";
+import GeoNav from "./GeoNav.jsx";
 
 function geoConfTemplate() {
   return {
@@ -149,6 +151,7 @@ function Petition({ match }) {
     updatePolledAt();
     const response = await fetchSignatures();
     if (response.status === 200) {
+      updatePolledAt();
       resetCacheAndConfig();
 
       let datasets = [];
@@ -161,7 +164,8 @@ function Petition({ match }) {
       setPetition(petitionData);
       setChartData(datasets);
     } else if (response.status === 404) {
-      let error = { msg: response.data };
+      // Handle Petition not
+      let error = { msg: JSON.stringify(response.data) };
       setChartError({ status: true, error: error });
     }
   }
@@ -177,7 +181,7 @@ function Petition({ match }) {
       if (allow404) {
         return { label: toLabel(geography, locale), total: 0 };
       } else {
-        setChartError({ status: true, error: { msg: response.log.msg } });
+        setChartError({ status: true, error: { msg: JSON.stringify(response.log.msg) } });
       }
     }
   }
@@ -211,7 +215,7 @@ function Petition({ match }) {
       setPetition(responseData.petition);
       setChartData(datasets);
     } else if (response.status === 404) {
-      let error = { msg: response.data.message };
+      let error = { msg: JSON.stringify(response.data.message) };
       setChartError({ status: true, error: error });
     }
   }
@@ -219,9 +223,11 @@ function Petition({ match }) {
   // API Fetch functions
   async function fetchSignatures() {
     let params = {};
-    let now = moment(lastPolledAt.current).format("DD-MM-YYYYThh:mm:ss");
-    params["since"] = { since: chartTime, now: now };
     let url = `/petition/${petition_id}/signatures`;
+    if (chartTime) {
+      let now = moment(lastPolledAt.current).format("DD-MM-YYYYThh:mm:ss");
+      params["since"] = { since: chartTime, now: now };
+    }
     try {
       return await axios.get(url, { params: params });
     } catch (error) {
@@ -239,9 +245,11 @@ function Petition({ match }) {
 
   async function fetchSignaturesBy(geography, locale) {
     let params = {};
-    let now = moment(lastPolledAt.current).format("DD-MM-YYYYThh:mm:ss");
-    params["since"] = { since: chartTime, now: now };
     let url = `/petition/${petition_id}/signatures_by/${geography}/${locale}`;
+    if (chartTime) {
+      let now = moment(lastPolledAt.current).format("DD-MM-YYYYThh:mm:ss");
+      params["since"] = { since: chartTime, now: now };
+    }
     try {
       return await axios.get(url, { params: params });
     } catch (error) {
@@ -289,10 +297,14 @@ function Petition({ match }) {
     dataset.meta.name = dataset_name;
     dataset.key = dataset_name;
     dataset.label = dataset_name;
-    dataset.data = input.signatures.map((r) => ({
-      x: r.timestamp,
-      y: r.total,
-    }));
+    if (dataset.meta.total === 0) {
+      dataset.data = [];
+    } else {
+      dataset.data = input.signatures.map((r) => ({
+        x: r.timestamp,
+        y: r.total,
+      }));
+    }
     return dataset;
   }
 
@@ -303,12 +315,15 @@ function Petition({ match }) {
     dataset.geography = geography;
     dataset.key = `${choice.value}-${choice.code}`;
     dataset.label = toLabel(choice.value, choice.code);
-
-    geography = "signatures_by_" + geography;
-    dataset.data = input.signatures.map((r) => ({
-      x: r.timestamp,
-      y: r[geography].count,
-    }));
+    if (dataset.meta.count === 0) {
+      dataset.data = [];
+    } else {
+      geography = "signatures_by_" + geography;
+      dataset.data = input.signatures.map((r) => ({
+        x: r.timestamp,
+        y: r[geography].count,
+      }));
+    }
     return dataset;
   }
 
@@ -448,7 +463,7 @@ function Petition({ match }) {
     fetchAndBuildBaseData();
   };
 
-  // Presentation Helpers
+  // Render Functions
   function dataSinceString() {
     if (chartTime) {
       return Object.values(chartTime)[0] + " " + Object.keys(chartTime)[0];
@@ -461,6 +476,79 @@ function Petition({ match }) {
     return <h3>{chartError.status.msg}</h3>;
   }
 
+  function petitionJSON() {
+    return (
+      <div className="data">
+        <h2>Petition data:</h2>
+        <div>
+          <JSONPretty id="json-pretty" data={petition}></JSONPretty>
+        </div>
+      </div>
+    );
+  }
+
+  function renderToggleTotalSigForm() {
+    return (
+      <form>
+        <label htmlFor="showTotal">Show Total: &nbsp;</label>
+        <input
+          name="showTotal"
+          type="checkbox"
+          checked={showTotalSigs.current}
+          onChange={toggleTotalSignatures}
+        />
+        <br></br>
+      </form>
+    );
+  }
+
+  function renderChartTimeForm() {
+    return (
+      <div className="chartTimeForm">
+        <form onSubmit={handleChartTimeForm}>
+          <h3>View data since: {dataSinceString()}</h3>
+          <select name="units">
+            <option value="minutes">minutes</option>
+            <option value="hours">hours</option>
+            <option value="days">days</option>
+            <option value="weeks">weeks</option>
+          </select>
+
+          <input type="text" name="amount" />
+          <input type="submit" value="Submit" />
+        </form>
+
+        <button name="viewAll" value="all" onClick={handleChartTimeForm}>
+          View All
+        </button>
+      </div>
+    );
+  }
+
+  function renderResetChartForm() {
+    return (
+      <div className="resetChartForm">
+        <form>
+          <button name="reset" value="reset" onClick={handleResetChartForm}>
+            Reset Chart
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  function renderRefreshChartForm() {
+    return (
+      <div className="refreshChartForm">
+        <form>
+          <button name="refresh" value="refresh" onClick={handleRefreshChartForm}>
+            Refresh Chart
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="Petition">
       <h1>Petition ID: {petition_id}</h1>
@@ -468,114 +556,34 @@ function Petition({ match }) {
       <h2>Total signatures: {petition["signatures"]}</h2>
       <div>{chartError.status ? renderChartError() : ""}</div>
 
-      <div className="PetitionChart">
-        <div className="ChangeChartTime">
-          <form onSubmit={handleChartTimeForm}>
-            <h3>View data since: {dataSinceString()}</h3>
-            <select name="units">
-              <option value="minutes">minutes</option>
-              <option value="hours">hours</option>
-              <option value="days">days</option>
-              <option value="weeks">weeks</option>
-            </select>
-
-            <input type="text" name="amount" />
-            <input type="submit" value="Submit" />
-          </form>
-
-          <button name="viewAll" value="all" onClick={handleChartTimeForm}>
-            View All
-          </button>
-        </div>
-
-        <div className="RefreshChart">
-          <form>
-            <button name="refresh" value="refresh" onClick={handleRefreshChartForm}>
-              Refresh Chart
-            </button>
-          </form>
-        </div>
-        <div className="ResetChart">
-          <form>
-            <button name="reset" value="reset" onClick={handleResetChartForm}>
-              Reset Chart
-            </button>
-          </form>
-        </div>
-
-        <br></br>
-        <div>{chartError.error ? chartError.error.msg : ""}</div>
-
-        <div className="ChartWrapper">
-          <Chart datasets={chartData} />
-        </div>
-
-        <br></br>
+      <div className="ChartNav">
+        <div>{renderChartTimeForm()}</div>
+        <div>{renderRefreshChartForm()}</div>
+        <div>{renderResetChartForm()}</div>
+        <div>{renderToggleTotalSigForm()}</div>
       </div>
 
-      <div className="addGeographiesForm">
-        <form onSubmit={handleAddGeoSigForm}>
-          <label htmlFor="geographyInput">Geography: &nbsp;</label>
-          <input type="text" name="geography" id="geographyInput" />
-          <br></br>
-          <label htmlFor="localeInput">Locale: &nbsp;</label>
-          <input type="text" name="locale" id="localeInput" />
-          <br></br>
-
-          <label htmlFor="showTotal">Show Total: &nbsp;</label>
-          <input
-            name="showTotal"
-            type="checkbox"
-            checked={showTotalSigs.current}
-            onChange={toggleTotalSignatures}
-          />
-          <br></br>
-
-          <input type="submit" value="Submit" />
-        </form>
-      </div>
-      <br></br>
-      <br></br>
-      <div>
-        <form className="delGeographiesForm">
-          {Object.keys(geoChartConfig.current).map((geo) => {
-            return (
-              <div key={`${geo}-form`}>
-                <h2>{geo}</h2>
-                {/* Needs to map from object or use values inside loop */}
-                {geoChartConfig.current[geo].map((data) => {
-                  let locale = data.name;
-                  return (
-                    <div key={`${geo}-${locale}-cb`}>
-                      <label htmlFor={`${geo}-${locale}-cb`}>
-                        {locale} ({data.code}) - {data.count} &nbsp;
-                      </label>
-                      <input
-                        id={`${geo}-${locale}-cb`}
-                        value={JSON.stringify({
-                          geography: geo,
-                          locale: locale,
-                        })}
-                        name={locale}
-                        type="checkbox"
-                        checked={true}
-                        onChange={handleDelGeoSigForm}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </form>
-      </div>
-      <br></br>
-      <div className="data">
-        <h2>Petition data:</h2>
+      <div className="ChartError">
         <div>
-          <JSONPretty id="json-pretty" data={petition}></JSONPretty>
+          <span>{chartError.error ? chartError.error.msg : ""}</span>
         </div>
       </div>
+
+      <div className="PetitionChart">
+        <br></br>
+        <Chart datasets={chartData} />
+        <br></br>
+      </div>
+
+      <div className="GeoNav">
+        <GeoNav
+          GeoSearchHandler={handleAddGeoSigForm}
+          geoDeleteHandler={handleDelGeoSigForm}
+          geoConfig={geoChartConfig.current}
+        ></GeoNav>
+      </div>
+
+      <div className="PetitionJSON">{petitionJSON()}</div>
     </div>
   );
 }

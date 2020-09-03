@@ -29,14 +29,14 @@ function Chart({ datasets }) {
     if (chartInstance) {
       if (isValidInputs(datasets)) {
         datasets = datasets.map((data, index) => {
-          data.borderColor = Object.values(chartColors)[index];
           let config = { ...baseDataConfig };
+          data.borderColor = Object.values(chartColors)[index];
           if (data.label.includes("Total")) {
             config = merge(config, { ...totalSigDataConfig });
           }
+
           return merge(data, config);
         });
-
         chartInstance.data.datasets = datasets;
         chartInstance.update();
       } else {
@@ -48,8 +48,6 @@ function Chart({ datasets }) {
   function isValidInputs(input) {
     return input.length > 0 && !input.includes(null) && !input.includes(undefined);
   }
-
-  // function base
 
   return (
     <div className="Chart">

@@ -71,6 +71,7 @@ class ViewUtils():
 
     @classmethod
     def record_timestamp_query(cls, petition, since=None, between=None):
+        # breakpoint()
         if since:
             return petition.query_records_since(**since)
         elif between:
