@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
-import useIsFirstRender from "./utils/useIsFirstRender";
-import usePrev from "./utils/usePrev";
-import JSONPretty from "react-json-pretty";
-import axios from "axios";
-import "./css/Petition.css";
-import Chart from "./charts/Chart";
 import _, { set, has, isNull, last } from "lodash";
+import axios from "axios";
+import JSONPretty from "react-json-pretty";
 import uuid_by_string from "uuid-by-string";
 import moment from "moment";
+
+import useIsFirstRender from "./utils/useIsFirstRender";
+import usePrev from "./utils/usePrev";
+import "./css/Petition.css";
+import ConstituenciesSrc from "../geographies/json/constituencies.json";
+import RegionsSrc from "../geographies/json/regions.json";
+import CountriesSrc from "../geographies/json/countries.json";
+import Chart from "./charts/Chart";
+import GeoNav from "./GeoNav.jsx";
 
 function geoConfTemplate() {
   return {
@@ -19,6 +24,9 @@ function geoConfTemplate() {
 
 function Petition({ match }) {
   const petition_id = match.params.petition_id;
+  const CONSTITUENCIES = ConstituenciesSrc;
+  const REGIONS = RegionsSrc;
+  const COUNTRIES = CountriesSrc;
   const maxDatsets = 10;
 
   const isFirstRender = useIsFirstRender();
@@ -61,7 +69,7 @@ function Petition({ match }) {
 
   useEffect(() => {
     if (!isFirstRender) {
-      fetchandBuildFromConfig();
+      fetchAndBuildFromConfig();
     }
   }, [chartTime]);
 
@@ -82,14 +90,16 @@ function Petition({ match }) {
     lastPolledAt.current = new Date();
   }
 
-  function updateChartCache(dataset, geography = null, locale = null) {
-    if (!fetchCachedDataset(geography, locale)) {
-      let cache = [...chartDataCache.current];
-      cache.push(dataset);
-      chartDataCache.current = cache;
+  function updateChartCache(dataset) {
+    const locale = dataset.meta.code;
+    const geography = dataset.geography;
+    if (!fetchCachedDataset(locale || "Total")) {
+      let dataCache = [...chartDataCache.current];
+      dataCache.push(dataset);
+      chartDataCache.current = dataCache;
       if (geography && locale) {
-        let geoCache = { ...geoChartConfigCache.current };
-        geoCache[geography].push(locale);
+        let geoCache = _.cloneDeep(geoChartConfigCache.current);
+        geoCache[geography].push(dataset.meta);
         geoChartConfigCache.current = geoCache;
       }
     }
@@ -116,10 +126,8 @@ function Petition({ match }) {
         showTotalSigs.current = false;
         datasets = [];
       }
-      // To do, rewrite geoconf with objects
-      // const configLabel = `${data.label}, Signatures: ${data.total} `;
       datasets.push(data);
-      addToGeoConf(geography, locale);
+      addToGeoConf(geography, data.meta);
       setChartData(datasets);
     }
   }
@@ -143,6 +151,7 @@ function Petition({ match }) {
     updatePolledAt();
     const response = await fetchSignatures();
     if (response.status === 200) {
+      updatePolledAt();
       resetCacheAndConfig();
 
       let datasets = [];
@@ -155,7 +164,8 @@ function Petition({ match }) {
       setPetition(petitionData);
       setChartData(datasets);
     } else if (response.status === 404) {
-      let error = { msg: response.data };
+      // Handle Petition not
+      let error = { msg: JSON.stringify(response.data) };
       setChartError({ status: true, error: error });
     }
   }
@@ -165,36 +175,48 @@ function Petition({ match }) {
     let response = await fetchSignaturesBy(geography, locale);
     if (response.status === 200) {
       let data = buildGeographicDataset(response.data, geography);
-      updateChartCache(data, geography, locale);
+      updateChartCache(data);
       return data;
     } else if (response.status === 404) {
       if (allow404) {
         return { label: toLabel(geography, locale), total: 0 };
       } else {
-        setChartError({ status: true, error: { msg: response.log.msg } });
+        setChartError({ status: true, error: { msg: JSON.stringify(response.log.msg) } });
       }
     }
   }
 
-  async function fetchandBuildFromConfig() {
+  async function fetchAndBuildFromConfig() {
     updatePolledAt();
     let response = await fetchSignatures();
     if (response.status === 200) {
       let datasets = [];
       let responseData = response.data;
+      let geoConfig = geoConfTemplate();
       let geoData = await fetchSignaturesFromConfig();
-      console.log("fetched from config");
+      geoChartConfig.current = geoConfig;
+      geoChartConfigCache.current = geoConfig;
+      let totalSigData = buildTotalSignaturesDataset(responseData);
 
       let sigData = buildTotalSignaturesDataset(responseData);
       datasets = datasets.concat(geoData);
-      let datacache = [...datasets];
-      (showTotalSigs.current ? datasets : datacache).push(sigData);
-      chartDataCache.current = datacache;
+      geoData.forEach((data) => {
+        geoConfig[data.geography].push(data.meta);
+      });
 
+      let datacache = _.cloneDeep(datasets);
+      datacache.push(totalSigData);
+      if (showTotalSigs.current) {
+        datasets.push(totalSigData);
+      }
+
+      // To Do:
+      // Reindex new datasets against old chartData
+      chartDataCache.current = datacache;
       setPetition(responseData.petition);
       setChartData(datasets);
     } else if (response.status === 404) {
-      let error = { msg: response.data.message };
+      let error = { msg: JSON.stringify(response.data.message) };
       setChartError({ status: true, error: error });
     }
   }
@@ -202,9 +224,11 @@ function Petition({ match }) {
   // API Fetch functions
   async function fetchSignatures() {
     let params = {};
-    let now = moment(lastPolledAt.current).format("DD-MM-YYYYThh:mm:ss");
-    params["since"] = { since: chartTime, now: now };
     let url = `/petition/${petition_id}/signatures`;
+    if (chartTime) {
+      let now = moment(lastPolledAt.current).format("DD-MM-YYYYThh:mm:ss");
+      params["since"] = { since: chartTime, now: now };
+    }
     try {
       return await axios.get(url, { params: params });
     } catch (error) {
@@ -222,9 +246,11 @@ function Petition({ match }) {
 
   async function fetchSignaturesBy(geography, locale) {
     let params = {};
-    let now = moment(lastPolledAt.current).format("DD-MM-YYYYThh:mm:ss");
-    params["since"] = { since: chartTime, now: now };
     let url = `/petition/${petition_id}/signatures_by/${geography}/${locale}`;
+    if (chartTime) {
+      let now = moment(lastPolledAt.current).format("DD-MM-YYYYThh:mm:ss");
+      params["since"] = { since: chartTime, now: now };
+    }
     try {
       return await axios.get(url, { params: params });
     } catch (error) {
@@ -247,15 +273,17 @@ function Petition({ match }) {
   }
 
   async function fetchSignaturesFromConfig() {
-    if (hasGeoConf) {
+    if (hasGeoConf()) {
+      console.log("fetching from config");
       let pending = [];
       Object.keys(geoChartConfig.current).forEach((geo) => {
         const locales = geoChartConfig.current[geo];
         let promises = locales.map(async (locale) => {
-          return await fetchAndBuildGeoData(geo, locale, true);
+          return await fetchAndBuildGeoData(geo, locale.code, true);
         });
         pending.push(promises);
       });
+      console.log("fetch from config completed");
       return await Promise.all(pending.flat());
     } else {
       return [];
@@ -265,28 +293,38 @@ function Petition({ match }) {
   // Build dataset functions
   function buildTotalSignaturesDataset(input) {
     let dataset = {};
-    let dataset_name = "Total Signatures";
-    dataset.key = uuid_by_string(dataset_name);
-    const latestCount = input.meta.latest_data.total;
-    dataset.label = `${dataset_name}: ${latestCount}`;
-    dataset.data = input.signatures.map((r) => ({
-      x: r.timestamp,
-      y: r.total,
-    }));
+    let dataset_name = "Total";
+    dataset.meta = input.meta.latest_data;
+    dataset.meta.name = dataset_name;
+    dataset.key = dataset_name;
+    dataset.label = dataset_name;
+    if (dataset.meta.total === 0) {
+      dataset.data = [];
+    } else {
+      dataset.data = input.signatures.map((r) => ({
+        x: r.timestamp,
+        y: r.total,
+      }));
+    }
     return dataset;
   }
 
   function buildGeographicDataset(input, geography) {
     let dataset = {};
-    geography = "signatures_by_" + geography;
     const choice = input.meta.query.locale;
+    dataset.meta = input.meta.latest_data;
+    dataset.geography = geography;
     dataset.key = `${choice.value}-${choice.code}`;
-    dataset.total = input.meta.latest_data.count;
     dataset.label = toLabel(choice.value, choice.code);
-    dataset.data = input.signatures.map((r) => ({
-      x: r.timestamp,
-      y: r[geography].count,
-    }));
+    if (dataset.meta.count === 0) {
+      dataset.data = [];
+    } else {
+      geography = "signatures_by_" + geography;
+      dataset.data = input.signatures.map((r) => ({
+        x: r.timestamp,
+        y: r[geography].count,
+      }));
+    }
     return dataset;
   }
 
@@ -308,36 +346,44 @@ function Petition({ match }) {
   }
 
   function existsInGeoConf(geo, locale) {
-    return geoChartConfig.current[geo].includes(locale);
+    return geoChartConfig.current[geo].find(
+      (data) => data && (data.name === locale || data.code === locale)
+    );
   }
 
   function existsInCachedGeoConf(geo, locale) {
-    return geoChartConfigCache.current[geo].includes(locale);
+    return geoChartConfigCache.current[geo].find(
+      (data) => data && (data.name === locale || data.code === locale)
+    );
   }
 
   function delFromGeoConf(geography, locale) {
     let config = _.cloneDeep(geoChartConfig.current);
-    config[geography] = config[geography].filter((item) => !item.includes(locale));
+    let configArray = [...config[geography]];
+    configArray = config[geography].filter((data) => {
+      return data && data.name !== locale && data.code !== locale;
+    });
+    config[geography] = configArray;
     geoChartConfig.current = config;
   }
 
-  function addToGeoConf(geography, locale) {
+  function addToGeoConf(geography, data) {
     let config = _.cloneDeep(geoChartConfig.current);
-    config[geography].push(locale);
+    config[geography].push(data);
     geoChartConfig.current = config;
   }
 
-  function findDataset(label) {
-    return chartData.find((data) => data.label.includes(label));
+  function findDataset(identifier) {
+    return chartData.find((data) => data && data.label.includes(identifier));
   }
 
-  function fetchCachedDataset(label) {
-    return chartDataCache.current.find((data) => data.label.includes(label));
+  function fetchCachedDataset(identifier) {
+    return chartDataCache.current.find((data) => data && data.label.includes(identifier));
   }
 
   function deleteDataSet(locale) {
     let datasets = [...chartData];
-    let index = datasets.findIndex((data) => data.label.includes(locale));
+    let index = datasets.findIndex((data) => data && data.label.includes(locale));
     if (index != -1) {
       datasets.splice(index, 1);
     }
@@ -345,22 +391,28 @@ function Petition({ match }) {
   }
 
   // Form Handlers
-
-  function toggleTotalSignatures() {
+  const toggleTotalSignatures = (event) => {
     let found = findDataset("Total");
+
     if (!showTotalSigs.current && !found) {
       let data = null;
       let datasets = [...chartData];
       data = fetchCachedDataset("Total");
-      datasets.push(data);
-      showTotalSigs.current = true;
-      setChartData(datasets);
+
+      if (data) {
+        datasets.push(data);
+        showTotalSigs.current = true;
+        setChartData(datasets);
+      } else {
+        let error = { msg: "Could not find cache for Total Signature, Please refresh." };
+        setChartError({ status: true, error: error });
+      }
     } else if (showTotalSigs.current && hasGeoConf() && found) {
       showTotalSigs.current = false;
       let datasets = deleteDataSet("Total");
       setChartData(datasets);
     }
-  }
+  };
 
   const handleChartTimeForm = (event) => {
     event.preventDefault();
@@ -379,11 +431,12 @@ function Petition({ match }) {
     event.preventDefault();
     const geography = event.target.geography.value;
     const locale = event.target.locale.value;
+    const found = existsInGeoConf(geography, locale);
     if (flatGeoConf().length >= maxDatsets) {
       let error = { msg: `Max datsets (${maxDatsets}) reached` };
       setChartError({ status: true, error: error });
-    } else if (existsInGeoConf(geography, locale)) {
-      let error = { msg: `locale already configured: ${locale}` };
+    } else if (found) {
+      let error = { msg: `locale already configured: ${found.name} (${found.code})` };
       setChartError({ status: true, error: error });
     } else {
       setGeoToAdd({ geography: geography, locale: locale });
@@ -403,7 +456,7 @@ function Petition({ match }) {
 
   const handleRefreshChartForm = (event) => {
     event.preventDefault();
-    fetchandBuildFromConfig();
+    fetchAndBuildFromConfig();
   };
 
   const handleResetChartForm = (event) => {
@@ -411,7 +464,7 @@ function Petition({ match }) {
     fetchAndBuildBaseData();
   };
 
-  // Presentation Helpers
+  // Render Functions
   function dataSinceString() {
     if (chartTime) {
       return Object.values(chartTime)[0] + " " + Object.keys(chartTime)[0];
@@ -424,115 +477,114 @@ function Petition({ match }) {
     return <h3>{chartError.status.msg}</h3>;
   }
 
-  return (
-    <div className="Petition">
-      <h1>Petition ID: {petition_id}</h1>
-      <h1>Action: {petition["action"]}</h1>
-      <h2>Total signatures: {petition["signatures"]}</h2>
-      <div>{chartError.status ? renderChartError() : ""}</div>
-      <div className="PetitionChart">
-        <div className="ChangeChartTime">
-          <form onSubmit={handleChartTimeForm}>
-            <h3>View data since: {dataSinceString()}</h3>
-            <select name="units">
-              <option value="minutes">minutes</option>
-              <option value="hours">hours</option>
-              <option value="days">days</option>
-              <option value="weeks">weeks</option>
-            </select>
-
-            <input type="text" name="amount" />
-            <input type="submit" value="Submit" />
-          </form>
-          <button name="viewAll" value="all" onClick={handleChartTimeForm}>
-            View All
-          </button>
-        </div>
-
-        <div className="RefreshChart">
-          <form>
-            <button name="refresh" value="refresh" onClick={handleRefreshChartForm}>
-              Refresh Chart
-            </button>
-          </form>
-        </div>
-        <div className="ResetChart">
-          <form>
-            <button name="reset" value="reset" onClick={handleResetChartForm}>
-              Reset Chart
-            </button>
-          </form>
-        </div>
-
-        <br></br>
-        <div>{chartError.error ? chartError.error.msg : ""}</div>
-
-        <div className="ChartWrapper">
-          <Chart datasets={chartData} />
-        </div>
-
-        <br></br>
-      </div>
-
-      <div className="addGeographiesForm">
-        <form onSubmit={handleAddGeoSigForm}>
-          <label htmlFor="geographyInput">Geography: &nbsp;</label>
-          <input type="text" name="geography" id="geographyInput" />
-          <br></br>
-          <label htmlFor="localeInput">Locale: &nbsp;</label>
-          <input type="text" name="locale" id="localeInput" />
-          <br></br>
-
-          <label htmlFor="showTotal">Show Total: &nbsp;</label>
-          <input
-            name="showTotal"
-            type="checkbox"
-            checked={showTotalSigs.current}
-            onChange={toggleTotalSignatures}
-          />
-          <br></br>
-
-          <input type="submit" value="Submit" />
-        </form>
-      </div>
-      <br></br>
-      <br></br>
-      <div>
-        <form className="delGeographiesForm">
-          {Object.keys(geoChartConfig.current).map((geo) => {
-            return (
-              <div key={`${geo}-form`}>
-                <h2>{geo}</h2>
-                {geoChartConfig.current[geo].map((locale) => {
-                  return (
-                    <div key={`${geo}-${locale}-cb`}>
-                      <label htmlFor={`${geo}-${locale}-cb`}>{locale} &nbsp;</label>
-                      <input
-                        id={`${geo}-${locale}-cb`}
-                        value={JSON.stringify({
-                          geography: geo,
-                          locale: locale,
-                        })}
-                        name={locale}
-                        type="checkbox"
-                        checked={true}
-                        onChange={handleDelGeoSigForm}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </form>
-      </div>
-      <br></br>
+  function petitionJSON() {
+    return (
       <div className="data">
         <h2>Petition data:</h2>
         <div>
           <JSONPretty id="json-pretty" data={petition}></JSONPretty>
         </div>
       </div>
+    );
+  }
+
+  function renderToggleTotalSigForm() {
+    return (
+      <form>
+        <label htmlFor="showTotal">Show Total: &nbsp;</label>
+        <input
+          name="showTotal"
+          type="checkbox"
+          checked={showTotalSigs.current}
+          onChange={toggleTotalSignatures}
+        />
+        <br></br>
+      </form>
+    );
+  }
+
+  function renderChartTimeForm() {
+    return (
+      <div className="chartTimeForm">
+        <form onSubmit={handleChartTimeForm}>
+          <h3>View data since: {dataSinceString()}</h3>
+          <select name="units">
+            <option value="minutes">minutes</option>
+            <option value="hours">hours</option>
+            <option value="days">days</option>
+            <option value="weeks">weeks</option>
+          </select>
+
+          <input type="text" name="amount" />
+          <input type="submit" value="Submit" />
+        </form>
+
+        <button name="viewAll" value="all" onClick={handleChartTimeForm}>
+          View All
+        </button>
+      </div>
+    );
+  }
+
+  function renderResetChartForm() {
+    return (
+      <div className="resetChartForm">
+        <form>
+          <button name="reset" value="reset" onClick={handleResetChartForm}>
+            Reset Chart
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  function renderRefreshChartForm() {
+    return (
+      <div className="refreshChartForm">
+        <form>
+          <button name="refresh" value="refresh" onClick={handleRefreshChartForm}>
+            Refresh Chart
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div className="Petition">
+      <h1>Petition ID: {petition_id}</h1>
+      <h1>Action: {petition["action"]}</h1>
+      <h2>Total signatures: {petition["signatures"]}</h2>
+      <div>{chartError.status ? renderChartError() : ""}</div>
+
+      <div className="ChartNav">
+        <div>{renderChartTimeForm()}</div>
+        <div>{renderRefreshChartForm()}</div>
+        <div>{renderResetChartForm()}</div>
+        <div>{renderToggleTotalSigForm()}</div>
+      </div>
+
+      <div className="ChartError">
+        <div>
+          <span>{chartError.error ? chartError.error.msg : ""}</span>
+        </div>
+      </div>
+
+      <div className="PetitionChart">
+        <br></br>
+        <Chart datasets={chartData} />
+        <br></br>
+      </div>
+
+      <div className="GeoNav">
+        <GeoNav
+          GeoSearchHandler={handleAddGeoSigForm}
+          geoDeleteHandler={handleDelGeoSigForm}
+          geoConfig={geoChartConfig.current}
+        ></GeoNav>
+      </div>
+
+      <div className="PetitionJSON">{petitionJSON()}</div>
     </div>
   );
 }

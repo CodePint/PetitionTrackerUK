@@ -180,6 +180,7 @@ def get_petition_signatures_by_geography(petition_id, geography):
 # returns timestamped list of signatures for a petition, for a given geographical locale
 @bp.route('/petition/<petition_id>/signatures_by/<geography>/<locale>', methods=['GET'])
 def get_petition_signatures_by_locale(petition_id, geography, locale):
+    # breakpoint()
     index = request.args.get('index', 1, type=int)
     items_per_page = request.args.get('items', type=int)
     locale_choice = ViewUtils.abort_404_or_get_locale_choice(geography, locale)
