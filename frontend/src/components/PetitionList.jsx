@@ -1,34 +1,43 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState, useEffect, useRef } from "react";
 import JSONPretty from "react-json-pretty";
+import PetitionItem from "./PetitionItem";
 import "./css/PetitionList.css";
 
-function PetitionList({ match }) {
-  const [queryState, setQueryState] = useState("all");
-  const [petitionList, setPetitionList] = useState([]);
+function PetitionList({ petitions = [] }) {
+  useEffect(() => {}, []);
 
-  useEffect(() => {
-    fetchPetitionList();
-  }, []);
+  function renderJsonList() {
+    return (
+      <div>
+        <JSONPretty id="json-pretty" data={petitions}></JSONPretty>
+      </div>
+    );
+  }
 
-  async function fetchPetitionList() {
-    const params = { params: { state: JSON.stringify(queryState) } };
-    try {
-      let response = await axios.get("/petitions", params);
-      setPetitionList(response["data"]["petitions"]);
-    } catch (error) {
-      // handle application not reachable
-      console.log("error:", error);
+  function renderItemList() {
+    if (petitions.length > 0) {
+      return (
+        <ul>
+          {petitions.map((item) => {
+            return <PetitionItem item={item}></PetitionItem>;
+          })}
+        </ul>
+      );
+    } else {
+      return (
+        <div>
+          <h2>No Petitions Found</h2>
+        </div>
+      );
     }
   }
 
   return (
     <div className="PetitionList">
-      <h1>Petition List</h1>
-      <h2>QueryState: {queryState}</h2>
-      <div>
-        <JSONPretty id="json-pretty" data={petitionList}></JSONPretty>
-      </div>
+      <h1>Petition List:</h1>
+
+      {/* <div>{renderJsonList()}</div> */}
+      <div>{renderItemList()}</div>
     </div>
   );
 }

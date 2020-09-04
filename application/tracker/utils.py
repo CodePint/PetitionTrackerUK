@@ -36,6 +36,16 @@ class ViewUtils():
             cls.json_abort(400, template.format(geography, valid))
 
     @classmethod
+    def abort_400_or_get_state(cls, state):
+        STATE_LOOKUP = current_app.models.Petition.STATE_LOOKUP
+        try:
+            state = STATE_LOOKUP[state]
+            return state
+        except KeyError:
+            template = "Invalid state: {}, valid states: {}"
+            cls.json_abort(400, template.format(state, STATE_LOOKUP.values()))
+
+    @classmethod
     def abort_404_or_get_locale_choice(cls, geography, locale):
         try:
             return current_app.models.Record.get_sig_choice(geography, locale)

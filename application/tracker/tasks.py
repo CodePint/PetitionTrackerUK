@@ -21,11 +21,18 @@ def poll_task(id):
     petition.poll()
     return True
 
+@celery.task(name='populate_archived_petitions_task')
+@task_handler()
+def populate_petitions_task(task_name='populate_archived_petitions_task', *args, **kwargs):
+    petitions = Petition.populate(state='all', archived=True)
+    task_logger.info("Archived Petitions onboarded: {}".format(str(len(petitions))))
+    return True
+
 @celery.task(name='populate_petitions_task')
 @task_handler()
 def populate_petitions_task(task_name='populate_petitions_task', *args, **kwargs):
-    records = Petition.poll_all()
-    task_logger.info("Petitions polled: {}".format(str(len(records))))
+    petitions = Petition.populate(state='all', archived=False)
+    task_logger.info("Petitions onboarded: {}".format(str(len(petitions))))
     return True
 
 @celery.task(name='poll_petitions_task')

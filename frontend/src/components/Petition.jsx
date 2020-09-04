@@ -164,7 +164,6 @@ function Petition({ match }) {
       setPetition(petitionData);
       setChartData(datasets);
     } else if (response.status === 404) {
-      // Handle Petition not
       let error = { msg: JSON.stringify(response.data) };
       setChartError({ status: true, error: error });
     }
@@ -179,7 +178,15 @@ function Petition({ match }) {
       return data;
     } else if (response.status === 404) {
       if (allow404) {
-        return { label: toLabel(geography, locale), total: 0 };
+        // Handles a locale that does not have data for query
+        // Needs further testing and a locale lookup
+        return {
+          data: [],
+          geography: geography,
+          key: locale,
+          locale: toLabel(locale, "N/A"),
+          meta: { code: "", count: 0, name: locale, timestamp: "" },
+        };
       } else {
         setChartError({ status: true, error: { msg: JSON.stringify(response.log.msg) } });
       }

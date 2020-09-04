@@ -81,68 +81,6 @@ class Petition(db.Model):
     def __str__(self):
         template = 'petiton id: {}, action: {}'
         return template.format(self.id, self.action)
-    
-        # poll the remote petition and return a deserialised object (optional commit)
-    def poll(self, commit=True):
-        response = Petition.remote.get(self.id, raise_404=True)
-        self.polled_at = response.timestamp
-        self.update(response.data['data']["attributes"], response.timestamp)
-        self.set_archive_state(response.data['data']['type'])
-        
-        print("creating record for petition ID: {}".format(self.id))
-        return self.create_record(
-            attributes=response.data['data']["attributes"],
-            timestamp=response.timestamp,
-            commit=commit    
-        )
-
-    # To Do: add these details to petition db model
-    # --- "moderation_threshold_reached_at" (timestamp)
-    # --- "response_threshold_reached_at" (timestamp)
-    def update(self, attributes, timestamp):
-        self.polled_at = timestamp
-        self.signatures = attributes['signature_count']
-        self.pt_updated_at = attributes['updated_at']
-        self.pt_rejected_at = attributes['rejected_at']
-
-    def set_archive_state(self, type):
-        self.archived = True if (type == 'archived-petition') else False
-        return self.archived
-
-    # create a new record for the petition from attributres json (optional commit)
-    def create_record(self, attributes, timestamp, commit=True):
-        record = Record.create(self.id, attributes, timestamp, commit=False)
-        self.latest_data = attributes
-
-        if commit: 
-            db.session.commit()
-        
-        return record
-
-    # between ex: {'lt': dt(), 'gt': gt()}
-    #### *** Need to test *** ###
-    def query_records_between(self, lt, gt):
-        query = self.records.filter(Record.timestamp < lt)
-        query = query.filter(and_(Record.timestamp < (gt)))
-        return query
-
-    # since ex: {'hours': 12}, {'days': 7}, {'month': 1}
-    def query_records_since(self, since, now=None):
-        now = dt.strptime(now, "%d-%m-%YT%H:%M:%S") if now else dt.now()
-        ago = now - datetime.timedelta(**since)
-        query = self.records.filter(Record.timestamp > ago)
-        return query.order_by(Record.timestamp.desc())
-
-    def ordered_records(self, order="DESC"):
-        if order == "DESC":
-            return self.records.order_by(Record.timestamp.desc())
-        if order == "ASC":
-            return self.records.order_by(Record.timestamp)
-        
-        raise ValueError("Invalid order param, Must be 'DESC' or 'ASC'")
-    
-    def latest_record(self):
-        return self.ordered_records().first()
 
     @classmethod
     def get_or_404(cls, id):
@@ -217,6 +155,68 @@ class Petition(db.Model):
         db.session.commit()
         return records
 
+        # poll the remote petition and return a deserialised object (optional commit)
+    def poll(self, commit=True):
+        response = Petition.remote.get(self.id, raise_404=True)
+        self.polled_at = response.timestamp
+        self.update(response.data['data']["attributes"], response.timestamp)
+        self.set_archive_state(response.data['data']['type'])
+        
+        print("creating record for petition ID: {}".format(self.id))
+        return self.create_record(
+            attributes=response.data['data']["attributes"],
+            timestamp=response.timestamp,
+            commit=commit    
+        )
+
+    # To Do: add these details to petition db model
+    # --- "moderation_threshold_reached_at" (timestamp)
+    # --- "response_threshold_reached_at" (timestamp)
+    def update(self, attributes, timestamp):
+        self.polled_at = timestamp
+        self.signatures = attributes['signature_count']
+        self.pt_updated_at = attributes['updated_at']
+        self.pt_rejected_at = attributes['rejected_at']
+
+    def set_archive_state(self, type):
+        self.archived = True if (type == 'archived-petition') else False
+        return self.archived
+
+    # create a new record for the petition from attributres json (optional commit)
+    def create_record(self, attributes, timestamp, commit=True):
+        record = Record.create(self.id, attributes, timestamp, commit=False)
+        self.latest_data = attributes
+
+        if commit: 
+            db.session.commit()
+        
+        return record
+
+    # between ex: {'lt': dt(), 'gt': gt()}
+    #### *** Need to test *** ###
+    def query_records_between(self, lt, gt):
+        query = self.records.filter(Record.timestamp < lt)
+        query = query.filter(and_(Record.timestamp < (gt)))
+        return query
+
+    # since ex: {'hours': 12}, {'days': 7}, {'month': 1}
+    def query_records_since(self, since, now=None):
+        now = dt.strptime(now, "%d-%m-%YT%H:%M:%S") if now else dt.now()
+        ago = now - datetime.timedelta(**since)
+        query = self.records.filter(Record.timestamp > ago)
+        return query.order_by(Record.timestamp.desc())
+
+    def ordered_records(self, order="DESC"):
+        if order == "DESC":
+            return self.records.order_by(Record.timestamp.desc())
+        if order == "ASC":
+            return self.records.order_by(Record.timestamp)
+        
+        raise ValueError("Invalid order param, Must be 'DESC' or 'ASC'")
+    
+    def latest_record(self):
+        return self.ordered_records().first()
+
 
 
 class Record(db.Model):
@@ -243,20 +243,6 @@ class Record(db.Model):
         template = 'Total signatures for petition id: {}, at {} - {}'
         return template.format(self.petition_id, self.timestamp, self.signatures)
     
-    # short hand query helper query for signature geography + code or name
-    def signatures_by(self, geography, locale):
-        model = Record.get_sig_model(geography)
-        relation = self.get_sig_relation(geography)
-        choice = Record.get_sig_choice(geography, locale)
-
-        try: 
-            return relation.filter(model.code == choice['code']).one()
-        except sqlalchemy.orm.exc.NoResultFound:
-            return None
-
-    def get_sig_relation(self, geography):
-        return getattr(self, 'signatures_by_' + geography)
-    
     @classmethod
     def get_sig_model(cls, geography):
         return getattr(sys.modules[__name__], ('SignaturesBy' + geography.capitalize()))   
@@ -280,6 +266,20 @@ class Record(db.Model):
                 'schema_class': SignaturesBySchema.get_schema_for(geo),
             }
         return attributes
+
+    # short hand query helper query for signature geography + code or name
+    def signatures_by(self, geography, locale):
+        model = Record.get_sig_model(geography)
+        relation = self.get_sig_relation(geography)
+        choice = Record.get_sig_choice(geography, locale)
+
+        try: 
+            return relation.filter(model.code == choice['code']).one()
+        except sqlalchemy.orm.exc.NoResultFound:
+            return None
+
+    def get_sig_relation(self, geography):
+        return getattr(self, 'signatures_by_' + geography)
     
     @classmethod
     def get_sig_choice(cls, geography, key_or_value):

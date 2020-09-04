@@ -37,19 +37,18 @@ def get_petitions():
     items_per_page = request.args.get('items', type=int)
     state = request.args.get('state', 'all')
     params = {'items': items_per_page, 'state': state}
-
     context = {'state': state, 'petitions':[]}
-    context['meta'] = {'query': params}
+    context['meta'] = {'query': params, 'items': {}}
 
-    if state == 'all':
-        query = Petition.query
-    else:
+    query = Petition.query
+    if not state == 'all':
+        state = ViewUtils.abort_400_or_get_state(state)
         query = Petition.query.filter_by(state=state)
 
-
     if items_per_page:
-        page = query.paginate(index,  items_per_page , False)
+        page = query.paginate(index, items_per_page, False)
         page.curr_num = index
+        total_items = page.total
         petitions = page.items
 
         context['meta']['items'] = ViewUtils.items_for(page)
@@ -61,6 +60,7 @@ def get_petitions():
         )
     else:
         petitions = query.all()
+        context['meta']['items']['total'] = len(petitions)
 
     if not petitions:
         return context
