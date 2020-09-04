@@ -285,13 +285,13 @@ class Record(db.Model):
     def get_sig_choice(cls, geography, key_or_value):
         model = cls.get_sig_model(geography)
         choices = dict(model.CODE_CHOICES)
-        
+
         try:
-            choices[key_or_value]
-            code = key_or_value
+            choices[key_or_value.upper()]
+            code = key_or_value.upper()
         except KeyError:
             code = model.CODE_LOOKUP[key_or_value]
-        
+
         value = choices[code]
         return {'code': code, 'value': value}
     

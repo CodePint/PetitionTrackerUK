@@ -31,7 +31,7 @@ class ViewUtils():
     @classmethod
     def abort_400_if_invalid_geography(cls, geography):
         valid = ['region', 'country', 'constituency']
-        template = "Invalid geography: {geography}, Allowed: {}"
+        template = "Invalid geographic type: '{}', Allowed: {}"
         if geography not in valid:
             cls.json_abort(400, template.format(geography, valid))
 
