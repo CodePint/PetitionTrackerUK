@@ -1,0 +1,61 @@
+.PetitionItem {
+  font-size: 1rem;
+  margin: 1em 0;
+  color: #F5F5F5;
+  border: 1px solid rgb(237, 242, 247, 0.5);
+}
+
+.PetitionItem .banner {
+  display: flex;
+  background: rgb(237, 242, 247, 0.1);
+  width: 100%;
+  padding: 0.25em 0.5em;
+  justify-content: space-between;
+}
+
+.PetitionItem .external-link > a {
+  text-decoration: none;
+  color: rgb(185, 183, 183);
+}
+
+.PetitionItem .background {
+  margin: 0.25em 0;
+  width: calc(90%);
+  margin-top: 0.25em;
+}
+
+.PetitionItem .background p {
+  font-size: 0.75em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.PetitionItem .wrapper { 
+  padding: 0.5em;
+  background: rgb(237, 242, 247, 0.01);
+  border-top: 1px solid rgb(237, 242, 247, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+.PetitionItem .meta {
+  display: flex;
+  justify-content: space-between;
+  color: rgb(185, 183, 183);
+  font-size: 0.75em;
+  margin-top: auto;
+  padding-top: 1em;
+}
+
+.PetitionItem .meta > div span {
+  display: inline-block
+}
+
+.PetitionItem .meta > div span:first-child {
+  margin-right: 0.5em;
+}
+
+.PetitionItem .meta .icon {
+  font-size: 1em;
+}

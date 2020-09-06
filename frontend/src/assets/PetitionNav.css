@@ -1,21 +1,63 @@
-.SearchBar {
-  display: flex;
-  height: 3rem;
+.PetitionNav {
+  font-size: 1rem;
+  margin-top: 1rem;
 }
 
-.SearchBar input[type=text] {
-  padding-left: 0.75em;
+.PetitionNav nav {
+  margin-bottom: 2em;
+}
+
+.PetitionNav .toggle {
+  margin-top: 0.3em;
+}
+
+.PetitionNav .toggle ul {
+  display: flex;
+  font-size: 0.8em;
+}
+
+.PetitionNav .toggle li {
+  margin-right: 0.5em;
+}
+
+.PetitionNav .searchBar {
+  display: flex;
+  height: 2.5rem;
+  width: 100%;
+}
+
+.PetitionNav .searchBar input[type=text] {
+  padding-left: 0.5em;
+  display: block;
   outline: none;
   border: none;
   font-size: 1.25em;
-  width: 92.5%;
+  width: 90%;
+  flex-grow: 1;
 }
 
-.SearchBar .fa-search {
+.PetitionNav .searchBar button {
+  width: 10%;
+  font-size: 1em;
+  min-width: 3em;
+  border: none;
+  flex-grow: 0;
+
+}
+
+
+
+.PetitionNav .searchBar .fa-search {
   background: #080;
   color: #F5F5F5;
-  width: 2em;
+  display: block;
+  width: 100%;
   height: 100%;
   padding: 0.5em;
   margin: none;
+}
+
+.PetitionNav .PetitionNav .results > h5 {
+  color: #F5F5F5;
+  width: max-content;
 }

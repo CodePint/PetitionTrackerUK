@@ -41,14 +41,6 @@ function GeoNav({ GeoSearchHandler, geoDeleteHandler, geoConfig }) {
     }
   }
 
-  function submitBtn(formName) {
-    return (
-      <button type="submit" form={formName}>
-        Add
-      </button>
-    );
-  }
-
   function renderGeoSearchForm() {
     if (GeoSearchHandler) {
       return (

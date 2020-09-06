@@ -34,8 +34,6 @@ function PetitionList({ petitions = [] }) {
 
   return (
     <div className="PetitionList">
-      <h1>Petition List:</h1>
-
       {/* <div>{renderJsonList()}</div> */}
       <div>{renderItemList()}</div>
     </div>

@@ -1,3 +1,7 @@
-.Home {
-  margin: 0 auto;
+.PetitionList {
+  /* margin-top: 1em; */
+}
+
+.PetitionList ul li:first-child {
+  margin-top: 0.5em;
 }

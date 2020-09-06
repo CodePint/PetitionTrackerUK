@@ -4,6 +4,7 @@ import JSONPretty from "react-json-pretty";
 import PetitionList from "./PetitionList";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHome, faSearch } from "@fortawesome/free-solid-svg-icons";
+import { BrowserRouter as Router, Link, Redirect } from "react-router-dom";
 
 // import "../styles/PetitionNav.css";
 
@@ -40,11 +41,31 @@ function PetitionNav() {
     }
   }
 
+  const handlePetitionSearchForm = (event) => {
+    event.preventDefault();
+    // debugger;
+  };
+
   function renderSearchBar() {
     return (
-      <div class="SearchBar">
-        <input type="text" placeholder="Search Petitions..."></input>
-        <FontAwesomeIcon icon={faSearch} />
+      <div class="searchBar">
+        <input type="text" name="query" placeholder="Search Petitions..."></input>
+        <button type="submit">
+          {" "}
+          <FontAwesomeIcon icon={faSearch} />
+        </button>
+      </div>
+    );
+  }
+
+  function renderToggle() {
+    return (
+      <div class="toggle">
+        <ul>
+          <li>Popular</li>
+          <li>Open</li>
+          <li>New</li>
+        </ul>
       </div>
     );
   }
@@ -53,14 +74,18 @@ function PetitionNav() {
     <div>
       <div className="PetitionNav">
         <nav>
-          <div>{renderSearchBar()}</div>
-          <h2>State: {queryParams.state}</h2>
+          <form onSubmit={handlePetitionSearchForm}>
+            <div>{renderSearchBar()}</div>
 
-          <h3>Petitions Found: {numPetitionsFound.current}</h3>
+            <div>{renderToggle()}</div>
+          </form>
         </nav>
-      </div>
-      <div>
-        <PetitionList petitions={petitions}></PetitionList>
+        <div className="results">
+          <h5>{numPetitionsFound.current} petitions</h5>
+        </div>
+        <div>
+          <PetitionList petitions={petitions}></PetitionList>
+        </div>
       </div>
     </div>
   );

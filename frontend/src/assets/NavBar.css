@@ -3,7 +3,7 @@
   padding: 0.5rem;
   background: #080;
   color: #F5F5F5;
-  font-size: 1.5rem;
+  font-size: 1rem;
   display: flex;
 }
 
@@ -13,10 +13,10 @@
 }
 
 .Logo {
-  font-size: 1.25rem;
+  font-size: 1em;
   width: 1.75em;
   object-fit: contain;
-  margin: 0.25rem 1.25rem;
+  margin: 0.25em 1.25em;
 }
 
 .Logo img {
@@ -26,13 +26,13 @@
 }
 
 .MainNav .Header h1 {
-  font-size: 1.75rem;
+  font-size: 1.5em;
   font-weight: 800;
-  margin: 0.25rem 0rem;
+  margin: 0.25em 0em;
 }
 
 .MainNav .Header h3 {
-  font-size: 1.25rem;
+  font-size: 1em;
   font-weight: 500;
 }
 
