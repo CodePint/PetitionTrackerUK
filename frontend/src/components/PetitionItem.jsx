@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import "./css/PetitionItem.css";
+// import "../styles/PetitionItem.css";
 
 function PetitionItem({ item }) {
   return (

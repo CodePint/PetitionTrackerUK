@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "./css/About.css";
+// import "../styles/About.css";
 
 function About() {
   return (

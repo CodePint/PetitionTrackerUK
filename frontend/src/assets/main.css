@@ -1,15 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 @import "base.css";
-
 @import "Home.css";
-
 @import "NavBar.css";
-
 @import "PetitionNav.css";
-
 @import "PetitionList.css";
-
 @import "PetitionItem.css";
-
 @import "Petition.css";
-
 @import "Chart.css"

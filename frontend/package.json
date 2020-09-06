@@ -3,12 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^5.14.0",
+    "@fortawesome/fontawesome-svg-core": "^1.2.30",
+    "@fortawesome/free-solid-svg-icons": "^5.14.0",
+    "@fortawesome/react-fontawesome": "^0.1.11",
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.5.0",
     "@testing-library/user-event": "^7.2.1",
     "chart.js": "^2.9.3",
+    "craco": "0.0.3",
     "lodash": "^4.17.19",
     "moment": "^2.27.0",
+    "normalize.css": "^8.0.1",
+    "postcss-normalize": "^9.0.0",
+    "postcss-responsive-type": "^1.0.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-router-dom": "^5.2.0",
@@ -17,25 +25,39 @@
     "uuid-by-string": "^3.0.2"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "craco start",
+    "build": "npm run build:css && craco build",
+    "test": "craco test",
+    "eject": "react-scripts eject",
+    "build:css": "postcss src/assets/main.css -o src/assets/index.css",
+    "watch:css": "postcss src/assets/main.css -o src/assets/index.css"
   },
   "eslintConfig": {
     "extends": "react-app"
   },
   "browserslist": {
     "production": [
+      "last 2 versions",
       ">0.2%",
       "not dead",
       "not op_mini all"
     ],
     "development": [
+      "last 2 versions",
       "last 1 chrome version",
       "last 1 firefox version",
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:5000/"
+  "proxy": "http://localhost:5000/",
+  "devDependencies": {
+    "@craco/craco": "^5.6.4",
+    "autoprefixer": "^9.8.6",
+    "npm-run-all": "^4.1.5",
+    "postcss-cli": "^7.1.2",
+    "postcss-import": "^12.0.1",
+    "postcss-nested": "^4.2.3",
+    "postcss-preset-env": "^6.7.0",
+    "tailwindcss": "^1.8.3"
+  }
 }

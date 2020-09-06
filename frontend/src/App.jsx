@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
-import "./App.css";
 import NavBar from "./components/NavBar";
 import Home from "./components/Home";
 import About from "./components/About";
@@ -21,9 +20,6 @@ function App() {
             <Route path="/petition/:petition_id(\d+)" exact component={Petition} />
             <Route path="*" component={RouteNotFound} />
           </Switch>
-          <footer className="Flask-Status">
-            <div>Flask - React</div>
-          </footer>
         </div>
       </div>
     </Router>

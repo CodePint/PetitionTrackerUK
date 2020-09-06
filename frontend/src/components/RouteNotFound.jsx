@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "./css/NotFound.css";
+// import "../styles/NotFound.css";
 
 function RouteNotFound() {
   return (

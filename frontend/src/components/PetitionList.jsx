@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import JSONPretty from "react-json-pretty";
 import PetitionItem from "./PetitionItem";
-import "./css/PetitionList.css";
+// import "../styles/PetitionList.css";
 
 function PetitionList({ petitions = [] }) {
   useEffect(() => {}, []);

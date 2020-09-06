@@ -1,0 +1,54 @@
+/* css reset (after postcss normalize) */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  margin: 0;
+  padding: 0;
+  scroll-behavior: smooth;
+  font-size: responsive;
+}
+
+ul, li {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* setup for 10px == 1rem */
+/* html {
+  font-size: 62.5%;
+}
+body {
+  font-size: 1.6rem;
+} */
+
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  box-sizing: border-box;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+.App {
+  background-color: #282c34;
+  color: #F5F5F5;
+  min-height: 100vh;
+  min-width: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.content {
+  flex-grow: 1;
+  padding: 1rem;
+}

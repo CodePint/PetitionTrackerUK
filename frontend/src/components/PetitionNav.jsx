@@ -2,9 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import JSONPretty from "react-json-pretty";
 import PetitionList from "./PetitionList";
-import "./css/PetitionListController.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faHome, faSearch } from "@fortawesome/free-solid-svg-icons";
 
-function PetitionListController() {
+// import "../styles/PetitionNav.css";
+
+function PetitionNav() {
   const [queryParams, setQueryParams] = useState(baseQuery());
   const numPetitionsFound = useRef(0);
   const [petitions, setPetitions] = useState({});
@@ -37,16 +40,30 @@ function PetitionListController() {
     }
   }
 
-  return (
-    <div className="PetitionListController">
-      <nav>
-        <h2>State: {queryParams.state}</h2>
-        <h3>Petitions Found: {numPetitionsFound.current}</h3>
-      </nav>
+  function renderSearchBar() {
+    return (
+      <div class="SearchBar">
+        <input type="text" placeholder="Search Petitions..."></input>
+        <FontAwesomeIcon icon={faSearch} />
+      </div>
+    );
+  }
 
-      <PetitionList petitions={petitions}></PetitionList>
+  return (
+    <div>
+      <div className="PetitionNav">
+        <nav>
+          <div>{renderSearchBar()}</div>
+          <h2>State: {queryParams.state}</h2>
+
+          <h3>Petitions Found: {numPetitionsFound.current}</h3>
+        </nav>
+      </div>
+      <div>
+        <PetitionList petitions={petitions}></PetitionList>
+      </div>
     </div>
   );
 }
 
-export default PetitionListController;
+export default PetitionNav;

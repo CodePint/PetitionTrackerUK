@@ -7,11 +7,11 @@ import moment from "moment";
 
 import useIsFirstRender from "./utils/useIsFirstRender";
 import usePrev from "./utils/usePrev";
-import "./css/Petition.css";
+// import "../styles/Petition.css";
 import ConstituenciesSrc from "../geographies/json/constituencies.json";
 import RegionsSrc from "../geographies/json/regions.json";
 import CountriesSrc from "../geographies/json/countries.json";
-import Chart from "./charts/Chart";
+import Chart from "./Chart.jsx";
 import GeoNav from "./GeoNav.jsx";
 
 function geoConfTemplate() {

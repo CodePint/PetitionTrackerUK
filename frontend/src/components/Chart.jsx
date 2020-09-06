@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Chartjs from "chart.js";
-import "./css/Chart.css";
+// import "../styles/Chart.css";
 import { chartConfig, dataConfig, chartColors } from "./LineChartConfig";
 import _, { merge } from "lodash";
 

@@ -1,0 +1,21 @@
+.SearchBar {
+  display: flex;
+  height: 3rem;
+}
+
+.SearchBar input[type=text] {
+  padding-left: 0.75em;
+  outline: none;
+  border: none;
+  font-size: 1.25em;
+  width: 92.5%;
+}
+
+.SearchBar .fa-search {
+  background: #080;
+  color: #F5F5F5;
+  width: 2em;
+  height: 100%;
+  padding: 0.5em;
+  margin: none;
+}

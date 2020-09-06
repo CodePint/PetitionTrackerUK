@@ -114,7 +114,7 @@ def create_app():
     @app.cli.command("react")
     def run_yarn():
         print("starting react frontend")
-        subprocess.run('cd frontend && yarn start', shell=True)
+        subprocess.run('cd frontend && yarn run start', shell=True)
 
     
     @app.shell_context_processor
