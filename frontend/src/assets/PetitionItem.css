@@ -9,13 +9,19 @@
   display: flex;
   background: rgb(237, 242, 247, 0.1);
   width: 100%;
-  padding: 0.25em 0.5em;
+  /* padding: 0.25em 0.5em; */
   justify-content: space-between;
+}
+
+.PetitionItem .banner .id {
+  padding: 0.25em 0.5em;
 }
 
 .PetitionItem .external-link > a {
   text-decoration: none;
+  display: block;
   color: rgb(185, 183, 183);
+  padding: 0.25em 0.5em;
 }
 
 .PetitionItem .background {

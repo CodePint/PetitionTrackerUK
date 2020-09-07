@@ -88,3 +88,14 @@ class ViewUtils():
             return petition.query_records_between(**between)
         else:
             return petition.ordered_records()
+
+    @classmethod
+    def order_petitions_by(cls, query, key, by):
+        if not key in ['date', 'signatures']:
+            return query
+        if key == 'date':
+            key = 'pt_created_at'
+        
+        model_attr = getattr(current_app.models.Petition, key)
+        order_by = getattr(model_attr, by.lower())
+        return query.order_by(order_by())

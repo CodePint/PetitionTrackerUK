@@ -7,7 +7,6 @@ import moment from "moment";
 
 import useIsFirstRender from "./utils/useIsFirstRender";
 import usePrev from "./utils/usePrev";
-// import "../styles/Petition.css";
 import ConstituenciesSrc from "../geographies/json/constituencies.json";
 import RegionsSrc from "../geographies/json/regions.json";
 import CountriesSrc from "../geographies/json/countries.json";
@@ -591,7 +590,7 @@ function Petition({ match }) {
         ></GeoNav>
       </div>
 
-      <div className="PetitionJSON">{petitionJSON()}</div>
+      {/* <div className="PetitionJSON">{petitionJSON()}</div> */}
     </div>
   );
 }

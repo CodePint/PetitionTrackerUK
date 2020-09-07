@@ -13,7 +13,9 @@ function PetitionItem({ item }) {
     <li className="PetitionItem">
       <div className="banner">
         <div className="id">
-          <h4># {item.id}</h4>
+          <Link to={`/petition/${item.id}`}>
+            <h4># {item.id}</h4>
+          </Link>
         </div>
         <div className="external-link">
           <a href={item.url}>
@@ -24,31 +26,29 @@ function PetitionItem({ item }) {
         </div>
       </div>
 
-      <Link to={`/petition/${item.id}`}>
-        <div className="wrapper">
-          <div className="content">
-            <h4>{item.action}</h4>
-            <div className="background">
-              <p>{item.background}</p>
-            </div>
-          </div>
-          <div className="meta">
-            <div>
-              <span className="icon">
-                <FontAwesomeIcon icon={faCalendarAlt} />
-              </span>
-              <span>{formatDate(item.pt_created_at)}</span>
-            </div>
-
-            <div>
-              <span className="icon">
-                <FontAwesomeIcon icon={faPencilAlt} />
-              </span>
-              <span>{item.signatures}</span>
-            </div>
+      <div className="wrapper">
+        <div className="content">
+          <h4>{item.action}</h4>
+          <div className="background">
+            <p>{item.background}</p>
           </div>
         </div>
-      </Link>
+        <div className="meta">
+          <div>
+            <span className="icon">
+              <FontAwesomeIcon icon={faCalendarAlt} />
+            </span>
+            <span>{formatDate(item.pt_created_at)}</span>
+          </div>
+
+          <div>
+            <span className="icon">
+              <FontAwesomeIcon icon={faPencilAlt} />
+            </span>
+            <span>{item.signatures}</span>
+          </div>
+        </div>
+      </div>
     </li>
   );
 }

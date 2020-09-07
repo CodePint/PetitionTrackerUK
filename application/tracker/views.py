@@ -26,9 +26,10 @@ from flask import (
     abort
 )
 
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, func, select
 import requests, json, os
 import datetime as dt
+
 
 # returns a list of petitions
 @bp.route('/petitions', methods=['GET'])
@@ -36,7 +37,10 @@ def get_petitions():
     index = request.args.get('index', 1, type=int)
     items_per_page = request.args.get('items', type=int)
     state = request.args.get('state', 'all')
-    params = {'items': items_per_page, 'state': state}
+    action = request.args.get('action')
+    order_by = request.args.get('order_by', type=json.loads)
+
+    params = {'items': items_per_page, 'state': state, 'action': action}
     context = {'state': state, 'petitions':[]}
     context['meta'] = {'query': params, 'items': {}}
 
@@ -44,6 +48,14 @@ def get_petitions():
     if not state == 'all':
         state = ViewUtils.abort_400_or_get_state(state)
         query = Petition.query.filter_by(state=state)
+
+    if action:
+        query = query.filter(Petition.action.match(action, postgresql_regconfig='english'))
+
+    if order_by:
+        ordering_key = list(order_by)[0]
+        ordering_by = order_by[ordering_key]
+        query = ViewUtils.order_petitions_by(query, ordering_key, ordering_by)
 
     if items_per_page:
         page = query.paginate(index, items_per_page, False)

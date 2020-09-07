@@ -1,0 +1,100 @@
+.PetitionListController {
+  font-size: 1rem;
+  margin-top: 1rem;
+}
+
+.PetitionListController button {
+  border: none;
+  outline: none;
+  cursor: pointer
+}
+
+.PetitionListController nav {
+  margin-bottom: 1em;
+}
+
+.PetitionListController .toggles {
+  margin-top: -0.5em;
+}
+
+.PetitionListController .toggles ul {
+  display: flex;
+  font-size: 0.8em;
+}
+
+.PetitionListController .toggles li{
+  margin-right: 0.75em;
+}
+
+.PetitionListController .toggles .chevron{
+  margin-left: 0.3em;
+}
+
+.PetitionListController .toggles .icon {
+  margin-left: 0.25em;
+  font-size: 0.75em;
+  margin-top: 0.25em;
+}
+
+.PetitionListController .toggles input[type="radio"] {
+  background: none;
+  opacity: 0;
+  color: #F5F5F5;
+  font-size: 1em;
+}
+
+
+.PetitionListController .toggles label{
+  display: flex;
+  cursor: pointer;
+  font-size: 1em;
+  color: rgb(237, 242, 247, 0.6);
+}
+
+.PetitionListController .toggles input[type="radio"]:not(:checked) + label > .chevron {
+  opacity: 0;
+}
+
+.PetitionListController .toggles input[type="radio"]:checked + label,
+.PetitionListController .toggles input[type="radio"]:checked + label > .chevron {
+  color: #F5F5F5;
+}
+
+.PetitionListController .searchBar {
+  display: flex;
+  height: 2rem;
+  width: 100%;
+}
+
+.PetitionListController .searchBar input[type=text] {
+  padding-left: 0.5em;
+  display: block;
+  outline: none;
+  border: none;
+  font-size: 1em;
+  width: 90%;
+  flex-grow: 1;
+}
+
+.PetitionListController .searchBar button {
+  width: 10%;
+  font-size: 1em;
+  min-width: 3em;
+  border: none;
+  flex-grow: 0;
+}
+
+.PetitionListController .searchBar .fa-search {
+  background: #080;
+  color: #F5F5F5;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0.5em;
+  margin: none;
+}
+
+.PetitionListController .PetitionListController .meta > h5 {
+  color: #F5F5F5;
+  width: max-content;
+}
