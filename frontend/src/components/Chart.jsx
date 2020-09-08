@@ -9,7 +9,7 @@ const totalSigDataConfig = {
   borderColor: "rgb(40, 44, 52)",
   pointRadius: 1,
   pointHoverRadius: 20,
-  borderWidth: 6,
+  borderWidth: 4,
 };
 
 function Chart({ datasets }) {
@@ -50,7 +50,7 @@ function Chart({ datasets }) {
   }
 
   return (
-    <div className="Chart">
+    <div className="chart-container" style={{ position: "relative" }}>
       <canvas ref={chartContainer} />
     </div>
   );

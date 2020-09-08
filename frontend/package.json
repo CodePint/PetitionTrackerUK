@@ -21,6 +21,7 @@
     "react-dom": "^16.13.1",
     "react-router-dom": "^5.2.0",
     "react-scripts": "3.4.1",
+    "react-simple-animate": "^3.3.10",
     "uniqolor": "^1.0.0",
     "uuid-by-string": "^3.0.2"
   },

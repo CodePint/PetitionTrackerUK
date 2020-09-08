@@ -22,11 +22,11 @@
   font-size: 0.8em;
 }
 
-.PetitionListController .toggles li{
+.PetitionListController .toggles li {
   margin-right: 0.75em;
 }
 
-.PetitionListController .toggles .chevron{
+.PetitionListController .toggles .chevron {
   margin-left: 0.3em;
 }
 
@@ -39,7 +39,7 @@
 .PetitionListController .toggles input[type="radio"] {
   background: none;
   opacity: 0;
-  color: #F5F5F5;
+  color: var(--smoke-white);
   font-size: 1em;
 }
 
@@ -48,7 +48,7 @@
   display: flex;
   cursor: pointer;
   font-size: 1em;
-  color: rgb(237, 242, 247, 0.6);
+  color: 	rgb(211,211,211, 0.7);
 }
 
 .PetitionListController .toggles input[type="radio"]:not(:checked) + label > .chevron {
@@ -57,7 +57,7 @@
 
 .PetitionListController .toggles input[type="radio"]:checked + label,
 .PetitionListController .toggles input[type="radio"]:checked + label > .chevron {
-  color: #F5F5F5;
+  color: var(--smoke-white);
 }
 
 .PetitionListController .searchBar {
@@ -85,8 +85,8 @@
 }
 
 .PetitionListController .searchBar .fa-search {
-  background: #080;
-  color: #F5F5F5;
+  background: var(--parl-green);
+  color: var(--smoke-white);
   display: block;
   width: 100%;
   height: 100%;
@@ -95,6 +95,6 @@
 }
 
 .PetitionListController .PetitionListController .meta > h5 {
-  color: #F5F5F5;
+  color: var(--smoke-white);
   width: max-content;
 }

@@ -1,4 +1,228 @@
+/* Petition page */
 .Petition {
-  width: 75%;
-  margin: 0 auto
+  width: 80%;
+  margin: 0 auto;
+  font-size: 1rem;
+}
+
+
+
+/* --- Petition action (header) --- */
+.Petition .action {
+  font-size: 1.75rem;
+  padding: 1em 0;
+  position: relative;
+}
+
+.Petition .action .icon {
+  font-size: 0.75em;
+  color: var(--light-grey);
+  position: relative;
+  bottom: 0.1em;
+}
+
+.Petition .action h1 {
+  font-size: 1em;
+  font-weight: 400;
+}
+
+
+
+/* --- Petition meta --- */
+.Petition .meta {
+  font-size: 1em;
+  margin-bottom: 1em;
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 auto;
+}
+
+.Petition .meta h5 {
+  font-size: 1em;
+  text-align: center;
+  font-weight: 400;
+  margin-bottom: 0.5em;
+  color: var(--slate-black);
+  word-wrap: break-word;
+}
+
+.Petition .meta .icon {
+  font-size: 0.9em;
+  display: inline-block;
+  margin-right: 0.3em;
+
+}
+.Petition .meta .values .icon {
+  margin-left: 0.3em;
+  margin-right: 0;
+}
+
+.Petition .meta .values {
+  text-align: center;
+  font-weight: 600;
+}
+
+.Petition .meta .flex-child {
+  padding: 1em 0;
+  border: 1px solid var(--slate-black);
+  flex-grow: 1;
+  flex-basis: 25%;
+  display: flex;
+  flex-direction: column;
+  background: var(--parl-green);
+}
+
+.Petition .meta .flex-child > div {
+  width: max-content;
+  margin: 0 auto;
+  padding: 1em;
+}
+
+.Petition .meta .state {
+  flex-grow: 0;
+  /* flex-basis: 30%; */
+}
+
+
+
+/* --- Petition text details --- */
+.Petition .text {
+  padding: 1em 0
+}
+
+.Petition .text .details-toggle {
+  margin: 0.25em 0;
+  font-size: 0.9em;
+}
+
+.Petition .text .details-toggle span{
+  display: inline-block;
+  color: var(--light-grey);
+}
+
+.Petition .text .details-toggle .icon {
+  margin-right: 0.5em;
+  padding-top: 0.1em;
+}
+
+
+
+/* --- Response/Progress bars --- */
+
+.signatures-heading {
+  display: flex;
+}
+
+.signatures-heading .icon  {
+  display: block;
+  font-size: 0.8em;
+  margin-top: 0.3em;
+  margin-right: 0.5em;
+}
+
+
+.Petition .ProgressBar {
+  display: flex;
+  flex-direction: column;
+}
+
+.Petition .ProgressBar .Bar,
+.Petition .ProgressBar .container {
+  width: 100%;
+  height: 0.75em;
+}
+
+.Petition .ProgressBar .Bar {
+  background: var(--parl-green);
+}
+
+.Petition .ProgressBar .container {
+  background: var(--light-grey);
+}
+
+.ProgressBar .threshold {
+  padding: 0.25em 0;
+  align-self: flex-end;
+  color: var(--light-grey)
+}
+
+.Petition .ProgressBar .label {
+  padding: 0.25em 0;
+}
+
+.Petition .ProgressBar .label__container {
+  display: flex;
+  align-items: flex-end;
+}
+
+.Petition .ProgressBar .label .icon {
+  font-size: 1em;
+  width: 2em;
+  object-fit: contain;
+  position: relative;
+}
+
+.Petition .ProgressBar .label .icon.portcullis {
+  position: relative;
+  top: 0.1em;
+  width: 1.3em;
+  margin: 0 0.5em;
+}
+
+.Petition .ProgressBar .label .icon.crown {
+  position: relative;
+  top: 0.6em;
+  width: 2.3em;
+}
+
+.Petition .ProgressBar .label .icon img {
+  height: auto;
+  width: 100%;
+}
+
+
+
+/* --- Petition chart banner --- */
+.petition__chart .banner {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5em;
+  background: var(--dark-grey);
+}
+
+.petition__chart .banner h3 {
+  font-size: 1em;
+}
+
+.petition__chart .banner .signatures {
+  display: flex;
+}
+
+.petition__chart .banner .signatures .icon  {
+  display: block;
+  font-size: 0.8em;
+  margin-top: 0.1em;
+  margin-right: 0.5em;
+}
+
+
+
+/* --- Media Queries --- */
+@media only screen and (max-width: 600px) {
+  .Petition {
+    width: 95%;
+    margin: 0 auto;
+    font-size: 1rem;
+  }
+
+  .Petition .meta {
+    flex-direction: column;
+    flex-wrap: none;
+    /* width: 90%; */
+  }
+
+  .Petition .meta .state {
+    order: 1
+  }
+
 }

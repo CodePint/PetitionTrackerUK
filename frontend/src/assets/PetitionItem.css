@@ -1,15 +1,14 @@
 .PetitionItem {
   font-size: 1rem;
   margin: 1em 0;
-  color: #F5F5F5;
-  border: 1px solid rgb(237, 242, 247, 0.5);
+  color: var(--smoke-white);
+  border: 1px solid var(--light-grey);
 }
 
 .PetitionItem .banner {
   display: flex;
-  background: rgb(237, 242, 247, 0.1);
+  background: var(--parl-green);
   width: 100%;
-  /* padding: 0.25em 0.5em; */
   justify-content: space-between;
 }
 
@@ -20,14 +19,14 @@
 .PetitionItem .external-link > a {
   text-decoration: none;
   display: block;
-  color: rgb(185, 183, 183);
+  color: var(--light-grey);
   padding: 0.25em 0.5em;
 }
 
 .PetitionItem .background {
   margin: 0.25em 0;
   width: calc(90%);
-  margin-top: 0.25em;
+  margin-top: 0.5em;
 }
 
 .PetitionItem .background p {
@@ -39,8 +38,7 @@
 
 .PetitionItem .wrapper { 
   padding: 0.5em;
-  background: rgb(237, 242, 247, 0.01);
-  border-top: 1px solid rgb(237, 242, 247, 0.5);
+  border-top: 1px solid var(--light-grey);
   display: flex;
   flex-direction: column;
 }
@@ -48,7 +46,7 @@
 .PetitionItem .meta {
   display: flex;
   justify-content: space-between;
-  color: rgb(185, 183, 183);
+  color: var(--light-grey);
   font-size: 0.75em;
   margin-top: auto;
   padding-top: 1em;

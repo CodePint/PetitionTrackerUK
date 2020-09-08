@@ -121,7 +121,7 @@ function GeoNav({ GeoSearchHandler, geoDeleteHandler, geoConfig }) {
   }
 
   return (
-    <div>
+    <div className="GeoNav">
       <div>{renderGeoSearchForm()}</div>
       <div>{renderGeoDeleteForm()}</div>
     </div>

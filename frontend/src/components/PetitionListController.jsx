@@ -3,6 +3,7 @@ import axios from "axios";
 import JSONPretty from "react-json-pretty";
 import PetitionList from "./PetitionList";
 import _ from "lodash";
+import { Link, Redirect } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSearch,
@@ -11,7 +12,6 @@ import {
   faPencilAlt,
   faCalendarAlt,
 } from "@fortawesome/free-solid-svg-icons";
-import { BrowserRouter as Router, Link, Redirect } from "react-router-dom";
 
 // import "../styles/PetitionListController.css";
 

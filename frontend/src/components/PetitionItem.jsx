@@ -2,10 +2,14 @@ import React, { useState, useEffect } from "react";
 import moment from "moment";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPencilAlt, faCalendarAlt, faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
-import { BrowserRouter as Router, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 function formatDate(date) {
   return moment(date).format("DD-MM-YYYY");
+}
+
+function lazyIntToCommaString(x) {
+  return x ? x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
 }
 
 function PetitionItem({ item }) {
@@ -45,7 +49,7 @@ function PetitionItem({ item }) {
             <span className="icon">
               <FontAwesomeIcon icon={faPencilAlt} />
             </span>
-            <span>{item.signatures}</span>
+            <span>{lazyIntToCommaString(item.signatures)}</span>
           </div>
         </div>
       </div>

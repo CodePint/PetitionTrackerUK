@@ -9,6 +9,9 @@ const chartConfig = {
     ],
   },
   options: {
+    responsive: true,
+    maintainAspectRatio: false,
+
     scales: {
       xAxes: [
         {
@@ -21,10 +24,10 @@ const chartConfig = {
               minute: "DD-MM-YYThh:mm:ss",
               second: "DD-MM-YYThh:mm:ss",
               hour: "DD-MM-YYThh:mm",
-              day: "DD-MM-YY",
-              week: "DD-MM-YY",
-              month: "MM-YY",
-              year: "MM-YY",
+              day: "DD-MM-YYYY",
+              week: "DD-MM-YYYY",
+              month: "MM-YYYY",
+              year: "MM-YYYY",
             },
           },
         },

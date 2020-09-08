@@ -2,16 +2,32 @@ import React, { useState, useEffect, useRef } from "react";
 import _, { set, has, isNull, last } from "lodash";
 import axios from "axios";
 import JSONPretty from "react-json-pretty";
-import uuid_by_string from "uuid-by-string";
 import moment from "moment";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
+import {
+  faPencilAlt,
+  faCalendarAlt,
+  faCalendarTimes,
+  faExternalLinkAlt,
+  faAngleRight,
+  faAngleDown,
+  faLock,
+  faUnlock,
+  faTasks,
+  faTrafficLight,
+} from "@fortawesome/free-solid-svg-icons";
 
 import useIsFirstRender from "./utils/useIsFirstRender";
 import usePrev from "./utils/usePrev";
 import ConstituenciesSrc from "../geographies/json/constituencies.json";
 import RegionsSrc from "../geographies/json/regions.json";
 import CountriesSrc from "../geographies/json/countries.json";
+
 import Chart from "./Chart.jsx";
 import GeoNav from "./GeoNav.jsx";
+import ProgressBar from "./ProgressBar";
+import { render } from "react-dom";
 
 function geoConfTemplate() {
   return {
@@ -31,7 +47,6 @@ function Petition({ match }) {
   const isFirstRender = useIsFirstRender();
   const isPollOverdue = useRef(true);
   const lastPolledAt = useRef(null);
-
   const showTotalSigs = useRef(true);
   const geoChartConfig = useRef(geoConfTemplate());
   const chartDataCache = useRef([]);
@@ -42,8 +57,10 @@ function Petition({ match }) {
   const [sigToDel, setGeoToDel] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [chartTime, setChartTime] = useState({ days: 30 });
-
   const [chartError, setChartError] = useState({ status: false, error: { msg: "" } });
+
+  const [allTimeValueSelected, setAllTimeValueSelected] = useState(false);
+  const [showAdditionalDetails, setShowAdditionalDetails] = useState(false);
 
   useEffect(() => {
     resetChartError();
@@ -339,6 +356,10 @@ function Petition({ match }) {
     return `${value} (${code})`;
   }
 
+  function lazyIntToCommaString(x) {
+    return x ? x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
+  }
+
   function flatGeoConf() {
     return Object.values(geoChartConfig.current).flat();
   }
@@ -396,6 +417,25 @@ function Petition({ match }) {
     return datasets;
   }
 
+  function getThresholdStatus() {
+    const thresholds = thresholdStatus();
+    if (!thresholds) {
+      return "N/A";
+    } else if (thresholds.debate.outcome) {
+      return "Debate Completed";
+    } else if (thresholds.debate.scheduled) {
+      return "Awaiting Debate";
+    } else if (thresholds.debate.reached) {
+      return "Debate Threshold Reached";
+    } else if (thresholds.response.responded) {
+      return "Government Responded";
+    } else if (thresholds.response.reached) {
+      return "Awaiting Response";
+    } else {
+      return "Attracting signatures";
+    }
+  }
+
   // Form Handlers
   const toggleTotalSignatures = (event) => {
     let found = findDataset("Total");
@@ -422,14 +462,20 @@ function Petition({ match }) {
 
   const handleChartTimeForm = (event) => {
     event.preventDefault();
-    if (event.target.name === "viewAll") {
+    if (event.target.units.value === "all") {
       setChartTime(null);
     } else {
       let chartTimeObj = {};
       let timeAmount = event.target.amount.value;
       let timeUnit = event.target.units.value;
-      chartTimeObj[timeUnit] = parseInt(timeAmount);
-      setChartTime(chartTimeObj);
+      const intRegex = new RegExp("^[0-9]+$");
+      if (intRegex.test(timeAmount)) {
+        chartTimeObj[timeUnit] = parseInt(timeAmount);
+        setChartTime(chartTimeObj);
+      } else {
+        let error = { msg: "Invalid input (time must be a number)" };
+        setChartError({ status: true, error: error });
+      }
     }
   };
 
@@ -479,10 +525,6 @@ function Petition({ match }) {
     }
   }
 
-  function renderChartError() {
-    return <h3>{chartError.status.msg}</h3>;
-  }
-
   function petitionJSON() {
     return (
       <div className="data">
@@ -509,25 +551,31 @@ function Petition({ match }) {
     );
   }
 
+  const isChartTimeViewAll = (event) => {
+    event.preventDefault();
+    if (event.target.value === "all") {
+      setAllTimeValueSelected(true);
+    } else if (allTimeValueSelected) {
+      setAllTimeValueSelected(false);
+    }
+  };
+
   function renderChartTimeForm() {
     return (
       <div className="chartTimeForm">
         <form onSubmit={handleChartTimeForm}>
           <h3>View data since: {dataSinceString()}</h3>
-          <select name="units">
+          <select name="units" onChange={isChartTimeViewAll}>
             <option value="minutes">minutes</option>
             <option value="hours">hours</option>
             <option value="days">days</option>
             <option value="weeks">weeks</option>
+            <option value="all">all time</option>
           </select>
 
-          <input type="text" name="amount" />
+          <input type="text" name="amount" disabled={allTimeValueSelected} />
           <input type="submit" value="Submit" />
         </form>
-
-        <button name="viewAll" value="all" onClick={handleChartTimeForm}>
-          View All
-        </button>
       </div>
     );
   }
@@ -556,12 +604,206 @@ function Petition({ match }) {
     );
   }
 
+  function formatDate(date) {
+    return moment(date).format("DD-MM-YYYY");
+  }
+
+  function addTimeToDate(date, value, unit) {
+    return moment(date).add(value, unit);
+  }
+
+  function thresholdStatus() {
+    if (!_.isEmpty(petition)) {
+      return {
+        response: {
+          reached: petition.response_threshold_reached_at,
+          responded: petition.government_response_at,
+        },
+        debate: {
+          reached: petition.debate_threshold_reached_at,
+          scheduled: petition.scheduled_debate_date,
+          outcome: petition.debate_outcome_at,
+        },
+      };
+    } else {
+      return null;
+    }
+  }
+
+  function renderPetitionAction() {
+    return (
+      <div class="action">
+        <h1>
+          <span>{petition.action} </span>
+          <span> &nbsp;</span>
+          <span className="icon">
+            <a href={petition.url}>
+              <FontAwesomeIcon icon={faExternalLinkAlt} />
+            </a>
+          </span>
+        </h1>
+      </div>
+    );
+  }
+
+  function renderMetaSection() {
+    return (
+      <div class="meta">
+        <div className="created_at flex-child">
+          <div>
+            <h5>
+              <span class="icon">
+                <FontAwesomeIcon icon={faCalendarAlt} />
+              </span>
+              <span class="title">Created</span>
+            </h5>
+            <div className="values">{moment(petition.pt_created_at).format("DD MMMM, YYYY")}</div>
+          </div>
+        </div>
+        <div className="state flex-child">
+          <div>
+            <h5>
+              {" "}
+              <span class="icon">
+                {" "}
+                <FontAwesomeIcon icon={faTrafficLight} />
+              </span>
+              <span class="title">State</span>
+            </h5>
+            <div className="values">
+              <span>{_.capitalize(petition.state)}</span>
+              <span class="icon">
+                {" "}
+                <FontAwesomeIcon icon={petition.state === "open" ? faUnlock : faLock} />
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="deadline_at flex-child">
+          <div>
+            <h5>
+              <span class="icon">
+                {" "}
+                <FontAwesomeIcon icon={faCalendarTimes} />
+              </span>
+              <span class="title">Deadline</span>
+            </h5>
+            <div className="values">
+              {addTimeToDate(petition.pt_created_at, 6, "months").format("DD MMMM, YYYY")}
+            </div>
+          </div>
+        </div>
+        <div className="progress flex-child">
+          <div>
+            <h5>
+              <span class="icon">
+                {" "}
+                <FontAwesomeIcon icon={faTasks} />
+              </span>
+              <span class="title">Progress</span>
+            </h5>
+            <div className="values">{getThresholdStatus()}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderProgressBars() {
+    return (
+      <div className="progress">
+        <div className="thresholds">
+          <ProgressBar
+            play={true}
+            label={{ text: "Government will respond at 10,000 signatures", icon: "crown" }}
+            start={0}
+            threshold={10000}
+            progress={petition.signatures}
+          ></ProgressBar>
+          <ProgressBar
+            play={true}
+            label={{
+              text: "Parliament will consider debate at 100,000 signatures",
+              icon: "portcullis",
+            }}
+            start={0}
+            threshold={100000}
+            progress={petition.signatures}
+          ></ProgressBar>
+        </div>
+      </div>
+    );
+  }
+
+  function renderPetitionText() {
+    return (
+      <div className="text">
+        <div className="background">
+          {petition.background}
+          <div
+            className="details-toggle"
+            onClick={() => setShowAdditionalDetails(!showAdditionalDetails)}
+          >
+            {" "}
+            <span class="icon">
+              <FontAwesomeIcon icon={showAdditionalDetails ? faAngleDown : faAngleRight} />
+            </span>
+            <span>{showAdditionalDetails ? "Less" : "More"} details</span>
+          </div>
+        </div>
+        <div
+          className="additional-details"
+          style={showAdditionalDetails ? {} : { display: "none" }}
+        >
+          {petition.additional_details}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="Petition">
-      <h1>Petition ID: {petition_id}</h1>
-      <h1>Action: {petition["action"]}</h1>
-      <h2>Total signatures: {petition["signatures"]}</h2>
-      <div>{chartError.status ? renderChartError() : ""}</div>
+      {renderPetitionAction()}
+
+      <div className="signatures-heading">
+        <span className="icon">
+          <FontAwesomeIcon icon={faPencilAlt} />
+        </span>
+        <h3>{lazyIntToCommaString(petition.signatures)} signatures</h3>
+      </div>
+      {renderProgressBars()}
+      {renderPetitionText()}
+      {renderMetaSection()}
+      <br></br>
+
+      <div className="petition__chart">
+        <div className="banner">
+          <div className="id">
+            <h3># {petition_id}</h3>
+          </div>
+
+          <div className="signatures">
+            <span className="icon">
+              <FontAwesomeIcon icon={faPencilAlt} />
+            </span>
+            <h3>{lazyIntToCommaString(petition.signatures)}</h3>
+          </div>
+        </div>
+
+        <Chart datasets={chartData} />
+
+        <div className="footer"></div>
+      </div>
+
+      <div className="petition__geonav">
+        <GeoNav
+          GeoSearchHandler={handleAddGeoSigForm}
+          geoDeleteHandler={handleDelGeoSigForm}
+          geoConfig={geoChartConfig.current}
+        ></GeoNav>
+      </div>
+      <br></br>
+      <br></br>
 
       <div className="ChartNav">
         <div>{renderChartTimeForm()}</div>
@@ -570,27 +812,11 @@ function Petition({ match }) {
         <div>{renderToggleTotalSigForm()}</div>
       </div>
 
-      <div className="ChartError">
+      <div className="chart__error">
         <div>
-          <span>{chartError.error ? chartError.error.msg : ""}</span>
+          <h4>{chartError.error ? chartError.error.msg : ""}</h4>
         </div>
       </div>
-
-      <div className="PetitionChart">
-        <br></br>
-        <Chart datasets={chartData} />
-        <br></br>
-      </div>
-
-      <div className="GeoNav">
-        <GeoNav
-          GeoSearchHandler={handleAddGeoSigForm}
-          geoDeleteHandler={handleDelGeoSigForm}
-          geoConfig={geoChartConfig.current}
-        ></GeoNav>
-      </div>
-
-      {/* <div className="PetitionJSON">{petitionJSON()}</div> */}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 .MainNav {
   min-height: 10vh;
   padding: 0.5rem;
-  background: #080;
-  color: #F5F5F5;
+  background: var(--parl-green);
+  color: var(--smoke-white);
   font-size: 1rem;
   display: flex;
 }
