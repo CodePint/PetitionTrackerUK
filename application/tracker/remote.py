@@ -46,6 +46,14 @@ class RemotePetition():
         params['pt_created_at'] = attributes['created_at']
         params['pt_updated_at'] = attributes['updated_at']
         params['pt_rejected_at'] = attributes['rejected_at']
+
+        params['moderation_threshold_reached_at'] = attributes['moderation_threshold_reached_at']
+        params['response_threshold_reached_at'] = attributes['response_threshold_reached_at']
+        params['government_response_at'] = attributes['government_response_at']
+        params['debate_threshold_reached_at'] = attributes['debate_threshold_reached_at']
+        params['scheduled_debate_date'] = attributes['scheduled_debate_date']
+        params['debate_outcome_at'] = attributes['debate_outcome_at']
+
         params['initial_data'] = petition
         params['latest_data'] = petition
 

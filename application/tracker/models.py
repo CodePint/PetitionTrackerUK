@@ -50,10 +50,17 @@ class Petition(db.Model):
     url = db.Column(String(2048), index=True, unique=True)
     signatures = db.Column(Integer)
     background = db.Column(String)
+    creator_name = db.Column(String)
     additional_details = db.Column(String)
     pt_created_at = db.Column(DateTime)
-    pt_updated_at = db.Column(DateTime)
+    pt_updated_at = db.Column(DateTime)    
     pt_rejected_at = db.Column(DateTime)
+    moderation_threshold_reached_at = db.Column(DateTime)
+    response_threshold_reached_at = db.Column(DateTime)
+    debate_threshold_reached_at = db.Column(DateTime)
+    government_response_at = db.Column(DateTime)
+    scheduled_debate_date = db.Column(DateTime)
+    debate_outcome_at = db.Column(DateTime)
     polled_at = db.Column(DateTime)
     db_created_at = db.Column(DateTime(timezone=True), default=sqlfunc.now())
     db_updated_at = db.Column(DateTime(timezone=True), default=sqlfunc.now(), onupdate=sqlfunc.now())
@@ -174,10 +181,17 @@ class Petition(db.Model):
     # --- "response_threshold_reached_at" (timestamp)
     def update(self, attributes, timestamp):
         self.polled_at = timestamp
+        self.state = attributes['state']
         self.signatures = attributes['signature_count']
         self.pt_updated_at = attributes['updated_at']
         self.pt_rejected_at = attributes['rejected_at']
-
+        self.moderation_threshold_reached_at = attributes['moderation_threshold_reached_at'] 
+        self.response_threshold_reached_at = attributes['response_threshold_reached_at']
+        self.debate_threshold_reached_at = attributes['debate_threshold_reached_at']
+        self.government_response_at = attributes['government_response_at']
+        self.scheduled_debate_date = attributes['scheduled_debate_date']
+        self.debate_outcome_at = attributes['debate_outcome_at']
+    
     def set_archive_state(self, type):
         self.archived = True if (type == 'archived-petition') else False
         return self.archived
