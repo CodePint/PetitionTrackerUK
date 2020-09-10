@@ -1,0 +1,24 @@
+.Pagination {
+  display: flex;
+}
+
+.Pagination ul {
+  display: flex;
+  font-size: 1rem;
+  margin: auto;
+}
+
+.Pagination li {
+  padding: 0.5em;
+  color: var(--light-grey);
+}
+
+.Pagination a {
+  outline: none;
+}
+
+.Pagination .active {
+  color: var(--smoke-white);
+  background: var(--dark-grey);
+
+}

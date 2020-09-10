@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import JSONPretty from "react-json-pretty";
-import PetitionList from "./PetitionList";
 import _ from "lodash";
 import { Link, Redirect } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -13,15 +12,18 @@ import {
   faCalendarAlt,
 } from "@fortawesome/free-solid-svg-icons";
 
-// import "../styles/PetitionListController.css";
+import PetitionList from "./PetitionList";
+import Pagination from "./Pagination";
 
-function PetitionListController() {
+function PetitionListController({}) {
   const [queryParams, setQueryParams] = useState(baseQuery());
   const [petitionID, setPetitionID] = useState(null);
   const [toggleValues, setToggleValues] = useState(defaultToggleValues());
-  const numPetitionsFound = useRef(0);
   const [petitions, setPetitions] = useState({});
+  const numPetitionsFound = useRef(0);
+  const paginationData = useRef(null);
   const queryResult = useRef(null);
+  const baseUrl = "/petitions";
 
   const icons = {
     DESC: faChevronDown,
@@ -65,10 +67,11 @@ function PetitionListController() {
   async function queryPetitions() {
     const params = { params: queryParams };
     try {
-      let response = await axios.get("/petitions", params);
+      let response = await axios.get(baseUrl, params);
       let data = response.data;
       queryResult.current = data;
-      if (data.petitions && data.petitions.length > 0) {
+      paginationData.current = data.meta.pages;
+      if (data.petitions) {
         numPetitionsFound.current = data.meta.items.total;
         setPetitions(data.petitions);
       }
@@ -90,6 +93,12 @@ function PetitionListController() {
       params.action = query;
       setQueryParams(params);
     }
+  };
+
+  const pageChangeHandler = ({ selected }) => {
+    let params = _.cloneDeep(queryParams);
+    params.index = selected + 1;
+    setQueryParams(params);
   };
 
   const handleToggle = (event) => {
@@ -189,6 +198,14 @@ function PetitionListController() {
 
         <PetitionList petitions={petitions}></PetitionList>
       </div>
+
+      <Pagination
+        pages={paginationData.current}
+        baseUrl={baseUrl}
+        urlParams={queryParams}
+        pagesToShow={5}
+        pageChangeHandler={pageChangeHandler}
+      ></Pagination>
     </div>
   );
 }

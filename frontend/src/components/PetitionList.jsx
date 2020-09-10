@@ -23,12 +23,6 @@ function PetitionList({ petitions = [] }) {
           })}
         </ul>
       );
-    } else {
-      return (
-        <div>
-          <h2>No Petitions Found</h2>
-        </div>
-      );
     }
   }
 
