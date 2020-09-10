@@ -62,9 +62,8 @@ def get_petitions():
         page.curr_num = index
         total_items = page.total
         petitions = page.items
-
         context['meta']['items'] = ViewUtils.items_for(page)
-        context['meta']['pages'] = page.pages
+        context['meta']['pages'] = ViewUtils.get_pagination_indexes(page)
         context['meta']['links'] = ViewUtils.get_pagination_urls(
             page,
             'tracker_bp.get_petitions',
@@ -118,7 +117,7 @@ def get_petition_signatures(petition_id):
         records = page.items
 
         context['meta']['items'] = ViewUtils.items_for(page)
-        context['meta']['pages'] = page.pages
+        context['meta']['pages'] = ViewUtils.get_pagination_indexes(page)
         context['meta']['links'] = ViewUtils.get_pagination_urls(
             page,
             'tracker_bp.get_petition_signatures',
@@ -164,7 +163,7 @@ def get_petition_signatures_by_geography(petition_id, geography):
         records = page.items
 
         context['meta']['items'] = ViewUtils.items_for(page)
-        context['meta']['pages'] = page.pages
+        context['meta']['pages'] = ViewUtils.get_pagination_indexes(page)
         context['meta']['links'] = ViewUtils.get_pagination_urls(
             page,
             'tracker_bp.get_petition_signatures_by_geography',
@@ -224,7 +223,7 @@ def get_petition_signatures_by_locale(petition_id, geography, locale):
         records = page.items
 
         context['meta']['items'] = ViewUtils.items_for(page)
-        context['meta']['pages'] = page.pages
+        context['meta']['pages'] = ViewUtils.get_pagination_indexes(page)
         context['meta']['links'] = ViewUtils.get_pagination_urls(
             page,
             'tracker_bp.get_petition_signatures_by_locale',
@@ -291,7 +290,7 @@ def get_petition_signatures_comparison(petition_id):
         records = page.items
         
         context['meta']['items'] = ViewUtils.items_for(page)
-        context['meta']['pages'] = page.pages
+        context['meta']['pages'] = ViewUtils.get_pagination_indexes(page)
         context['links'] = ViewUtils.get_pagination_urls(
             page,
             'tracker_bp.get_petition_signatures_comparison',

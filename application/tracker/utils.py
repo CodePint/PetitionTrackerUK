@@ -80,6 +80,15 @@ class ViewUtils():
         return meta
 
     @classmethod
+    def get_pagination_indexes(cls, page):
+        return {
+            'curr_page': page.curr_num,
+            'prev_page': page.prev_num,
+            'next_page': page.next_num,
+            'last_page': page.pages
+        }
+
+    @classmethod
     def record_timestamp_query(cls, petition, since=None, between=None):
         # breakpoint()
         if since:
