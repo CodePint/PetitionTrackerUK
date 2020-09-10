@@ -18,6 +18,7 @@
     "postcss-normalize": "^9.0.0",
     "postcss-responsive-type": "^1.0.0",
     "react": "^16.13.1",
+    "react-autocomplete": "^1.8.1",
     "react-dom": "^16.13.1",
     "react-paginate": "^6.4.0",
     "react-router-dom": "^5.2.0",

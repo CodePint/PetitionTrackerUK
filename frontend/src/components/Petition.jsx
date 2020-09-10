@@ -4,7 +4,6 @@ import axios from "axios";
 import JSONPretty from "react-json-pretty";
 import moment from "moment";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-
 import {
   faPencilAlt,
   faCalendarAlt,
@@ -27,7 +26,6 @@ import CountriesSrc from "../geographies/json/countries.json";
 import Chart from "./Chart.jsx";
 import GeoNav from "./GeoNav.jsx";
 import ProgressBar from "./ProgressBar";
-import { render } from "react-dom";
 
 function geoConfTemplate() {
   return {
@@ -479,10 +477,10 @@ function Petition({ match }) {
     }
   };
 
-  const handleAddGeoSigForm = (event) => {
-    event.preventDefault();
-    const geography = event.target.geography.value;
-    const locale = event.target.locale.value;
+  const handleAddGeoSigForm = (geography, locale) => {
+    // event.preventDefault();
+    // const geography = event.target.geography.value;
+    // const locale = event.target.locale.value;
     const found = existsInGeoConf(geography, locale);
     if (flatGeoConf().length >= maxDatsets) {
       let error = { msg: `Max datsets (${maxDatsets}) reached` };
@@ -797,7 +795,7 @@ function Petition({ match }) {
 
       <div className="petition__geonav">
         <GeoNav
-          GeoSearchHandler={handleAddGeoSigForm}
+          geoSearchHandler={handleAddGeoSigForm}
           geoDeleteHandler={handleDelGeoSigForm}
           geoConfig={geoChartConfig.current}
         ></GeoNav>

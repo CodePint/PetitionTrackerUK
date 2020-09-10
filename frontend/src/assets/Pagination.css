@@ -9,12 +9,15 @@
 }
 
 .Pagination li {
-  padding: 0.5em;
+  margin: 0.25em 0.4em;
   color: var(--light-grey);
 }
 
 .Pagination a {
+  display: block;
+  padding: 0.5em 0.75em;
   outline: none;
+  cursor: pointer;
 }
 
 .Pagination .active {
