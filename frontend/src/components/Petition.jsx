@@ -40,7 +40,7 @@ function Petition({ match }) {
   const CONSTITUENCIES = ConstituenciesSrc;
   const REGIONS = RegionsSrc;
   const COUNTRIES = CountriesSrc;
-  const maxDatsets = 10;
+  const maxDatsets = 11;
 
   const isFirstRender = useIsFirstRender();
   const isPollOverdue = useRef(true);
@@ -178,7 +178,7 @@ function Petition({ match }) {
       setPetition(petitionData);
       setChartData(datasets);
     } else if (response.status === 404) {
-      let error = { msg: JSON.stringify(response.data) };
+      let error = JSON.stringify({ msg: response.data });
       setChartError({ status: true, error: error });
     }
   }
@@ -198,7 +198,7 @@ function Petition({ match }) {
           data: [],
           geography: geography,
           key: locale,
-          locale: toLabel(locale, "N/A"),
+          locale: locale,
           meta: { code: "", count: 0, name: locale, timestamp: "" },
         };
       } else {
@@ -315,10 +315,12 @@ function Petition({ match }) {
   function buildTotalSignaturesDataset(input) {
     let dataset = {};
     let dataset_name = "Total";
-    dataset.meta = input.meta.latest_data;
-    dataset.meta.name = dataset_name;
     dataset.key = dataset_name;
     dataset.label = dataset_name;
+    dataset.meta = input.meta.latest_data;
+    dataset.meta.name = dataset_name;
+    dataset.meta.code = "T";
+
     if (dataset.meta.total === 0) {
       dataset.data = [];
     } else {
@@ -336,7 +338,7 @@ function Petition({ match }) {
     dataset.meta = input.meta.latest_data;
     dataset.geography = geography;
     dataset.key = `${choice.value}-${choice.code}`;
-    dataset.label = toLabel(choice.value, choice.code);
+    dataset.label = choice.value;
     if (dataset.meta.count === 0) {
       dataset.data = [];
     } else {
@@ -350,9 +352,6 @@ function Petition({ match }) {
   }
 
   // Helper functions
-  function toLabel(value, code) {
-    return `${value} (${code})`;
-  }
 
   function lazyIntToCommaString(x) {
     return x ? x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
@@ -630,7 +629,7 @@ function Petition({ match }) {
 
   function renderPetitionAction() {
     return (
-      <div class="action">
+      <div className="action">
         <h1>
           <span>{petition.action} </span>
           <span> &nbsp;</span>
@@ -646,14 +645,14 @@ function Petition({ match }) {
 
   function renderMetaSection() {
     return (
-      <div class="meta">
+      <div className="meta">
         <div className="created_at flex-child">
           <div>
             <h5>
-              <span class="icon">
+              <span className="icon">
                 <FontAwesomeIcon icon={faCalendarAlt} />
               </span>
-              <span class="title">Created</span>
+              <span className="title">Created</span>
             </h5>
             <div className="values">{moment(petition.pt_created_at).format("DD MMMM, YYYY")}</div>
           </div>
@@ -662,15 +661,15 @@ function Petition({ match }) {
           <div>
             <h5>
               {" "}
-              <span class="icon">
+              <span className="icon">
                 {" "}
                 <FontAwesomeIcon icon={faTrafficLight} />
               </span>
-              <span class="title">State</span>
+              <span className="title">State</span>
             </h5>
             <div className="values">
               <span>{_.capitalize(petition.state)}</span>
-              <span class="icon">
+              <span className="icon">
                 {" "}
                 <FontAwesomeIcon icon={petition.state === "open" ? faUnlock : faLock} />
               </span>
@@ -680,11 +679,11 @@ function Petition({ match }) {
         <div className="deadline_at flex-child">
           <div>
             <h5>
-              <span class="icon">
+              <span className="icon">
                 {" "}
                 <FontAwesomeIcon icon={faCalendarTimes} />
               </span>
-              <span class="title">Deadline</span>
+              <span className="title">Deadline</span>
             </h5>
             <div className="values">
               {addTimeToDate(petition.pt_created_at, 6, "months").format("DD MMMM, YYYY")}
@@ -694,11 +693,11 @@ function Petition({ match }) {
         <div className="progress flex-child">
           <div>
             <h5>
-              <span class="icon">
+              <span className="icon">
                 {" "}
                 <FontAwesomeIcon icon={faTasks} />
               </span>
-              <span class="title">Progress</span>
+              <span className="title">Progress</span>
             </h5>
             <div className="values">{getThresholdStatus()}</div>
           </div>
@@ -743,7 +742,7 @@ function Petition({ match }) {
             onClick={() => setShowAdditionalDetails(!showAdditionalDetails)}
           >
             {" "}
-            <span class="icon">
+            <span className="icon">
               <FontAwesomeIcon icon={showAdditionalDetails ? faAngleDown : faAngleRight} />
             </span>
             <span>{showAdditionalDetails ? "Less" : "More"} details</span>
@@ -754,6 +753,22 @@ function Petition({ match }) {
           style={showAdditionalDetails ? {} : { display: "none" }}
         >
           {petition.additional_details}
+        </div>
+      </div>
+    );
+  }
+
+  function renderChartBanner() {
+    return (
+      <div className="wrapper">
+        <div className="id">
+          <h3># {petition_id}</h3>
+        </div>
+        <div className="signatures">
+          <span className="icon">
+            <FontAwesomeIcon icon={faPencilAlt} />
+          </span>
+          <h3>{lazyIntToCommaString(petition.signatures)}</h3>
         </div>
       </div>
     );
@@ -775,22 +790,7 @@ function Petition({ match }) {
       <br></br>
 
       <div className="petition__chart">
-        <div className="banner">
-          <div className="id">
-            <h3># {petition_id}</h3>
-          </div>
-
-          <div className="signatures">
-            <span className="icon">
-              <FontAwesomeIcon icon={faPencilAlt} />
-            </span>
-            <h3>{lazyIntToCommaString(petition.signatures)}</h3>
-          </div>
-        </div>
-
-        <Chart datasets={chartData} />
-
-        <div className="footer"></div>
+        <Chart datasets={chartData} banner={renderChartBanner} />
       </div>
 
       <div className="petition__geonav">
@@ -800,10 +800,10 @@ function Petition({ match }) {
           geoConfig={geoChartConfig.current}
         ></GeoNav>
       </div>
-      <br></br>
-      <br></br>
 
       <div className="ChartNav">
+        <br></br>
+        <br></br>
         <div>{renderChartTimeForm()}</div>
         <div>{renderRefreshChartForm()}</div>
         <div>{renderResetChartForm()}</div>

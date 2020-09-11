@@ -11,7 +11,9 @@ const chartConfig = {
   options: {
     responsive: true,
     maintainAspectRatio: false,
-
+    legend: {
+      display: false,
+    },
     scales: {
       xAxes: [
         {
@@ -49,11 +51,9 @@ const chartColors = {
   darksalmon: "#e9967a",
   gold: "#ffd700",
   green: "#008000",
-  indigo: "#4b0082",
   lime: "#00ff00",
   magenta: "#ff00ff",
   maroon: "#800000",
-  navy: "#000080",
   orange: "#ffa500",
   pink: "#ffc0cb",
 };

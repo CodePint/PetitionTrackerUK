@@ -1,11 +1,9 @@
 /* Petition page */
 .Petition {
-  width: 80%;
+  width: 95%;
   margin: 0 auto;
   font-size: 1rem;
 }
-
-
 
 /* --- Petition action (header) --- */
 .Petition .action {
@@ -29,13 +27,16 @@
 
 
 /* --- Petition meta --- */
+
 .Petition .meta {
   font-size: 1em;
   margin-bottom: 1em;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  flex-wrap: none;
   margin: 0 auto;
 }
+
 
 .Petition .meta h5 {
   font-size: 1em;
@@ -181,28 +182,111 @@
 }
 
 
+/* --- Petition Chart  --- */
+.peitition_chart .Chart  {
+  margin-bottom: 2em;
+}
 
-/* --- Petition chart banner --- */
-.petition__chart .banner {
+/* Chart Component */
+.Petition .Chart .container {
+  background: whitesmoke;
+  height: 45vh;
+  width: 100%;
+}
+
+
+
+/* Chart Legend  */
+.petition__chart .Chart .legend {
+  background: var(--smoke-white);
+  color: var(--slate-black);
+  font-size: 0.85em;
+  padding: 0.25em;
+  display: flex;
+  flex-direction: row;
+  overflow: auto;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--dark-grey);
+  border-bottom: 1px solid var(--dark-grey);
+
+  /* height: 10em; */
+}
+
+.petition__chart .Chart .legend li {
+  display: flex;
+  margin: 0.5em;
+  align-items: center;
+  max-width: 20%;
+  flex-basis: 30%;
+  border: 1px solid lightgray;
+}
+
+.petition__chart .Chart .legend li.expand {
+  max-width: 100%;
+  flex-basis: 50%;
+}
+
+.petition__chart .Chart .legend .key {
+  background: var(--slate-black);
+  padding: 0.5em;
+  min-width: 3em;
+  /* height: 1.75em; */
+  margin-right: 0.5em;
+  display: inline-block;
+  color: black;
+  text-align: center;
+  display: flex;
+}
+
+.petition__chart .Chart .legend .key > div {
+  margin: auto;
+}
+
+.petition__chart .Chart .legend .key-Total {
+  color: white;
+}
+
+.petition__chart .Chart .legend .value {
+  margin-top: 0.2em;
+  white-space: nowrap; 
+  overflow: hidden;
+  text-overflow: ellipsis; 
+}
+
+
+
+
+/* Chart banner */
+.petition__chart .Chart .banner .wrapper {
   display: flex;
   justify-content: space-between;
   padding: 0.5em;
-  background: var(--dark-grey);
+  background: var(--light-grey);
+  color: var(--slate-black);
 }
 
-.petition__chart .banner h3 {
+.petition__chart .Chart .banner h3 {
   font-size: 1em;
 }
 
-.petition__chart .banner .signatures {
+.petition__chart .Chart .banner .signatures {
   display: flex;
 }
 
-.petition__chart .banner .signatures .icon  {
+.petition__chart .Chart .banner .signatures .icon  {
   display: block;
   font-size: 0.8em;
   margin-top: 0.1em;
   margin-right: 0.5em;
+}
+
+
+
+
+/* Petition GeoNav */
+.petition__geonav {
+  background: var(--dark-grey);
+  padding: 1em;
 }
 
 /* Chart forms */
@@ -212,21 +296,23 @@
 
 
 /* --- Media Queries --- */
-@media only screen and (max-width: 600px) {
+@media only screen and (min-width: 1025px) {
   .Petition {
-    width: 95%;
-    margin: 0 auto;
-    font-size: 1rem;
+    width: 85%;
   }
 
   .Petition .meta {
-    flex-direction: column;
-    flex-wrap: none;
-    /* width: 90%; */
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 
   .Petition .meta .state {
     order: 1
+  }
+
+  .petition__chart .Chart .legend li {
+    max-width: 22.5%;
+    flex-basis: 22.5%;
   }
 
 }

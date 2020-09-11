@@ -12,11 +12,12 @@ const totalSigDataConfig = {
   borderWidth: 4,
 };
 
-function Chart({ datasets }) {
+function Chart({ datasets, banner = null }) {
   const chartContainer = useRef(null);
   const baseChartConfig = chartConfig;
   const baseDataConfig = dataConfig;
   const [chartInstance, setChartInstance] = useState(null);
+  const [legendValueToggle, setLegendValueToggle] = useState(null);
 
   useEffect(() => {
     if (chartContainer && chartContainer.current) {
@@ -49,9 +50,37 @@ function Chart({ datasets }) {
     return input.length > 0 && !input.includes(null) && !input.includes(undefined);
   }
 
+  function renderLegendItem(colorKey, value, meta) {
+    return (
+      <li
+        className={`dataset ${legendValueToggle === value ? "expand" : ""}`}
+        onClick={() => {
+          setLegendValueToggle(value);
+        }}
+      >
+        <div className={`key key-${value}`} style={{ background: colorKey }}>
+          <div>{meta.code.slice(0, 3)}</div>
+        </div>
+        <div className="value">{value}</div>
+      </li>
+    );
+  }
+
+  function renderLegend() {
+    if (isValidInputs(datasets)) {
+      return datasets.map((data) => {
+        return renderLegendItem(data.borderColor, data.label, data.meta);
+      });
+    }
+  }
+
   return (
-    <div className="chart-container" style={{ position: "relative" }}>
-      <canvas ref={chartContainer} />
+    <div className="Chart">
+      <div className="banner">{banner()}</div>
+      <div className="legend">{renderLegend()}</div>
+      <div className="container" style={{ position: "relative" }}>
+        <canvas ref={chartContainer} />
+      </div>
     </div>
   );
 }

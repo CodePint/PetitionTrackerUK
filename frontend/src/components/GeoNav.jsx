@@ -142,12 +142,7 @@ function GeoNav({ geoSearchHandler, geoDeleteHandler, geoConfig }) {
       const geo = obj[0];
       let locales = obj[1];
       locales = createItemSearchArray(locales, geo);
-      return (
-        <div className={`search__${geo} search__geo`}>
-          <h4>Search: {geo}</h4>
-          {renderSearchForm(locales, geo)}
-        </div>
-      );
+      return <div className={`search__${geo} search__geo`}>{renderSearchForm(locales, geo)}</div>;
     });
   }
 
@@ -166,40 +161,61 @@ function GeoNav({ geoSearchHandler, geoDeleteHandler, geoConfig }) {
 
   function renderSearchItem(item, isHighlighted, type) {
     return (
-      <div
-        style={{
-          cursor: "pointer",
-          color: "black",
-          background: isHighlighted ? "gray" : "white",
-        }}
-      >
-        <div>
-          <h5> {`${item.value} - (${item.key})`}</h5>
+      <div className={`row ${isHighlighted ? "hover" : ""}`}>
+        <div className="name col">
+          <span>{`${item.value}`}</span>
+        </div>
+        <div className="total col">
+          <span>{"5000"}</span>
         </div>
       </div>
     );
   }
 
   function renderSearchMenu(items, type) {
-    return <div className={`${type} menu`} style={{}} children={items} />;
+    return (
+      <div>
+        <header>
+          <div className="name heading">
+            <h4>Name</h4>
+          </div>
+          <div className="code heading">
+            <h4>Code</h4>
+          </div>
+          <div className="total heading">
+            <h4>Total</h4>
+          </div>
+        </header>
+        <div className={`${type} menu`} style={{}} children={items} />
+      </div>
+    );
+  }
+
+  function pluralizeGeo(type) {
+    if (type.slice(-1) === "y") {
+      return `${type.slice(0, -1)}ies`;
+    } else if (type.slice(-1) === "n") {
+      return `${type}s`;
+    }
   }
 
   function renderSearchForm(items, type) {
     const value = { ...searchValues }[type];
-    // debugger;
     return (
       <Autocomplete
         getItemValue={(item) => item.value}
+        Heading
         items={items}
-        renderMenu={(items) => renderSearchMenu(items, type)}
-        renderItem={(item, isHighlighted) => renderSearchItem(item, isHighlighted)}
+        onChange={(e) => updateSearchVal(e.target.value, type)}
+        onSelect={(val) => selectSearchVal(val, type)}
         shouldItemRender={(item, value) =>
           item.value.toLowerCase().indexOf(value.toLowerCase()) > -1 ||
           item.key.toLowerCase().indexOf(value.toLowerCase()) > -1
         }
+        inputProps={{ placeholder: `Search ${pluralizeGeo(type)}` }}
+        renderMenu={(items) => renderSearchMenu(items, type)}
+        renderItem={(item, isHighlighted) => renderSearchItem(item, isHighlighted)}
         value={value}
-        onChange={(e) => updateSearchVal(e.target.value, type)}
-        onSelect={(val) => selectSearchVal(val, type)}
         Autocomplete={true}
         open={true}
         wrapperStyle={{}}
