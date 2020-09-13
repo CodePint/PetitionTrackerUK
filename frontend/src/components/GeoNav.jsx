@@ -7,124 +7,43 @@ import Autocomplete from "react-autocomplete";
 
 function GeoNav({ geoSearchHandler, geoDeleteHandler, geoConfig }) {
   const Geographies = {
-    constituency: ConstituenciesJSON,
     country: CountriesJSON,
+    constituency: ConstituenciesJSON,
+
     region: RegionsJSON,
   };
 
-  const [geoOpt, setGeoOpt] = useState(null);
+  const [geoOpt, setGeoOpt] = useState("constituency");
   const [searchValues, setSearchValues] = useState({ constituency: "", country: "", region: "" });
 
   useEffect(() => {
     console.log(searchValues);
   }, [searchValues]);
 
-  function renderLocaleDropdown() {
-    if (geoOpt) {
-      return (
-        <div>
-          <div>
-            <select name={"locale"}>
-              {Object.entries(Geographies[geoOpt]).map(([key, value]) => {
-                console.log(`${key}:${value}`);
-                return (
-                  <option key={key} value={value}>
-                    {`${value} (${key})`}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-        </div>
-      );
-    } else {
-      return (
-        <div>
-          <select disabled={true} selected={true}>
-            <option value="">Locale</option>
-          </select>
-        </div>
-      );
-    }
-  }
-
-  function renderGeoSearchForm() {
-    if (geoSearchHandler) {
-      return (
-        <div className="geoSearchForm">
-          <form onSubmit={geoSearchHandler}>
-            <div>
-              <label htmlFor={"geography"}>View Signatures By: &nbsp;</label>
-              <div>
-                <select
+  function renderGeographyRadios() {
+    return (
+      <div>
+        <form id="toggleGeographyRadios" onChange={(e) => setGeoOpt(e.target.value)}>
+          {Object.keys(Geographies).map((geo) => {
+            return (
+              <div className={`radio-wrapper ${geo}`}>
+                <input
+                  id={`${geo}-toggle`}
+                  key={`${geo}-toggle`}
+                  value={geo}
                   name={"geography"}
-                  onChange={(e) => {
-                    setGeoOpt(e.target.value);
-                  }}
-                >
-                  {" "}
-                  <option disabled selected value>
-                    {" "}
-                    -- select an option --{" "}
-                  </option>
-                  {Object.keys(Geographies).map((geo) => {
-                    return (
-                      <option key={geo} value={geo}>
-                        {geo}
-                      </option>
-                    );
-                  })}
-                </select>
+                  type="radio"
+                  checked={geoOpt === geo}
+                ></input>
+                <label htmlFor={`${geo}-toggle`}>
+                  <h5>{_.capitalize(geo)}</h5>
+                </label>
               </div>
-            </div>
-            <div>{renderLocaleDropdown()}</div>
-            <button type="submit" disabled={!geoOpt}>
-              Add
-            </button>
-          </form>
-        </div>
-      );
-    }
-  }
-
-  function renderGeoDeleteForm() {
-    if (geoDeleteHandler && geoConfig) {
-      return (
-        <div>
-          <form className="geoDeleteForm">
-            {Object.keys(geoConfig).map((geo) => {
-              return (
-                <div key={`${geo}-form`}>
-                  <h2>{geo}</h2>
-                  {/* Needs to map from object or use values inside loop */}
-                  {geoConfig[geo].map((data) => {
-                    let locale = data.name;
-                    return (
-                      <div key={`${geo}-${locale}-cb`}>
-                        <label htmlFor={`${geo}-${locale}-cb`}>
-                          {locale} ({data.code}) - {data.count} &nbsp;
-                        </label>
-                        <input
-                          id={`${geo}-${locale}-cb`}
-                          value={JSON.stringify({
-                            geography: geo,
-                            locale: locale,
-                          })}
-                          name={locale}
-                          type="checkbox"
-                          checked={true}
-                          onChange={geoDeleteHandler}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </form>
-        </div>
-      );
-    }
+            );
+          })}
+        </form>
+      </div>
+    );
   }
 
   function createItemSearchArray(obj, type) {
@@ -137,13 +56,12 @@ function GeoNav({ geoSearchHandler, geoDeleteHandler, geoConfig }) {
     });
   }
 
-  function renderGeoSearchForms() {
-    return Object.entries(Geographies).map((obj) => {
-      const geo = obj[0];
-      let locales = obj[1];
-      locales = createItemSearchArray(locales, geo);
-      return <div className={`search__${geo} search__geo`}>{renderSearchForm(locales, geo)}</div>;
-    });
+  function renderGeographySearchForm() {
+    let locales = Geographies[geoOpt];
+    locales = createItemSearchArray(locales, geoOpt);
+    return (
+      <div className={`search__${geoOpt} search__geo`}>{renderSearchForm(locales, geoOpt)}</div>
+    );
   }
 
   function updateSearchVal(newVal, type) {
@@ -166,7 +84,7 @@ function GeoNav({ geoSearchHandler, geoDeleteHandler, geoConfig }) {
           <span>{`${item.value}`}</span>
         </div>
         <div className="total col">
-          <span>{"5000"}</span>
+          <span>{item.key}</span>
         </div>
       </div>
     );
@@ -174,7 +92,7 @@ function GeoNav({ geoSearchHandler, geoDeleteHandler, geoConfig }) {
 
   function renderSearchMenu(items, type) {
     return (
-      <div>
+      <div className="menu__wrapper">
         <header>
           <div className="name heading">
             <h4>Name</h4>
@@ -202,33 +120,34 @@ function GeoNav({ geoSearchHandler, geoDeleteHandler, geoConfig }) {
   function renderSearchForm(items, type) {
     const value = { ...searchValues }[type];
     return (
-      <Autocomplete
-        getItemValue={(item) => item.value}
-        Heading
-        items={items}
-        onChange={(e) => updateSearchVal(e.target.value, type)}
-        onSelect={(val) => selectSearchVal(val, type)}
-        shouldItemRender={(item, value) =>
-          item.value.toLowerCase().indexOf(value.toLowerCase()) > -1 ||
-          item.key.toLowerCase().indexOf(value.toLowerCase()) > -1
-        }
-        inputProps={{ placeholder: `Search ${pluralizeGeo(type)}` }}
-        renderMenu={(items) => renderSearchMenu(items, type)}
-        renderItem={(item, isHighlighted) => renderSearchItem(item, isHighlighted)}
-        value={value}
-        Autocomplete={true}
-        open={true}
-        wrapperStyle={{}}
-        menuStyle={{}}
-      />
+      <form id="selectLocaleForm">
+        <Autocomplete
+          getItemValue={(item) => item.value}
+          Heading
+          items={items}
+          onChange={(e) => updateSearchVal(e.target.value, type)}
+          onSelect={(val) => selectSearchVal(val, type)}
+          shouldItemRender={(item, value) =>
+            item.value.toLowerCase().indexOf(value.toLowerCase()) > -1 ||
+            item.key.toLowerCase().indexOf(value.toLowerCase()) > -1
+          }
+          inputProps={{ placeholder: `Search ${_.capitalize(pluralizeGeo(type))}` }}
+          renderMenu={(items) => renderSearchMenu(items, type)}
+          renderItem={(item, isHighlighted) => renderSearchItem(item, isHighlighted)}
+          value={value}
+          Autocomplete={true}
+          open={true}
+          wrapperStyle={{}}
+          menuStyle={{}}
+        />
+      </form>
     );
   }
 
   return (
     <div className="GeoNav">
-      <div className="search__forms">{renderGeoSearchForms()}</div>
-      {/* <div>{renderGeoSearchForm()}</div>
-      <div>{renderGeoDeleteForm()}</div> */}
+      <div>{renderGeographyRadios()}</div>
+      <div>{renderGeographySearchForm()}</div>
     </div>
   );
 }

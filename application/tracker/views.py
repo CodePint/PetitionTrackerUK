@@ -88,6 +88,9 @@ def get_petition(petition_id):
     context['petition'] = PetitionSchema().dump(petition)
 
     if petition and request.args.get('signatures'):
+        # To Do:
+        # allow query for signatures at a specific time
+
         record = petition.latest_record()
         record_nested_schema = RecordNestedSchema(exclude=["id", "petition"])
         context['signatures'] = record_nested_schema.dump(record)

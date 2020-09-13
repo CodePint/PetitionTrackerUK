@@ -55,5 +55,5 @@ body {
 .App > .content {
   flex-grow: 1;
   padding: 1rem;
-  overflow: auto;
+  /* overflow: auto; */
 }

@@ -1,0 +1,22 @@
+.ProgressBar .label .icon {
+
+  width: 200px;
+}
+
+.ProgressBar .label .icon img {
+  width: 200px;
+  display: none;
+}
+
+.Logo {
+  font-size: 1em;
+  width: 1.75em;
+  object-fit: contain;
+  margin: 0.25em 1.25em;
+}
+
+.Logo img {
+  object-fit: contain;
+  height: auto;
+  width: 100%;
+}

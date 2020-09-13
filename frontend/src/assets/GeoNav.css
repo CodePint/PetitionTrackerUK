@@ -1,5 +1,6 @@
 .GeoNav {
   font-size: 1rem;
+  /* margin-bottom: 2em; */
 }
 
 .GeoNav .search__geo {
@@ -8,49 +9,76 @@
 
 .GeoNav .search__geo input {
   width: 100%;
-  padding: 0.2em;
-  font-size: 1em;
-  margin-bottom: 0.5em;
+  padding: 0.5em;
+  font-size: 1.25em;
+  margin-bottom: 1em;
   outline: none;
 }
 
-.GeoNav .search__forms {
-  display: flex;
-  /* margin-top: 1em; */
-  justify-content: space-between;
+/* Hide scrollbar for Chrome, Safari and Opera */
+.GeoNav .search__geo .menu::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.GeoNav .search__geo .menu {
+  scrollbar-width: none; /* firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+}
+.GeoNav .search__geo .menu__wrapper {
+  min-height: 20em;
+  padding-bottom: 2em;
+}
+.GeoNav .search__geo .menu__wrapper .menu {
+  max-height: 20em;
 }
 
-.GeoNav .search__forms .search__geo {
-  display: block;
-  width: 32%;
-}
-
-.GeoNav .search__geo .menu   {
-  height: 20em;
+.GeoNav .search__geo .menu {
   overflow: auto;
+  padding: 1em;
+  background: var(--smoke-white);
 }
 
 .GeoNav .search__geo header {
   display: flex;
+  background: var(--parl-green);
+  padding: 1em;
+
+}
+
+.GeoNav .search__geo header .heading:first-child {
+  padding-left: 0.5em;
 }
 
 .GeoNav .search__geo header .heading {
   flex-grow: 1;
-    /* padding: 0.5em; */
+}
 
+.GeoNav .search__geo header h4 {
+  font-weight: 400;
+  font-size: 1.2em;
 }
 
 
 .GeoNav .search__geo .menu .row {
   cursor: pointer;
   color: black;
-  padding: 0.25em;
-  background: white;
+  padding: 1em 0.5em;
+  background: var(--smoke-white);
   display: flex;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.GeoNav .search__geo .menu .row:first-child {
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+
+}
+
+.GeoNav .search__geo .menu .row span {
+  font-size: 1.1em;
 }
 
 .GeoNav .search__geo .menu .row.hover {
-  background: gray;
+  background: var(--light-grey);
 }
 
 .GeoNav .search__geo .menu .col {
@@ -64,9 +92,9 @@
 }
 
 .GeoNav .search__geo .code {
-  max-width: 30%;
+  max-width: 25%;
 }
 
 .GeoNav .search__geo .total {
-  max-width: 20%;
+  max-width: 25%;
 }

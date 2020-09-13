@@ -35,6 +35,8 @@
   flex-direction: column;
   flex-wrap: none;
   margin: 0 auto;
+  margin-bottom: 2.5em;
+
 }
 
 
@@ -183,18 +185,9 @@
 
 
 /* --- Petition Chart  --- */
-.peitition_chart .Chart  {
-  margin-bottom: 2em;
-}
+
 
 /* Chart Component */
-.Petition .Chart .container {
-  background: whitesmoke;
-  height: 45vh;
-  width: 100%;
-}
-
-
 
 /* Chart Legend  */
 .petition__chart .Chart .legend {
@@ -208,51 +201,97 @@
   flex-wrap: wrap;
   border-top: 1px solid var(--dark-grey);
   border-bottom: 1px solid var(--dark-grey);
-
-  /* height: 10em; */
 }
 
 .petition__chart .Chart .legend li {
   display: flex;
   margin: 0.5em;
   align-items: center;
-  max-width: 20%;
+  max-width: 30%;
   flex-basis: 30%;
   border: 1px solid lightgray;
 }
 
+
 .petition__chart .Chart .legend li.expand {
   max-width: 100%;
-  flex-basis: 50%;
+  flex-basis: 100%;
+  flex-grow: 1;
 }
 
 .petition__chart .Chart .legend .key {
   background: var(--slate-black);
   padding: 0.5em;
-  min-width: 3em;
-  /* height: 1.75em; */
-  margin-right: 0.5em;
+  min-width: 3.75em;
+  height: 3em;
   display: inline-block;
   color: black;
   text-align: center;
   display: flex;
 }
 
-.petition__chart .Chart .legend .key > div {
+.petition__chart .Chart .legend .key .code {
   margin: auto;
-}
+  font-size: 0.9em;
+  font-weight: 600;
+  white-space: nowrap; 
+  overflow: hidden;
+} 
 
-.petition__chart .Chart .legend .key-Total {
+.petition__chart .Chart .legend .key.Total {
   color: white;
 }
 
 .petition__chart .Chart .legend .value {
   margin-top: 0.2em;
+  margin-left: 0.5em;
   white-space: nowrap; 
   overflow: hidden;
-  text-overflow: ellipsis; 
+  text-overflow: ellipsis;
 }
 
+.petition__chart .Chart .legend .delete {
+  margin: auto;
+  color: red;
+  font-size: 1.5em;
+  padding: 0.3em 0.5em;
+  cursor: pointer !important;
+}
+
+.petition__chart .Chart .legend .total {
+  border: 1px solid black;
+  font-size: 1em;
+} 
+
+.petition__chart .Chart .legend li .count .dash {
+  display: inline-block;
+  margin: 0 0.5em;
+}
+
+.petition__chart .Chart .legend li .count .icon {
+  display: inline-block;
+  font-size: 0.9em;
+  margin-right: 0.25em;
+  margin-top: 0.1em;
+}
+
+.petition__chart .Chart .legend li .expanded,
+.petition__chart .Chart .legend li .count {
+  display: none
+}
+
+.petition__chart .Chart .legend li.expand .count {
+  display: inline-block;
+}
+
+.petition__chart .Chart .legend li.expand .value {
+  margin-left: 1em;
+}
+
+.petition__chart .Chart .legend li.expand .expanded {
+  display: flex;
+  margin-left: auto;
+}
 
 
 
@@ -266,7 +305,8 @@
 }
 
 .petition__chart .Chart .banner h3 {
-  font-size: 1em;
+  font-size: 0.9em;
+  font-weight: 400;
 }
 
 .petition__chart .Chart .banner .signatures {
@@ -275,9 +315,9 @@
 
 .petition__chart .Chart .banner .signatures .icon  {
   display: block;
-  font-size: 0.8em;
+  font-size: 0.75em;
   margin-top: 0.1em;
-  margin-right: 0.5em;
+  margin-right: 0.3em;
 }
 
 
@@ -285,9 +325,53 @@
 
 /* Petition GeoNav */
 .petition__geonav {
-  background: var(--dark-grey);
-  padding: 1em;
+  margin-top: 1em;
 }
+
+#toggleGeographyRadios {
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  height: 5em;
+}
+
+#toggleGeographyRadios .radio-wrapper {
+  flex-grow: 1;
+  
+}
+
+#toggleGeographyRadios .radio-wrapper label {
+  display: flex;
+  text-align: center;
+
+}
+
+#toggleGeographyRadios .radio-wrapper label h5 {
+  text-align: center;
+  font-size: 1.25em;
+  font-weight: 400;
+  padding-bottom: 0.1em;
+  margin: 0 auto;
+  color: var(--light-grey);
+}
+
+
+#toggleGeographyRadios input[type="radio"]:checked + label h5 {
+  border-bottom: 2px solid var(--smoke-white);
+  color: var(--smoke-white);
+  font-weight: 600;
+}
+
+#toggleGeographyRadios input[type="radio"] {
+  background: none;
+  position: absolute;
+  opacity: 0;
+  color: var(--smoke-white);
+  font-size: 1em;
+}
+
 
 /* Chart forms */
 /* Geographic chart form */

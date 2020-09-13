@@ -1,6 +1,6 @@
 .Chart .container {
   background: whitesmoke;
-  height: 45vh;
+  height: 50vh;
   width: 100%;
 }
 
@@ -8,7 +8,7 @@
 @media only screen and (min-width: 1025px) {
   .Chart .container {
     background: whitesmoke;
-    height: 80vh;
-    min-height: max-content;
+    height: 70vh;
+    /* min-height: max-content; */
   }
 }
