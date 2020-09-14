@@ -54,12 +54,12 @@ function ProgressBar({
       <div className="container">
         <Animate
           play={play}
-          duration={2}
-          delay={0}
-          start={{ width: "100%", maxWidth: `${start}%` }}
-          end={{ width: "100%", maxWidth: `${percentageComplete}%` }}
+          duration={3.142}
+          delay={0.25}
+          start={{ opacity: 0, width: "100%", maxWidth: `${start}%` }}
+          end={{ opacity: 1, width: "100%", maxWidth: `${percentageComplete}%` }}
           complete={{ width: "100%", maxWidth: `${percentageComplete}%` }}
-          easeType={"ease-out"}
+          easeType={"linear"}
         >
           <Bar></Bar>
         </Animate>

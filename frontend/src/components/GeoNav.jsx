@@ -5,15 +5,14 @@ import RegionsJSON from "../geographies/json/regions.json";
 import CountriesJSON from "../geographies/json/countries.json";
 import Autocomplete from "react-autocomplete";
 
-function GeoNav({ geoSearchHandler, geoDeleteHandler, geoConfig }) {
+function GeoNav({ geoSearchHandler, geoInputData, geoChartConfig }) {
   const Geographies = {
     country: CountriesJSON,
     constituency: ConstituenciesJSON,
-
     region: RegionsJSON,
   };
 
-  const [geoOpt, setGeoOpt] = useState("constituency");
+  const [geoToggle, setGeoToggle] = useState("constituency");
   const [searchValues, setSearchValues] = useState({ constituency: "", country: "", region: "" });
 
   useEffect(() => {
@@ -23,7 +22,7 @@ function GeoNav({ geoSearchHandler, geoDeleteHandler, geoConfig }) {
   function renderGeographyRadios() {
     return (
       <div>
-        <form id="toggleGeographyRadios" onChange={(e) => setGeoOpt(e.target.value)}>
+        <form id="toggleGeographyRadios" onChange={(e) => setGeoToggle(e.target.value)}>
           {Object.keys(Geographies).map((geo) => {
             return (
               <div className={`radio-wrapper ${geo}`}>
@@ -33,7 +32,7 @@ function GeoNav({ geoSearchHandler, geoDeleteHandler, geoConfig }) {
                   value={geo}
                   name={"geography"}
                   type="radio"
-                  checked={geoOpt === geo}
+                  checked={geoToggle === geo}
                 ></input>
                 <label htmlFor={`${geo}-toggle`}>
                   <h5>{_.capitalize(geo)}</h5>
@@ -46,22 +45,15 @@ function GeoNav({ geoSearchHandler, geoDeleteHandler, geoConfig }) {
     );
   }
 
-  function createItemSearchArray(obj, type) {
-    return Object.entries(obj).map((entry) => {
-      return {
-        key: entry[0],
-        value: entry[1],
-        type: type,
-      };
-    });
-  }
-
   function renderGeographySearchForm() {
-    let locales = Geographies[geoOpt];
-    locales = createItemSearchArray(locales, geoOpt);
-    return (
-      <div className={`search__${geoOpt} search__geo`}>{renderSearchForm(locales, geoOpt)}</div>
-    );
+    if (geoInputData) {
+      let locales = geoInputData[geoToggle];
+      return (
+        <div className={`search__${geoToggle} search__geo`}>
+          {renderSearchForm(locales, geoToggle)}
+        </div>
+      );
+    }
   }
 
   function updateSearchVal(newVal, type) {
@@ -83,8 +75,11 @@ function GeoNav({ geoSearchHandler, geoDeleteHandler, geoConfig }) {
         <div className="name col">
           <span>{`${item.value}`}</span>
         </div>
-        <div className="total col">
+        <div className="code col">
           <span>{item.key}</span>
+        </div>
+        <div className="total col">
+          <span>{item.total}</span>
         </div>
       </div>
     );
