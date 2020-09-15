@@ -8,9 +8,7 @@ from flask import (
     request,
     abort
 )
-import requests, json, os
-from datetime import datetime as dt
-
+import requests, json, os, datetime
 
 class ViewUtils():
 

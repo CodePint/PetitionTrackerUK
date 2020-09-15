@@ -55,6 +55,7 @@ class Petition(db.Model):
     pt_created_at = db.Column(DateTime)
     pt_updated_at = db.Column(DateTime)    
     pt_rejected_at = db.Column(DateTime)
+    pt_closed_at = db.Column(DateTime)
     moderation_threshold_reached_at = db.Column(DateTime)
     response_threshold_reached_at = db.Column(DateTime)
     debate_threshold_reached_at = db.Column(DateTime)
@@ -191,6 +192,8 @@ class Petition(db.Model):
         self.government_response_at = attributes['government_response_at']
         self.scheduled_debate_date = attributes['scheduled_debate_date']
         self.debate_outcome_at = attributes['debate_outcome_at']
+        self.pt_closed_at = attributes['closed_at']
+
     
     def set_archive_state(self, type):
         self.archived = True if (type == 'archived-petition') else False
@@ -206,12 +209,15 @@ class Petition(db.Model):
         
         return record
 
-    # between ex: {'lt': dt(), 'gt': gt()}
-    #### *** Need to test *** ###
     def query_records_between(self, lt, gt):
-        query = self.records.filter(Record.timestamp < lt)
-        query = query.filter(and_(Record.timestamp < (gt)))
-        return query
+        query = self.records.filter(Record.timestamp > gt)
+        query = query.filter(and_(Record.timestamp < lt))
+        return query.order_by(Record.timestamp.desc())
+
+    def query_record_at(self, at):
+        at = dt.strptime(at, "%d-%m-%YT%H:%M:%S")
+        query = self.records.filter(Record.timestamp < at)
+        return query.order_by(Record.timestamp.desc()).first()
 
     # since ex: {'hours': 12}, {'days': 7}, {'month': 1}
     def query_records_since(self, since, now=None):
@@ -231,7 +237,10 @@ class Petition(db.Model):
     def latest_record(self):
         return self.ordered_records().first()
 
-
+    # now = datetime.datetime.now()
+    # gt = now - datetime.timedelta(days=50)
+    # lt = now
+    # petition.query_records_between(lt, gt)
 
 class Record(db.Model):
     __tablename__ = 'record'

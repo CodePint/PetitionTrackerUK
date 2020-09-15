@@ -28,8 +28,25 @@ from flask import (
 
 from sqlalchemy import or_, and_, func, select
 import requests, json, os
-import datetime as dt
 
+@bp.route('/petition/<petition_id>', methods=['GET'])
+def get_petition(petition_id):
+    context = {}
+    petition = Petition.get_or_404(petition_id)
+    context['petition'] = PetitionSchema().dump(petition)
+
+    if petition and request.args.get('signatures', type=json.loads):
+        time_at = request.args.get('time')
+        record = None
+        if time_at:
+            record = petition.query_record_at(time_at)
+        if not record:
+            record = petition.latest_record()
+        if record:
+            record_nested_schema = RecordNestedSchema(exclude=["id", "petition"])
+            context['signatures'] = record_nested_schema.dump(record)
+
+    return context
 
 # returns a list of petitions
 @bp.route('/petitions', methods=['GET'])
@@ -78,23 +95,6 @@ def get_petitions():
     petitions_schema = PetitionSchema(many=True)
     context['petitions'] = petitions_schema.dump(petitions)
     
-    return context
-
-
-@bp.route('/petition/<petition_id>', methods=['GET'])
-def get_petition(petition_id):
-    context = {}
-    petition = Petition.get_or_404(petition_id)
-    context['petition'] = PetitionSchema().dump(petition)
-
-    if petition and request.args.get('signatures'):
-        # To Do:
-        # allow query for signatures at a specific time
-
-        record = petition.latest_record()
-        record_nested_schema = RecordNestedSchema(exclude=["id", "petition"])
-        context['signatures'] = record_nested_schema.dump(record)
-
     return context
 
 # returns timestamped list of total signatures for a petition
@@ -191,7 +191,6 @@ def get_petition_signatures_by_geography(petition_id, geography):
 # returns timestamped list of signatures for a petition, for a given geographical locale
 @bp.route('/petition/<petition_id>/signatures_by/<geography>/<locale>', methods=['GET'])
 def get_petition_signatures_by_locale(petition_id, geography, locale):
-    # breakpoint()
     index = request.args.get('index', 1, type=int)
     items_per_page = request.args.get('items', type=int)
     locale_choice = ViewUtils.abort_404_or_get_locale_choice(geography, locale)

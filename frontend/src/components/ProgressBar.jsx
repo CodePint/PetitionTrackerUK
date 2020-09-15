@@ -22,7 +22,7 @@ function ProgressBar({
   const percentageComplete = getCompletionPercentage();
 
   function lazyIntToCommaString(x) {
-    return x ? x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
+    return x ? x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "0";
   }
 
   function getCompletionPercentage() {
@@ -54,7 +54,7 @@ function ProgressBar({
       <div className="container">
         <Animate
           play={play}
-          duration={3.142}
+          duration={percentageComplete === 100 ? 1.5 : 2.5}
           delay={0.25}
           start={{ opacity: 0, width: "100%", maxWidth: `${start}%` }}
           end={{ opacity: 1, width: "100%", maxWidth: `${percentageComplete}%` }}

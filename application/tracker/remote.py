@@ -46,6 +46,7 @@ class RemotePetition():
         params['pt_created_at'] = attributes['created_at']
         params['pt_updated_at'] = attributes['updated_at']
         params['pt_rejected_at'] = attributes['rejected_at']
+        params['pt_closed_at'] = attributes['closed_at']
 
         params['moderation_threshold_reached_at'] = attributes['moderation_threshold_reached_at']
         params['response_threshold_reached_at'] = attributes['response_threshold_reached_at']

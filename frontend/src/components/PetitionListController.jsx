@@ -40,8 +40,6 @@ function PetitionListController({}) {
     };
   }
 
-  useEffect(() => {}, [toggleValues]);
-
   useEffect(() => {
     queryPetitions();
   }, []);
@@ -107,8 +105,8 @@ function PetitionListController({}) {
     let currentValues = null;
     const isChecked = toggleValues[key].checked;
     if (isChecked) {
-      currentValues = _.cloneDeep(toggleValues);
-      value = value == "ASC" ? "DESC" : "ASC";
+      currentValues = { ...toggleValues };
+      value = value === "ASC" ? "DESC" : "ASC";
       currentValues[key].value = value;
     } else {
       currentValues = resetToggleValues();
@@ -125,7 +123,6 @@ function PetitionListController({}) {
 
   function renderRadioToggle(key) {
     let radio = toggleValues[key];
-    const displayValue = radio.value === "ASC" ? "DESC" : "ASC";
     return (
       <div className="radio__label">
         <input
@@ -139,10 +136,10 @@ function PetitionListController({}) {
         <label htmlFor={`${key}-toggle`}>
           <h4>{key}</h4>{" "}
           <div className="icon">
-            <FontAwesomeIcon icon={icons[key]} />
+            <FontAwesomeIcon className="fa-fw" icon={icons[key]} />
           </div>
           <div className="chevron">
-            <FontAwesomeIcon icon={icons[displayValue]} />
+            <FontAwesomeIcon className="fa-fw" icon={icons[radio.value]} />
           </div>
         </label>
       </div>
@@ -174,7 +171,7 @@ function PetitionListController({}) {
         <input type="text" name="query" placeholder="Search Petitions..."></input>
         <button type="submit" value="Submit">
           {" "}
-          <FontAwesomeIcon icon={faSearch} />
+          <FontAwesomeIcon className="fa-fw" icon={faSearch} />
         </button>
       </div>
     );

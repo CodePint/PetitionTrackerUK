@@ -1,5 +1,10 @@
+import zoomPluginConfig from "./ZoomPluginConfig";
+
 const chartConfig = {
   type: "line",
+  plugins: {
+    zoom: zoomPluginConfig,
+  },
   data: {
     labels: [],
     datasets: [

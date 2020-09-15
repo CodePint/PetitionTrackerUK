@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
-import _ from "lodash";
-import ConstituenciesJSON from "../geographies/json/constituencies.json";
-import RegionsJSON from "../geographies/json/regions.json";
-import CountriesJSON from "../geographies/json/countries.json";
+import usePrev from "./utils/usePrev";
+import useIsFirstRender from "./utils/useIsFirstRender";
 import Autocomplete from "react-autocomplete";
+import _ from "lodash";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSearch, faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 
-function GeoNav({ geoSearchHandler, geoInputData, geoChartConfig }) {
-  const Geographies = {
-    country: CountriesJSON,
-    constituency: ConstituenciesJSON,
-    region: RegionsJSON,
-  };
+const sortOrderIcons = {
+  DESC: faChevronDown,
+  ASC: faChevronUp,
+};
 
+function GeoNav({ geoSearchHandler, geoSortHandler, geoSortConfig, geoInputData }) {
   const [geoToggle, setGeoToggle] = useState("constituency");
   const [searchValues, setSearchValues] = useState({ constituency: "", country: "", region: "" });
 
@@ -23,7 +23,7 @@ function GeoNav({ geoSearchHandler, geoInputData, geoChartConfig }) {
     return (
       <div>
         <form id="toggleGeographyRadios" onChange={(e) => setGeoToggle(e.target.value)}>
-          {Object.keys(Geographies).map((geo) => {
+          {Object.keys(geoInputData).map((geo) => {
             return (
               <div className={`radio-wrapper ${geo}`}>
                 <input
@@ -46,7 +46,7 @@ function GeoNav({ geoSearchHandler, geoInputData, geoChartConfig }) {
   }
 
   function renderGeographySearchForm() {
-    if (geoInputData) {
+    if (geoInputData[geoToggle].length > 0) {
       let locales = geoInputData[geoToggle];
       return (
         <div className={`search__${geoToggle} search__geo`}>
@@ -79,26 +79,54 @@ function GeoNav({ geoSearchHandler, geoInputData, geoChartConfig }) {
           <span>{item.key}</span>
         </div>
         <div className="total col">
-          <span>{item.total}</span>
+          <span>{lazyIntToCommaString(item.total)}</span>
         </div>
       </div>
     );
   }
 
+  function renderSearchHeading(sortConfig, headingName, colName, geo) {
+    const isChecked = sortConfig.col === colName;
+    let toggleToOrder = null;
+    if (isChecked) {
+      toggleToOrder = sortConfig.order === "ASC" ? "DESC" : "ASC";
+    } else {
+      toggleToOrder = colName === "total" ? "DESC" : "ASC";
+    }
+    const toggleFromOrder = toggleToOrder === "ASC" ? "DESC" : "ASC";
+
+    return (
+      <div className={`${headingName} heading col radio__label`}>
+        <input
+          id={`${headingName}-toggle`}
+          name={colName}
+          value={JSON.stringify({ col: colName, geo: geo, order: toggleToOrder })}
+          type="radio"
+          checked={isChecked}
+          onClick={(e) => geoSortHandler(e.target.value)}
+        />
+        <label htmlFor={`${headingName}-toggle`}>
+          <h4>{_.capitalize(headingName)}</h4>
+
+          <div className="chevron">
+            <FontAwesomeIcon className="fa-fw" icon={sortOrderIcons[toggleFromOrder]} />
+          </div>
+        </label>
+      </div>
+    );
+  }
+
   function renderSearchMenu(items, type) {
+    const sortConfig = geoSortConfig[type];
     return (
       <div className="menu__wrapper">
-        <header>
-          <div className="name heading">
-            <h4>Name</h4>
-          </div>
-          <div className="code heading">
-            <h4>Code</h4>
-          </div>
-          <div className="total heading">
-            <h4>Total</h4>
-          </div>
-        </header>
+        <form>
+          <header>
+            {renderSearchHeading(sortConfig, "name", "value", type)}
+            {renderSearchHeading(sortConfig, "code", "key", type)}
+            {renderSearchHeading(sortConfig, "total", "total", type)}
+          </header>
+        </form>
         <div className={`${type} menu`} style={{}} children={items} />
       </div>
     );
@@ -110,6 +138,10 @@ function GeoNav({ geoSearchHandler, geoInputData, geoChartConfig }) {
     } else if (type.slice(-1) === "n") {
       return `${type}s`;
     }
+  }
+
+  function lazyIntToCommaString(x) {
+    return x ? x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "0";
   }
 
   function renderSearchForm(items, type) {

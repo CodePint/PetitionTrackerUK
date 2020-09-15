@@ -257,10 +257,11 @@
   cursor: pointer !important;
 }
 
-.petition__chart .Chart .legend .total {
-  border: 1px solid black;
-  font-size: 1em;
-} 
+.petition__chart .Chart .legend li.Total {
+  order: -1;
+}
+
+
 
 .petition__chart .Chart .legend li .count .dash {
   display: inline-block;
@@ -293,36 +294,151 @@
 }
 
 
-
 /* Chart banner */
-.petition__chart .Chart .banner .wrapper {
+.petition__chart .banner .wrapper {
   display: flex;
   justify-content: space-between;
-  padding: 0.5em;
-  background: var(--light-grey);
+  align-items: center;
+  padding: 0.25em 0.6em;
+  background:  var(--light-grey);
   color: var(--slate-black);
 }
 
-.petition__chart .Chart .banner h3 {
-  font-size: 0.9em;
+.petition__chart .banner h3 {
+  font-size: 1.25em;
   font-weight: 400;
 }
 
-.petition__chart .Chart .banner .signatures {
+.petition__chart .banner .signatures,
+.petition__chart .banner .signatures label {
+  display: flex;
+  position: relative;
+}
+
+.petition__chart .banner .signatures .icon  {
+  display: block;
+  position: relative;
+  color: var(--smoke-white);
+}
+
+.petition__chart .banner .signatures .icon-wrapper {
+  position: relative;
+  font-size: 1em;
+  width: 100%;
+  height: 100%;
+
+}
+
+.petition__chart .banner .signatures .icon-wrapper {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: green;
+  border-radius: 0.5em;
+  padding: 0.35em;
+}
+
+.petition__chart .banner input[type="checkbox"] {
+  opacity: 0;
+  position: absolute;
+  cursor: pointer;
+}
+
+
+.petition__chart .banner label {
+  display: block;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.petition__chart .banner input[type="checkbox"]:checked + label {
+  text-decoration: line-through;
+}  
+
+.petition__chart .banner input[type="checkbox"]:checked + label  .icon-wrapper{
+  background: gray;
+}
+
+
+.petition__chart .banner .refresh {
+  display: flex;
+  color: var(--parl-green);
+  justify-content: flex-end;
+}
+
+.petition__chart .banner .refresh .icon {
+  color: white;
+  padding: 0.4em;
+  background: green;
+  border-radius: 0.5em;
+}
+
+.petition__chart .banner button {
+  border: none;
+  outline: none;
+  cursor: pointer;
+  font-size: 1em;
+  background: none;
+}
+
+/* Chart Time Nav */
+.Petition .react-datetime-picker {
+  color: var(--slate-black) !important;
+  font-size: 1rem;
+
+}
+.Petition .react-datetime-picker input {
+  color: var(--slate-black) !important;
+}
+
+.Petition .chart__time .buttons {
   display: flex;
 }
 
-.petition__chart .Chart .banner .signatures .icon  {
-  display: block;
-  font-size: 0.75em;
+.Petition .chart__time .buttons .icon {
   margin-top: 0.1em;
-  margin-right: 0.3em;
 }
 
+.Petition .chart__time .buttons .btn  {
+  padding: 0.25em;
+}
+
+.Petition .chart__time .buttons button {
+  border: none;
+  outline: none;
+  cursor: pointer;
+  background: var(--parl-green);
+  color: var(--smoke-white);
+  border-radius: 0.75em;
+  font-size: 0.85em;
+  margin-left: 0.25em;
+  padding: 0.5em;
+}
+
+.Petition .chart__time {
+  background: var(--light-grey);
+}
+
+.Petition .chart__time .TimeNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25em 0;
+
+}
+
+.Petition .chart__time .TimeNav .dash {
+  font-size: 1.5em;
+  padding: 0 0.5em;
+  padding-bottom: 0.1em;
+  color: var(--slate-black);
+}
+
+/* Chart banner - Quick Time Nav */
 
 
 
-/* Petition GeoNav */
+/* Chart GeoNav */
 .Petition .nav {
   margin-top: 1em;
 }
@@ -371,21 +487,6 @@
   font-size: 1em;
 }
 
-/* .Petition .chart__stats__nav {
-  display: flex;
-  /* align-items */
-  /* height: 20em; */
-
-/* } */
-
-/* --- Locale/Petition Stats --- */
-/* .Petition .chart__stats__nav .stats {
-  background: var(--smoke-white);
-  width: 50%;
-  margin-left: 2em;
-} */ 
-
-/* Time chart form */
 
 
 /* --- Media Queries --- */

@@ -9,7 +9,7 @@ function formatDate(date) {
 }
 
 function lazyIntToCommaString(x) {
-  return x ? x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
+  return x ? x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "0";
 }
 
 function PetitionItem({ item }) {
@@ -24,7 +24,7 @@ function PetitionItem({ item }) {
         <div className="external-link">
           <a href={item.url}>
             <span>
-              <FontAwesomeIcon icon={faExternalLinkAlt} />
+              <FontAwesomeIcon className="fa-fw" icon={faExternalLinkAlt} />
             </span>
           </a>
         </div>
@@ -40,14 +40,14 @@ function PetitionItem({ item }) {
         <div className="meta">
           <div>
             <span className="icon">
-              <FontAwesomeIcon icon={faCalendarAlt} />
+              <FontAwesomeIcon className="fa-fw" icon={faCalendarAlt} />
             </span>
             <span>{formatDate(item.pt_created_at)}</span>
           </div>
 
           <div>
             <span className="icon">
-              <FontAwesomeIcon icon={faPencilAlt} />
+              <FontAwesomeIcon className="fa-fw" icon={faPencilAlt} />
             </span>
             <span>{lazyIntToCommaString(item.signatures)}</span>
           </div>
