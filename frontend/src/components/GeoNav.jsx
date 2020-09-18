@@ -11,7 +11,13 @@ const sortOrderIcons = {
   ASC: faChevronUp,
 };
 
-function GeoNav({ geoSearchHandler, geoSortHandler, geoSortConfig, geoInputData }) {
+function GeoNav({
+  geoSearchHandler,
+  geoSortHandler,
+  geoSortConfig,
+  geoInputData,
+  selectedGeoConf,
+}) {
   const [geoToggle, setGeoToggle] = useState("constituency");
   const [searchValues, setSearchValues] = useState({ constituency: "", country: "", region: "" });
 
@@ -19,13 +25,25 @@ function GeoNav({ geoSearchHandler, geoSortHandler, geoSortConfig, geoInputData 
     console.log(searchValues);
   }, [searchValues]);
 
+  function pluralizeGeo(type) {
+    if (type.slice(-1) === "y") {
+      return `${type.slice(0, -1)}ies`;
+    } else if (type.slice(-1) === "n") {
+      return `${type}s`;
+    }
+  }
+
+  function lazyIntToCommaString(x) {
+    return x ? x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "0";
+  }
+
   function renderGeographyRadios() {
     return (
       <div>
         <form id="toggleGeographyRadios" onChange={(e) => setGeoToggle(e.target.value)}>
           {Object.keys(geoInputData).map((geo) => {
             return (
-              <div className={`radio-wrapper ${geo}`}>
+              <div className={`radio-wrapper ${geo}`} key={`radio-wrapper ${geo}`}>
                 <input
                   id={`${geo}-toggle`}
                   key={`${geo}-toggle`}
@@ -33,6 +51,7 @@ function GeoNav({ geoSearchHandler, geoSortHandler, geoSortConfig, geoInputData 
                   name={"geography"}
                   type="radio"
                   checked={geoToggle === geo}
+                  readOnly={true}
                 ></input>
                 <label htmlFor={`${geo}-toggle`}>
                   <h5>{_.capitalize(geo)}</h5>
@@ -56,22 +75,16 @@ function GeoNav({ geoSearchHandler, geoSortHandler, geoSortConfig, geoInputData 
     }
   }
 
-  function updateSearchVal(newVal, type) {
-    let values = { ...searchValues };
-    values[type] = newVal;
-    setSearchValues(values);
-  }
-
-  function selectSearchVal(newVal, type) {
-    let values = { ...searchValues };
-    values[type] = "";
-    setSearchValues(values);
-    geoSearchHandler(type, newVal);
-  }
-
   function renderSearchItem(item, isHighlighted, type) {
     return (
-      <div className={`row ${isHighlighted ? "hover" : ""}`}>
+      <div
+        key={`${item.value}-${type}`}
+        className={`row 
+              ${isHighlighted ? "hover" : ""} 
+              ${item.total === 0 ? "unselectable" : ""}
+              ${!shouldRenderItem(item, type) ? "hidden" : ""}
+            `}
+      >
         <div className="name col">
           <span>{`${item.value}`}</span>
         </div>
@@ -83,6 +96,10 @@ function GeoNav({ geoSearchHandler, geoSortHandler, geoSortConfig, geoInputData 
         </div>
       </div>
     );
+  }
+
+  function shouldRenderItem(item, geo) {
+    return !selectedGeoConf[geo].find((locale) => locale.name === item.value);
   }
 
   function renderSearchHeading(sortConfig, headingName, colName, geo) {
@@ -103,6 +120,7 @@ function GeoNav({ geoSearchHandler, geoSortHandler, geoSortConfig, geoInputData 
           value={JSON.stringify({ col: colName, geo: geo, order: toggleToOrder })}
           type="radio"
           checked={isChecked}
+          readOnly={true}
           onClick={(e) => geoSortHandler(e.target.value)}
         />
         <label htmlFor={`${headingName}-toggle`}>
@@ -119,29 +137,30 @@ function GeoNav({ geoSearchHandler, geoSortHandler, geoSortConfig, geoInputData 
   function renderSearchMenu(items, type) {
     const sortConfig = geoSortConfig[type];
     return (
-      <div className="menu__wrapper">
-        <form>
-          <header>
-            {renderSearchHeading(sortConfig, "name", "value", type)}
-            {renderSearchHeading(sortConfig, "code", "key", type)}
-            {renderSearchHeading(sortConfig, "total", "total", type)}
-          </header>
-        </form>
+      <div className="menu__wrapper" key={`${type}-${items.length}`}>
+        <header>
+          {renderSearchHeading(sortConfig, "name", "value", type)}
+          {renderSearchHeading(sortConfig, "code", "key", type)}
+          {renderSearchHeading(sortConfig, "total", "total", type)}
+        </header>
         <div className={`${type} menu`} style={{}} children={items} />
       </div>
     );
   }
 
-  function pluralizeGeo(type) {
-    if (type.slice(-1) === "y") {
-      return `${type.slice(0, -1)}ies`;
-    } else if (type.slice(-1) === "n") {
-      return `${type}s`;
-    }
+  function updateSearchVal(newVal, type) {
+    let values = { ...searchValues };
+    values[type] = newVal;
+    setSearchValues(values);
   }
 
-  function lazyIntToCommaString(x) {
-    return x ? x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "0";
+  function selectSearchVal(item, newVal, type) {
+    if (item.total !== 0) {
+      let values = { ...searchValues };
+      values[type] = "";
+      setSearchValues(values);
+      geoSearchHandler(type, newVal);
+    }
   }
 
   function renderSearchForm(items, type) {
@@ -153,14 +172,14 @@ function GeoNav({ geoSearchHandler, geoSortHandler, geoSortConfig, geoInputData 
           Heading
           items={items}
           onChange={(e) => updateSearchVal(e.target.value, type)}
-          onSelect={(val) => selectSearchVal(val, type)}
+          onSelect={(val, item) => selectSearchVal(item, val, type)}
           shouldItemRender={(item, value) =>
             item.value.toLowerCase().indexOf(value.toLowerCase()) > -1 ||
             item.key.toLowerCase().indexOf(value.toLowerCase()) > -1
           }
           inputProps={{ placeholder: `Search ${_.capitalize(pluralizeGeo(type))}` }}
           renderMenu={(items) => renderSearchMenu(items, type)}
-          renderItem={(item, isHighlighted) => renderSearchItem(item, isHighlighted)}
+          renderItem={(item, isHighlighted) => renderSearchItem(item, isHighlighted, type)}
           value={value}
           Autocomplete={true}
           open={true}

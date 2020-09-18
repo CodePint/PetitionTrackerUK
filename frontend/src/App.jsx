@@ -1,11 +1,12 @@
 import React from "react";
-import { BrowserRouter as Router, Switch, Route, Redirect } from "react-router-dom";
+import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
 import NavBar from "./components/NavBar";
 import Home from "./components/Home";
 import About from "./components/About";
 import Petition from "./components/Petition";
 import PetitionList from "./components/PetitionList";
-import RouteNotFound from "./components/RouteNotFound";
+import Route404 from "./components/errors/Route404";
+import Petition404 from "./components/errors/Petition404";
 
 function App() {
   return (
@@ -18,7 +19,8 @@ function App() {
             <Route path="/about" component={About} />
             <Route path="/petitions/:state?" exact component={PetitionList} />
             <Route path="/petition/:petition_id(\d+)" exact component={Petition} />
-            <Route path="*" component={RouteNotFound} />
+            <Route path="/petition/error/404/:petition_id" exact component={Petition404} />
+            <Route path="*" component={Route404} />
           </Switch>
         </div>
       </div>

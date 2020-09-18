@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
-import { Link, Redirect } from "react-router-dom";
-import _, { set, has, isNull, last } from "lodash";
+import { Link, Redirect, useHistory } from "react-router-dom";
+import _, { merge } from "lodash";
 import axios from "axios";
 import JSONPretty from "react-json-pretty";
 import moment from "moment";
@@ -18,6 +18,7 @@ import {
   faTasks,
   faTrafficLight,
   faSyncAlt,
+  faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
 
 import useIsFirstRender from "./utils/useIsFirstRender";
@@ -30,14 +31,6 @@ import GeoNav from "./GeoNav.jsx";
 import ProgressBar from "./ProgressBar";
 import TimeNav from "./TimeNav";
 
-function geoConfTemplate() {
-  return {
-    region: [],
-    constituency: [],
-    country: [],
-  };
-}
-
 function geographiesJSON() {
   return {
     country: CountriesJSON,
@@ -46,23 +39,16 @@ function geographiesJSON() {
   };
 }
 
-function baseGeoNavConfig() {
-  return {
-    country: { col: "total", order: "DESC" },
-    constituency: { col: "total", order: "DESC" },
-    region: { col: "total", order: "DESC" },
-  };
-}
-
 function Petition({ match }) {
   const petition_id = match.params.petition_id;
   const maxDatsets = 11;
-
   const isFirstRender = useIsFirstRender();
+  const History = useHistory();
+
   const lastPolledAt = useRef(new Date());
   const showTotalSigs = useRef(true);
-  const geoChartConfig = useRef(geoConfTemplate());
   const chartDataCache = useRef([]);
+  const geoChartConfig = useRef(geoConfTemplate());
   const geoChartConfigCache = useRef(geoConfTemplate());
   const geoNavSortConfig = useRef(baseGeoNavConfig());
 
@@ -73,10 +59,28 @@ function Petition({ match }) {
 
   const [chartData, setChartData] = useState([]);
   const [chartTime, setChartTime] = useState(defaultChartTime());
-  const [chartError, setChartError] = useState({ status: false, error: { msg: "" } });
-
-  const [allTimeValueSelected, setAllTimeValueSelected] = useState(false);
+  const [petitionNotFound, setPetitionNotFound] = useState(false);
   const [showAdditionalDetails, setShowAdditionalDetails] = useState(false);
+  const [chartError, setChartError] = useState({
+    status: false,
+    error: { msg: "" },
+  });
+
+  function geoConfTemplate() {
+    return {
+      region: [],
+      constituency: [],
+      country: [],
+    };
+  }
+
+  const presetTimeOpts = [
+    { unit: "hours", value: 24, selected: false },
+    { unit: "days", value: 7, selected: false },
+    { unit: "days", value: 30, selected: true },
+    { unit: "days", value: 90, selected: false },
+    { unit: "All time", value: null, selected: false },
+  ];
 
   useEffect(() => {
     resetChartError();
@@ -118,10 +122,24 @@ function Petition({ match }) {
     setChartError({ status: false, error: { msg: "" } });
   }
 
+  function redirectPetition404() {
+    History.push("/");
+    return <Redirect push to={`/petition/error/404/${petition_id}`}></Redirect>;
+  }
+
   function defaultChartTime() {
+    const defaults = { unit: "days", value: 30 };
     return {
-      from: subtractTimeFromDate(30, "days").toDate(),
+      from: subtractTimeFromDate(defaults.value, defaults.unit).toDate(),
       to: null,
+    };
+  }
+
+  function baseGeoNavConfig() {
+    return {
+      country: { col: "total", order: "DESC" },
+      constituency: { col: "total", order: "DESC" },
+      region: { col: "total", order: "DESC" },
     };
   }
 
@@ -156,15 +174,14 @@ function Petition({ match }) {
     let data = null;
     const geography = geoLocale.geography;
     const locale = geoLocale.locale;
-
     const localeIsCached = existsInCachedGeoConf(geography, locale);
     const localeCacheData = fetchCachedDataset(locale);
+
     if (localeIsCached && localeCacheData) {
       data = localeCacheData;
     } else {
       data = await fetchAndBuildGeoData(geography, locale);
     }
-
     if (data) {
       let datasets = null;
       if (hasGeoConf()) {
@@ -195,10 +212,21 @@ function Petition({ match }) {
   }
 
   async function fetchAndBuildBaseData() {
-    const petitionResponse = await fetchPetition();
-    const geoNavData = buildGeoNavData(petitionResponse.data.signatures);
     const prevPoll = lastPolledAt.current;
     updatePolledAt();
+
+    let geoNavData = null;
+    const petitionResponse = await fetchPetition();
+    if (petitionResponse.status === 200) {
+      geoNavData = buildGeoNavData(petitionResponse.data.signatures);
+    } else if (petitionResponse.status === 404) {
+      setPetitionNotFound(true);
+      return false;
+    } else {
+      let error = { msg: "Server Error" };
+      setChartError({ status: true, error: error });
+      return false;
+    }
 
     const response = await fetchSignatures();
     if (response.status === 200) {
@@ -216,8 +244,14 @@ function Petition({ match }) {
       setGeoNavInput(geoNavData);
     } else {
       updatePolledAt(prevPoll);
-      let error = JSON.stringify({ msg: response.data });
-      setChartError({ status: true, error: error });
+      console.log(response.error);
+      if (response.status === 404) {
+        let error = { msg: "No signature data found" };
+        setChartError({ status: true, error: error });
+      } else {
+        let error = { msg: "Server Error" };
+        setChartError({ status: true, error: error });
+      }
     }
   }
 
@@ -234,20 +268,33 @@ function Petition({ match }) {
           data: [],
           geography: geography,
           key: locale,
-          locale: locale,
+          label: locale,
           meta: { code: "", count: 0, name: locale, timestamp: "" },
         };
       } else {
-        setChartError({ status: true, error: { msg: JSON.stringify(response.log.msg) } });
+        console.log(response.error);
+        let error = { msg: `No signatures found for: ${locale}` };
+        setChartError({ status: true, error: error });
       }
     }
   }
 
   async function fetchAndBuildFromConfig() {
-    const petitionResponse = await fetchPetition();
-    const geoNav = buildGeoNavData(petitionResponse.data.signatures);
     const prevPoll = lastPolledAt.current;
     updatePolledAt();
+
+    let geoNavData = null;
+    const petitionResponse = await fetchPetition();
+    if (petitionResponse.status === 200) {
+      geoNavData = buildGeoNavData(petitionResponse.data.signatures);
+    } else if (petitionResponse.status === 404) {
+      setPetitionNotFound(true);
+      return false;
+    } else {
+      let error = { msg: "Server Error" };
+      setChartError({ status: true, error: error });
+      return false;
+    }
 
     let response = await fetchSignatures();
     if (response.status === 200) {
@@ -260,7 +307,6 @@ function Petition({ match }) {
       geoChartConfigCache.current = geoConfig;
       let totalSigData = buildTotalSignaturesDataset(responseData);
 
-      let sigData = buildTotalSignaturesDataset(responseData);
       datasets = datasets.concat(geoData);
       geoData.forEach((data) => {
         geoConfig[data.geography].push(data.meta);
@@ -274,14 +320,20 @@ function Petition({ match }) {
       chartDataCache.current = datacache;
 
       return {
-        geoNav: geoNav,
+        geoNav: geoNavData,
         petition: petitionResponse.data.petition,
         datasets: datasets,
       };
     } else {
       updatePolledAt(prevPoll);
-      let error = { msg: JSON.stringify(response.data.message) };
-      setChartError({ status: true, error: error });
+      console.log(response.error);
+      if (response.status === 404) {
+        let error = { msg: "No signature data found" };
+        setChartError({ status: true, error: error });
+      } else {
+        let error = { msg: "Server Error" };
+        setChartError({ status: true, error: error });
+      }
     }
   }
 
@@ -322,11 +374,6 @@ function Petition({ match }) {
       if (error.response.status === 404) {
         console.log(error.response.data);
         return error.response;
-      } else {
-        let log = { msg: "Server Error", url: url, details: error };
-        console.log(JSON.stringify(log));
-        setChartError({ status: true, error: log });
-        return error.response;
       }
     }
   }
@@ -335,7 +382,7 @@ function Petition({ match }) {
     let params = {};
     params.signatures = true;
     if (chartTime.to) {
-      params.time = moment(chartTime.to).format("DD-MM-YYYYTH:m:ss");
+      params.time = moment(getChartTimeTo()).format("DD-MM-YYYYTH:m:ss");
       console.log(params.time);
     }
     let url = `/petition/${petition_id}`;
@@ -343,8 +390,6 @@ function Petition({ match }) {
       return await axios.get(url, { params: params });
     } catch (error) {
       if (error.response.status === 404) {
-        // To do: implement 404 page
-
         console.log(error.response.data);
         return error.response;
       } else {
@@ -483,7 +528,7 @@ function Petition({ match }) {
     } else if (chartTime.to) {
       return chartTime.to;
     } else {
-      return new Date();
+      return lastPolledAt.current;
     }
   }
 
@@ -545,9 +590,11 @@ function Petition({ match }) {
         minDate: moment(petition.pt_created_at, "YYYY-MM-DDThh:mm:ss").toDate(),
         maxDate:
           petition.state === "open"
-            ? new Date()
+            ? lastPolledAt.current
             : moment(petition.pt_closed_at, "YYYY-MM-DDThh:mm:ss").toDate(),
       };
+    } else {
+      return {};
     }
   }
 
@@ -579,24 +626,6 @@ function Petition({ match }) {
     setChartTime(newTimeRange);
   };
 
-  // const handleChartTimeForm = (event) => {
-  //   if (event.target.units.value === "all") {
-  //     setChartTime(null);
-  //   } else {
-  //     let chartTimeObj = {};
-  //     let timeAmount = event.target.amount.value;
-  //     let timeUnit = event.target.units.value;
-  //     const intRegex = new RegExp("^[0-9]+$");
-  //     if (intRegex.test(timeAmount)) {
-  //       chartTimeObj[timeUnit] = parseInt(timeAmount);
-  //       setChartTime(chartTimeObj);
-  //     } else {
-  //       let error = { msg: "Invalid input (time must be a number)" };
-  //       setChartError({ status: true, error: error });
-  //     }
-  //   }
-  // };
-
   const handleAddGeoSigForm = (geography, locale) => {
     const found = existsInGeoConf(geography, locale);
     if (flatGeoConf().length >= maxDatsets) {
@@ -625,14 +654,28 @@ function Petition({ match }) {
     fetchAndBuildFromConfig();
   };
 
-  // Render Functions
-  function dataSinceString() {
-    if (chartTime) {
-      return Object.values(chartTime)[0] + " " + Object.keys(chartTime)[0];
-    } else {
-      return "All Time";
-    }
+  function sortGeoInput(items, key, order) {
+    let sorted = null;
+    sorted = items.sort((a, b) => {
+      if (a[key] < b[key]) {
+        return order === "ASC" ? -1 : 1;
+      }
+      if (a[key] > b[key]) {
+        return order === "ASC" ? 1 : -1;
+      }
+      return 0;
+    });
+    return sorted;
   }
+
+  const handleGeoNavSortBy = (value) => {
+    const params = JSON.parse(value);
+    let input = _.cloneDeep(geoNavInput);
+    let geoInput = input[params.geo];
+    input[params.geo] = sortGeoInput(geoInput, params.col, params.order);
+    geoNavSortConfig.current[params.geo] = { col: params.col, order: params.order };
+    setGeoNavInput(input);
+  };
 
   function petitionJSON() {
     return (
@@ -644,35 +687,6 @@ function Petition({ match }) {
       </div>
     );
   }
-
-  // const isChartTimeViewAll = (event) => {
-  //   event.preventDefault();
-  //   if (event.target.value === "all") {
-  //     setAllTimeValueSelected(true);
-  //   } else if (allTimeValueSelected) {
-  //     setAllTimeValueSelected(false);
-  //   }
-  // };
-
-  // function renderChartTimeForm() {
-  //   return (
-  //     <div className="chartTimeForm">
-  //       <form onSubmit={handleChartTimeForm}>
-  //         <h3>View data since: {dataSinceString()}</h3>
-  //         <select name="units" onChange={isChartTimeViewAll}>
-  //           <option value="minutes">minutes</option>
-  //           <option value="hours">hours</option>
-  //           <option value="days">days</option>
-  //           <option value="weeks">weeks</option>
-  //           <option value="all">all time</option>
-  //         </select>
-
-  //         <input type="text" name="amount" disabled={allTimeValueSelected} />
-  //         <input type="submit" value="Submit" />
-  //       </form>
-  //     </div>
-  //   );
-  // }
 
   function thresholdStatus() {
     if (!_.isEmpty(petition)) {
@@ -692,6 +706,7 @@ function Petition({ match }) {
     }
   }
 
+  // Render Functions
   function renderPetitionAction() {
     return (
       <div className="action">
@@ -829,22 +844,6 @@ function Petition({ match }) {
     );
   }
 
-  function toggleSigCheckbox() {
-    return (
-      <div className="total-sig-toggle">
-        <input
-          name="showTotal"
-          type="checkbox"
-          checked={showTotalSigs.current}
-          onClick={toggleTotalSignatures}
-        />
-        <label htmlFor="showTotal">
-          <span>Total</span>
-        </label>
-      </div>
-    );
-  }
-
   function refreshChartBtn() {
     return (
       <button name="sync" value="sync" onClick={handleSyncChartForm}>
@@ -856,7 +855,7 @@ function Petition({ match }) {
       </button>
     );
   }
-  // className = "fa-fw";
+
   function renderChartBannerNav() {
     return (
       <div className="wrapper">
@@ -866,6 +865,7 @@ function Petition({ match }) {
             id="showTotal"
             type="checkbox"
             checked={!showTotalSigs.current}
+            readOnly={true}
             onClick={toggleTotalSignatures}
           />
           <label htmlFor="showTotal">
@@ -888,31 +888,23 @@ function Petition({ match }) {
     );
   }
 
-  function sortGeoInput(items, key, order) {
-    let sorted = null;
-    sorted = items.sort((a, b) => {
-      if (a[key] < b[key]) {
-        return order === "ASC" ? -1 : 1;
-      }
-      if (a[key] > b[key]) {
-        return order === "ASC" ? 1 : -1;
-      }
-      return 0;
-    });
-    return sorted;
-  }
-
-  const handleGeoNavSortBy = (value) => {
-    const params = JSON.parse(value);
-    let input = _.cloneDeep(geoNavInput);
-    let geoInput = input[params.geo];
-    input[params.geo] = sortGeoInput(geoInput, params.col, params.order);
-    geoNavSortConfig.current[params.geo] = { col: params.col, order: params.order };
-    setGeoNavInput(input);
-  };
-
-  function renderQuickTimeSelect() {
-    return <div className="wrapper"></div>;
+  function renderErrors() {
+    const errorObj = () => {
+      return (
+        <h4>
+          <span>{chartError.error.msg}</span>
+          <span className="icon">
+            <FontAwesomeIcon className="fa-fw" icon={faExclamationTriangle} />
+          </span>
+        </h4>
+      );
+    };
+    return (
+      <div className="errors">
+        <span>{petitionNotFound && redirectPetition404(petition_id)}</span>
+        <span>{chartError.status ? errorObj() : ""}</span>
+      </div>
+    );
   }
 
   return (
@@ -932,20 +924,16 @@ function Petition({ match }) {
         {renderMetaSection()}
       </section>
 
-      <div className="chart__error">
-        <div>
-          <h4>{chartError.error ? chartError.error.msg : ""}</h4>
-        </div>
-      </div>
+      <div className="chart__error">{renderErrors()}</div>
 
       <div className="petition__chart">
-        <div className="chart__quick__time">{renderQuickTimeSelect()}</div>
         <div className="chart__time">
           <TimeNav
             timeChangeHandler={handleChartTimeChange}
-            timeConfig={timeNavConfig() || {}}
+            timeConfig={timeNavConfig()}
             fromNavValue={chartTime.from}
             toNavValue={getChartTimeTo()}
+            presetTimeOpts={presetTimeOpts}
           ></TimeNav>
         </div>
         <Chart
@@ -962,6 +950,7 @@ function Petition({ match }) {
           geoInputData={geoNavInput}
           geoSortConfig={geoNavSortConfig.current}
           geoSortHandler={handleGeoNavSortBy}
+          selectedGeoConf={geoChartConfig.current}
         ></GeoNav>
       </div>
     </div>

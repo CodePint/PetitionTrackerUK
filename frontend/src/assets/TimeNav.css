@@ -1,10 +1,7 @@
-.react-datetime-picker__wrapper {
+.react-date-picker__wrapper {
   border: none !important;
 }
 
-.react-datetime-picker button svg {
+.react-date-picker button svg {
   width: 1em;
-}
-
-.react-datetime-picker .calendarIcon{
 }

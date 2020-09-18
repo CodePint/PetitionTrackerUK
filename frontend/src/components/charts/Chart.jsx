@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
+import ReactDOM from "react-dom";
+
 import Chartjs from "chart.js";
-import * as Zoom from "chartjs-plugin-zoom";
 import { chartConfig, dataConfig, chartColors } from "./config/LineChartConfig";
 import _, { merge } from "lodash";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -16,17 +17,39 @@ const totalSigDataConfig = {
 
 function Chart({ datasets, handleDatasetDeletion, toggleTotalSignatures, showTotalSigs }) {
   const chartContainer = useRef(null);
-  const baseChartConfig = chartConfig;
   const baseDataConfig = dataConfig;
+  const [baseChartConfig, setBaseChartConfig] = useState(chartConfig);
   const [chartInstance, setChartInstance] = useState(null);
   const [legendValuesToggle, setLegendValuesToggle] = useState([]);
+
+  const useFluidFont = true;
+  const chartFontSizeRef = useRef(null);
+  const windowWidthRef = useRef(null);
+  const refDivElem = useRef(null);
+  const refChartElem = useRef(null);
+
+  useEffect(() => {
+    if (useFluidFont) {
+      window.addEventListener("resize", resizeFontForWindow);
+      return () => {
+        window.removeEventListener("resize", resizeFontForWindow);
+      };
+    }
+  });
+
+  useEffect(() => {
+    if (useFluidFont) {
+      windowWidthRef.current = window.innerWidth;
+      setFontSize();
+    }
+  }, []);
 
   useEffect(() => {
     if (chartContainer && chartContainer.current) {
       const newChartInstance = new Chartjs(chartContainer.current, baseChartConfig);
       setChartInstance(newChartInstance);
     }
-  }, [chartContainer]);
+  }, [chartContainer, baseChartConfig]);
 
   useEffect(() => {
     if (chartInstance) {
@@ -52,6 +75,46 @@ function Chart({ datasets, handleDatasetDeletion, toggleTotalSignatures, showTot
     return input.length > 0 && !input.includes(null) && !input.includes(undefined);
   }
 
+  function renderLegendCode(code, isToggled) {
+    return !isToggled && code.length > 5 ? `${code.slice(0, 1)}${code.slice(-4)}` : code;
+  }
+
+  function lazyIntToCommaString(x) {
+    return x ? x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "0";
+  }
+
+  function resizeFontForWindow() {
+    let fontSize = window.getComputedStyle(refDivElem.current).fontSize;
+    if (shouldResize([100, 100])) {
+      setFontSize();
+    }
+  }
+
+  function setFontSize() {
+    let fontSize = window.getComputedStyle(refDivElem.current).fontSize;
+    fontSize = fontSize.replace("px", "");
+    fontSize = Math.round(fontSize / 1.5);
+
+    let config = _.cloneDeep(baseChartConfig);
+    config.options.scales.xAxes[0].ticks.fontSize = fontSize;
+    config.options.scales.yAxes[0].ticks.fontSize = fontSize;
+    chartFontSizeRef.current = fontSize;
+    setBaseChartConfig(config);
+  }
+
+  function shouldResize(range) {
+    const windowWidth = window.innerWidth;
+    const lowerLimit = windowWidthRef.current - range[0] > windowWidth;
+    const upperLimit = windowWidthRef.current + range[1] < windowWidth;
+
+    if (lowerLimit || upperLimit) {
+      windowWidthRef.current = windowWidth;
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   function handleLegendToggle(value) {
     let toggled = [...legendValuesToggle];
     if (!legendValuesToggle.includes(value)) {
@@ -63,18 +126,11 @@ function Chart({ datasets, handleDatasetDeletion, toggleTotalSignatures, showTot
     }
   }
 
-  function renderLegendCode(code, isToggled) {
-    return !isToggled && code.length > 5 ? `${code.slice(0, 1)}${code.slice(-4)}` : code;
-  }
-
-  function lazyIntToCommaString(x) {
-    return x ? x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "0";
-  }
-
   function renderLegendItem(colorKey, value, meta, geography) {
     const isToggled = legendValuesToggle.includes(value);
     return (
       <li
+        key={`${geography || ""}-legend- ${value}`}
         className={`${geography || ""} ${value} ${isToggled ? "expand" : ""}`}
         onClick={() => handleLegendToggle(value)}
       >
@@ -128,9 +184,14 @@ function Chart({ datasets, handleDatasetDeletion, toggleTotalSignatures, showTot
   return (
     <div className="Chart">
       <div className="legend">{renderLegend()}</div>
-      <div className="container" style={{ position: "relative" }}>
+      <div
+        ref={refChartElem}
+        className="container"
+        style={{ position: "relative", fontSize: chartFontSizeRef.current }}
+      >
         <canvas ref={chartContainer} />
       </div>
+      <div ref={refDivElem} style={{ fontSize: "1em" }}></div>
     </div>
   );
 }

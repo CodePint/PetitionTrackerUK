@@ -2,10 +2,10 @@
 @import "Home.css";
 @import "NavBar.css";
 @import "PetitionListController.css";
-@import "PetitionList.css";
 @import "PetitionItem.css";
 @import "Petition.css";
 @import "Chart.css";
 @import "Pagination.css";
 @import "GeoNav.css";
-@import "TimeNav.css"
+@import "TimeNav.css";
+@import "Error404.css";

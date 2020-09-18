@@ -1,10 +1,6 @@
-import zoomPluginConfig from "./ZoomPluginConfig";
 
 const chartConfig = {
   type: "line",
-  plugins: {
-    zoom: zoomPluginConfig,
-  },
   data: {
     labels: [],
     datasets: [
@@ -24,6 +20,9 @@ const chartConfig = {
         {
           display: true,
           type: "time",
+          ticks: {
+            fontSize: 10,
+          },
           time: {
             parser: "DD-MM-YYThh:mm:ss",
             displayFormats: {
@@ -36,6 +35,13 @@ const chartConfig = {
               month: "MM-YYYY",
               year: "MM-YYYY",
             },
+          },
+        },
+      ],
+      yAxes: [
+        {
+          ticks: {
+            fontSize: 10,
           },
         },
       ],

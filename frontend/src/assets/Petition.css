@@ -24,7 +24,20 @@
   font-weight: 400;
 }
 
+/* errors */
+.Petition .errors {
+  margin-bottom: 1em;
+}
 
+.Petition .errors h4 {
+  font-size: 1.25em;
+  color: red;
+}
+
+.Petition .errors .icon {
+  display: inline-block;
+  margin-left: 0.3em;
+}
 
 /* --- Petition meta --- */
 
@@ -98,7 +111,7 @@
   font-size: 0.9em;
 }
 
-.Petition .text .details-toggle span{
+.Petition .text .details-toggle span {
   display: inline-block;
   color: var(--light-grey);
 }
@@ -114,6 +127,7 @@
 
 .signatures-heading {
   display: flex;
+  margin-bottom: 1em;
 }
 
 .signatures-heading .icon  {
@@ -198,8 +212,8 @@
   flex-direction: row;
   overflow: auto;
   flex-wrap: wrap;
-  border-top: 1px solid var(--dark-grey);
-  border-bottom: 1px solid var(--dark-grey);
+  border-top: rgba(211, 211, 211, 0.1);
+  border-bottom: 1px solid rgba(211, 211, 211, 0.1);
 }
 
 .petition__chart .Chart .legend li {
@@ -333,7 +347,7 @@
   display: block;
   width: 100%;
   height: 100%;
-  background: green;
+  background: var(--parl-green);
   border-radius: 0.5em;
   padding: 0.35em;
 }
@@ -381,61 +395,198 @@
   background: none;
 }
 
+
+
 /* Chart Time Nav */
-.Petition .react-datetime-picker {
+
+/* dependency styles */
+.Petition .react-date-picker input,
+.Petition .react-date-picker {
   color: var(--slate-black) !important;
+  font-size: 1em;
+}
+
+/* wrappers */
+.Petition .chart__time {
+  background: darkgray;
+}
+
+.Petition .TimeNav > .main {
+  display: flex;
   font-size: 1rem;
-
-}
-.Petition .react-datetime-picker input {
-  color: var(--slate-black) !important;
+  padding: 0.2em 0;
 }
 
-.Petition .chart__time .buttons {
+/* buttons */
+.Petition .TimeNav .buttons {
   display: flex;
 }
 
-.Petition .chart__time .buttons .icon {
-  margin-top: 0.1em;
-}
-
-.Petition .chart__time .buttons .btn  {
-  padding: 0.25em;
-}
-
-.Petition .chart__time .buttons button {
+.Petition .TimeNav .chart-btn {
   border: none;
   outline: none;
   cursor: pointer;
-  background: var(--parl-green);
-  color: var(--smoke-white);
   border-radius: 0.75em;
+  margin: 0.2em 0.5em;
+  display: block;
   font-size: 0.85em;
-  margin-left: 0.25em;
   padding: 0.5em;
+  background: darkgray;
+  background: gray;
+  color: var(--smoke-white);
 }
 
-.Petition .chart__time {
-  background: var(--light-grey);
+.Petition .TimeNav .chart-btn.selected,
+.Petition .TimeNav .chart-btn.submit {
+    background: var(--parl-green);
 }
 
-.Petition .chart__time .TimeNav {
+/* quick-select */
+.Petition .TimeNav .quick-select {
+  height: 100%;
+  align-self: flex-start;
+}
+
+.Petition .TimeNav #inputQuickSelectForm {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0.25em 0;
-
 }
 
-.Petition .chart__time .TimeNav .dash {
-  font-size: 1.5em;
-  padding: 0 0.5em;
-  padding-bottom: 0.1em;
+.Petition .TimeNav .quick-select .quick-selects-wrapper {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.Petition .TimeNav .quick-select select {
+  display: block;
+  border: none;
+  outline: none;
+  background: none;
+  padding: 0.1em;
+  font-size: 0.9em;
   color: var(--slate-black);
 }
 
-/* Chart banner - Quick Time Nav */
+.Petition .TimeNav .quick-select input[type="text"] {
+  font-size: 0.8em;
+  padding: 0.2em;
+  margin-left: 0.5em;
+  outline: none;
+  border: none;
+  width: 4em;
+  border-radius: 0.2em;
+}
 
+/* presets */
+.Petition .TimeNav .presets {
+  margin-left: 1em;
+  display: none;
+}
+
+.Petition .TimeNav .mobile .presets {
+  display: block;
+  margin-left: 0;
+  border-top: 1px solid gray;
+  font-size: 1.35em;
+}
+
+.Petition .TimeNav .mobile .presets .container {
+  padding: 0.25em;
+}
+
+.Petition .TimeNav .presets .container {
+  display: flex;
+  width: max-content;
+  margin: 0 auto;
+}
+
+.Petition .TimeNav .preset-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 0.2em;
+  font-size: 0.8em;
+}
+
+.Petition .TimeNav .preset-item label {
+  display: flex;
+  color: var(--slate-black);
+  font-size: 1em;
+  cursor: pointer;
+}
+.Petition .TimeNav .preset-item input[type="radio"]:checked + label > h4 {
+  font-weight: 600;
+  color: var(--parl-green);
+}
+
+.Petition .TimeNav .preset-item label h4 {
+  color: var(--slate-black);
+  font-weight: 400;
+}
+
+.Petition .TimeNav .preset-item label h4 span {
+  display: inline-block;
+}
+
+.Petition .TimeNav .preset-item .pipe {
+  color: var(--slate-black);
+  display: inline-block;
+  margin-left: 0.4em;
+}
+
+.Petition .TimeNav .preset-item.All-time .pipe,
+.Petition .TimeNav .preset-item.All-time .nbsp {
+  display: none;
+}
+
+.Petition .TimeNav .preset-item input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+
+
+/* calendar */
+.Petition .TimeNav .calendar-picker {
+  font-size: 0.9em;
+  display: flex;
+  justify-content: space-evenly;
+  flex-wrap: wrap;
+  align-items: center;
+  height: 100%;
+}
+
+.Petition .TimeNav .divider {
+  color: black;
+  margin: 0 0.4em;
+  font-size: 1.2em;
+  font-weight: 600;
+  margin-right: 0.5em;
+}
+
+/* view */
+.TimeNav .view.quick {
+  margin-right: auto;
+}
+
+.TimeNav .view.calendar {
+  margin: 0 auto;
+}
+
+
+.TimeNav .view {
+  font-size: 1.2em;
+}
+
+.TimeNav .view .pipe {
+  margin: 0 0.25em;
+  color: black;
+}
 
 
 /* Chart GeoNav */
@@ -490,13 +641,25 @@
 
 
 /* --- Media Queries --- */
-@media only screen and (min-width: 1025px) {
+@media only screen and (min-width: 1050px) {
   .Petition {
     width: 85%;
   }
 
-  .Petition .nav {
-    /* width: 50%; */
+  .signatures-heading {
+    margin-bottom: 0;
+  }
+
+  .Petition .TimeNav .mobile .presets {
+    display: none;
+  }
+
+  .Petition .TimeNav .view.all {
+    margin: 0 auto;
+  }
+
+  .Petition .TimeNav .presets {
+    display: block;
   }
 
   .Petition .meta {

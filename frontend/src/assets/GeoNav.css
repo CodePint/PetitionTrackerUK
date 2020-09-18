@@ -110,6 +110,15 @@
   background: var(--light-grey);
 }
 
+.GeoNav .search__geo .menu .row.unselectable {
+  background: darkgray;
+  cursor: not-allowed;
+}
+
+.GeoNav .search__geo .menu .row.hidden {
+  display: none;
+} 
+
 .GeoNav .search__geo .menu .col {
   flex-grow: 1;
   font-size: 0.75em;
