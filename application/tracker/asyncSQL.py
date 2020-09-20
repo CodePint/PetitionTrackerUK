@@ -32,7 +32,7 @@ class AsyncSQL():
     def signatures_for_record(cls, app, session, record, record_schema, sig_attrs):
         with app.app_context():
             app.db.session = session
-            # app.db.session.add(record)
+            app.db.session.add(record)
             print("generating comparison for".format(record.id))
             
             comparison = record_schema.dump(record)
@@ -42,14 +42,15 @@ class AsyncSQL():
                 filtered = relation.filter(model.code.in_(sig_attrs[geo]['locales'])).all()
                 comparison[name] = [schema.dump(sig) for sig in filtered]
             
-            # app.db.session.remove()
+            app.db.session.remove(record)
         return comparison
 
 
-# signatures = AsyncSQL.async_query(
-#     function='signatures_for_record',
-#     iterable=records,
-#     workers=8,
-#     record_schema=RecordSchema(exclude=["id"]),
-#     sig_attrs=sig_attrs,
-# )
+def execute_query(records, sig_attrs, record_schema):
+    return AsyncSQL.async_query(
+        function='signatures_for_record',
+        iterable=records,
+        workers=8,
+        record_schema=record_schema(),
+        sig_attrs=sig_attrs,
+    )

@@ -29,6 +29,8 @@ from flask import (
 from sqlalchemy import or_, and_, func, select
 import requests, json, os
 
+# returns a petition with the given id
+# optionally returns a geographic/locale breakdown for a given time
 @bp.route('/petition/<petition_id>', methods=['GET'])
 def get_petition(petition_id):
     context = {}
@@ -249,6 +251,9 @@ def get_petition_signatures_by_locale(petition_id, geography, locale):
 
     return context
 
+# compares multiple geographies/locales 
+# slow to execute 
+# better to use #get_petition_signatures_by_locale with async requests
 @bp.route('/petition/<petition_id>/signatures/compare', methods=['POST'])
 def get_petition_signatures_comparison(petition_id):
     index = request.args.get('index', 1, type=int)

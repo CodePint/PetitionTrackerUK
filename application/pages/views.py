@@ -6,10 +6,6 @@ import os
 
 from . import bp
 
-@bp.route('/home', methods=['GET'])
-def site_index():
-    return render_template('index.html')
-
 @bp.route('/ping', methods=['GET'])
 def ping():
     time_now = dt.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
