@@ -187,7 +187,7 @@ function PetitionListController({}) {
           {renderToggles()}
         </nav>
 
-        <div className="meta">
+        <div className="total-found">
           <h5>
             {numPetitionsFound.current} petitions {queryParams.action ? "found" : ""}
           </h5>

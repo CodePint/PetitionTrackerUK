@@ -1,4 +1,18 @@
 .Home {
-  width: 40%;
+  width: 80%;
   margin: 0 auto;
+}
+
+@media only screen and (min-width: 1050px) {
+  .Home {
+    width: 40%;
+    margin: 0 auto;
+  }
+  
+
+}
+
+@media only screen and (min-width: 1650px) {
+
+  
 }

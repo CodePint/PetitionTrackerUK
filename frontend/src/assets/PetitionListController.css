@@ -14,12 +14,11 @@
 }
 
 .PetitionListController .toggles {
-  margin-top: -0.5em;
 }
 
 .PetitionListController .toggles ul {
   display: flex;
-  font-size: 0.8em;
+  font-size: 1em;
 }
 
 .PetitionListController .toggles li {
@@ -67,7 +66,8 @@
 }
 
 .PetitionListController .searchBar input[type=text] {
-  padding-left: 0.5em;
+  padding-left: 0.6em;
+  height: 2.25em;
   display: block;
   outline: none;
   border: none;
@@ -78,6 +78,8 @@
 
 .PetitionListController .searchBar button {
   width: 10%;
+  height: 2.25em;
+
   font-size: 1em;
   min-width: 3em;
   border: none;
@@ -93,8 +95,13 @@
   padding: 0.5em;
   margin: none;
 }
+.PetitionListController .total-found {
+  margin-top: 2em;
+}
 
-.PetitionListController .PetitionListController .meta > h5 {
-  color: var(--smoke-white);
+.PetitionListController .total-found  h5 {
+  font-size: 1.1em;
+  padding-bottom: 0.1em;
+  border-bottom: 1px solid var(--light-grey);
   width: max-content;
 }
