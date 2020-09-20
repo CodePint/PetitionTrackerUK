@@ -91,9 +91,11 @@ function Chart({ datasets, handleDatasetDeletion, toggleTotalSignatures, showTot
   }
 
   function setFontSize() {
+    const windowWidth = window.innerWidth;
+    const divisor = windowWidth < 1050 ? 1.25 : 1.5;
     let fontSize = window.getComputedStyle(refDivElem.current).fontSize;
     fontSize = fontSize.replace("px", "");
-    fontSize = Math.round(fontSize / 1.5);
+    fontSize = Math.round(fontSize / divisor);
 
     let config = _.cloneDeep(baseChartConfig);
     config.options.scales.xAxes[0].ticks.fontSize = fontSize;
