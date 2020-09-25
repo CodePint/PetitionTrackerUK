@@ -10,6 +10,7 @@
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.5.0",
     "@testing-library/user-event": "^7.2.1",
+    "axios": "^0.20.0",
     "chart.js": "^2.9.3",
     "craco": "0.0.3",
     "lodash": "^4.17.20",
@@ -22,6 +23,7 @@
     "react-date-picker": "^8.0.3",
     "react-datetime-picker": "^3.0.4",
     "react-dom": "^16.13.1",
+    "react-json-pretty": "^2.2.0",
     "react-paginate": "^6.5.0",
     "react-router-dom": "^5.2.0",
     "react-scripts": "3.4.1",
@@ -52,7 +54,6 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:5000/",
   "devDependencies": {
     "@craco/craco": "^5.6.4",
     "autoprefixer": "^9.8.6",

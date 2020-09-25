@@ -1,0 +1,36 @@
+
+version: "3"
+
+volumes:
+  pg_data:
+
+services:
+  react:
+    container_name: react_ui
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - 80:80
+      - 443:443
+
+  flask:
+    container_name: flask_api
+    restart: always
+    build: .
+    expose:
+      - 5000
+    volumes:
+      - ./application:/usr/src/application
+    env_file:
+      - .env
+
+  postgres:
+    container_name: postgres
+    image: postgres:latest
+    ports:
+      - 5432:5432
+    volumes:
+      - pg_data:/var/lib/postgresql/data/
+    env_file:
+      .env      

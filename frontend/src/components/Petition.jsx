@@ -22,9 +22,9 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 import useIsFirstRender from "./utils/useIsFirstRender";
-import ConstituenciesJSON from "../geographies/json/constituencies.json";
-import RegionsJSON from "../geographies/json/regions.json";
-import CountriesJSON from "../geographies/json/countries.json";
+import ConstituenciesJSON from "./data/geographies/constituencies.json";
+import RegionsJSON from "./data/geographies/regions.json";
+import CountriesJSON from "./data/geographies/countries.json";
 
 import Chart from "./charts/Chart.jsx";
 import GeoNav from "./GeoNav.jsx";
@@ -41,6 +41,8 @@ function geographiesJSON() {
 
 function Petition({ match }) {
   const petition_id = match.params.petition_id;
+  const API_URL_PREFIX = process.env.REACT_APP_FLASK_API_URL_PREFIX;
+
   const maxDatsets = 11;
   const isFirstRender = useIsFirstRender();
   const History = useHistory();
@@ -365,7 +367,7 @@ function Petition({ match }) {
   // API Fetch functions
   async function fetchSignatures() {
     let params = {};
-    let url = `/petition/${petition_id}/signatures`;
+    let url = `${API_URL_PREFIX}/petition/${petition_id}/signatures`;
     params.between = { gt: chartTime.from, lt: getChartTimeTo() };
     console.log("fetching signatures!!");
     try {
@@ -385,7 +387,7 @@ function Petition({ match }) {
       params.time = moment(getChartTimeTo()).format("DD-MM-YYYYTH:m:ss");
       console.log(params.time);
     }
-    let url = `/petition/${petition_id}`;
+    let url = `${API_URL_PREFIX}/petition/${petition_id}`;
     try {
       return await axios.get(url, { params: params });
     } catch (error) {
@@ -403,7 +405,7 @@ function Petition({ match }) {
 
   async function fetchSignaturesBy(geography, locale) {
     let params = {};
-    let url = `/petition/${petition_id}/signatures_by/${geography}/${locale}`;
+    let url = `${API_URL_PREFIX}/petition/${petition_id}/signatures_by/${geography}/${locale}`;
     params.between = { gt: chartTime.from, lt: getChartTimeTo() };
     try {
       console.log("fetching signatures by", geography, "-", locale);

@@ -14,11 +14,11 @@ class Config(object):
     # postgres config
     POSTGRES_TEMPLATE = 'postgresql://%(user)s:%(pw)s@%(host)s:%(port)s/%(db)s'
     POSTGRES_CONFIG = {
-        'user': 'petitionadmin',
-        'pw': 'new_password',
-        'db': 'petitiondb',
-        'host': 'localhost',
-        'port': '5432',
+        'user': os.getenv('POSTGRES_USER'),
+        'pw': os.getenv('POSTGRES_PASSWORD'), 
+        'db': os.getenv('POSTGRES_DB'),
+        'host': os.getenv('POSTGRES_HOST'),
+        'port': os.getenv('POSTGRES_PORT')
     }
     SQLALCHEMY_DATABASE_URI = POSTGRES_TEMPLATE % POSTGRES_CONFIG
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -26,7 +26,7 @@ class Config(object):
     SQLALCHEMY_ENGINE_OPTIONS = {
     'pool_recycle': 90,
     'pool_timeout': 900,
-    'pool_size': 20,
+    'pool_size': 8,
     'max_overflow': 5,
 }
 

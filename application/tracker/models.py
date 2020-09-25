@@ -42,6 +42,9 @@ class Petition(db.Model):
     ]
     STATE_LOOKUP = LazyDict({v: k for k, v in dict(STATE_CHOICES).items()})
 
+    # To Do: replace threshold value with settings database variable
+    POLL_SIGNATURES_THRESHOLD = 2500
+
     id = db.Column(Integer, primary_key=True, autoincrement=False)
     state = db.Column(ChoiceType(STATE_CHOICES), nullable=False)
     archived = db.Column(Boolean, default=False, nullable=False)
@@ -62,7 +65,7 @@ class Petition(db.Model):
     government_response_at = db.Column(DateTime)
     scheduled_debate_date = db.Column(DateTime)
     debate_outcome_at = db.Column(DateTime)
-    polled_at = db.Column(DateTime)
+    polled_at = db.Column(DateTime(timezone=True))
     db_created_at = db.Column(DateTime(timezone=True), default=sqlfunc.now())
     db_updated_at = db.Column(DateTime(timezone=True), default=sqlfunc.now(), onupdate=sqlfunc.now())
     initial_data = db.Column(JSONType)
@@ -139,7 +142,8 @@ class Petition(db.Model):
 
     @classmethod
     def poll_all(cls):
-        petitions = cls.query.filter_by(state='O', archived=False).all()
+        query = cls.query.filter_by(state='O', archived=False)
+        petitions = query.filter(cls.signatures > cls.POLL_SIGNATURES_THRESHOLD).all()
         results = cls.remote.async_poll(petitions, retries=3)
         responses = results.get('success')
         records = []
@@ -177,13 +181,9 @@ class Petition(db.Model):
             commit=commit    
         )
 
-    # To Do: add these details to petition db model
-    # --- "moderation_threshold_reached_at" (timestamp)
-    # --- "response_threshold_reached_at" (timestamp)
     def update(self, attributes, timestamp):
         self.polled_at = timestamp
         self.state = attributes['state']
-        self.signatures = attributes['signature_count']
         self.pt_updated_at = attributes['updated_at']
         self.pt_rejected_at = attributes['rejected_at']
         self.moderation_threshold_reached_at = attributes['moderation_threshold_reached_at'] 
@@ -203,6 +203,7 @@ class Petition(db.Model):
     def create_record(self, attributes, timestamp, commit=True):
         record = Record.create(self.id, attributes, timestamp, commit=False)
         self.latest_data = attributes
+        self.signatures = attributes['signature_count']
 
         if commit: 
             db.session.commit()
@@ -214,10 +215,11 @@ class Petition(db.Model):
         query = query.filter(and_(Record.timestamp < lt))
         return query.order_by(Record.timestamp.desc())
 
-    def query_record_at(self, at):
-        at = dt.strptime(at, "%d-%m-%YT%H:%M:%S")
-        query = self.records.filter(Record.timestamp < at)
-        return query.order_by(Record.timestamp.desc()).first()
+    def query_record_at(self, timestamp, at):
+        if isinstance(timestamp, str):
+            timestamp = dt.strptime(timestamp, "%d-%m-%YT%H:%M:%S")
+        query = self.records.filter(Record.timestamp < timestamp)
+        return query.order_by(Record.timestamp.desc())
 
     # since ex: {'hours': 12}, {'days': 7}, {'month': 1}
     def query_records_since(self, since, now=None):
@@ -237,10 +239,7 @@ class Petition(db.Model):
     def latest_record(self):
         return self.ordered_records().first()
 
-    # now = datetime.datetime.now()
-    # gt = now - datetime.timedelta(days=50)
-    # lt = now
-    # petition.query_records_between(lt, gt)
+
 
 class Record(db.Model):
     __tablename__ = 'record'

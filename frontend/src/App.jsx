@@ -7,6 +7,7 @@ import Petition from "./components/Petition";
 import PetitionList from "./components/PetitionList";
 import Route404 from "./components/errors/Route404";
 import Petition404 from "./components/errors/Petition404";
+import Ping from "./components/utils/Ping";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Switch>
             <Route path="/" exact component={Home} />
             <Route path="/about" component={About} />
+            <Route path="/ping" exact component={Ping} />
             <Route path="/petitions/:state?" exact component={PetitionList} />
             <Route path="/petition/:petition_id(\d+)" exact component={Petition} />
             <Route path="/petition/error/404/:petition_id" exact component={Petition404} />

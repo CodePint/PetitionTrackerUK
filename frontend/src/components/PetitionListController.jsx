@@ -15,15 +15,16 @@ import {
 import PetitionList from "./PetitionList";
 import Pagination from "./Pagination";
 
-function PetitionListController({}) {
+function PetitionListController() {
+  const API_URL_PREFIX = process.env.REACT_APP_FLASK_API_URL_PREFIX;
+  const apiURL = `${API_URL_PREFIX}/petitions`;
   const [queryParams, setQueryParams] = useState(baseQuery());
   const [petitionID, setPetitionID] = useState(null);
-  const [toggleValues, setToggleValues] = useState(defaultToggleValues());
+  const [toggleValues, setToggleValues] = useState(resetToggleValues(false, true));
   const [petitions, setPetitions] = useState({});
   const numPetitionsFound = useRef(0);
   const paginationData = useRef(null);
   const queryResult = useRef(null);
-  const baseUrl = "/petitions";
 
   const icons = {
     DESC: faChevronDown,
@@ -48,24 +49,10 @@ function PetitionListController({}) {
     queryPetitions();
   }, [queryParams]);
 
-  function resetToggleValues() {
-    return {
-      date: { checked: false, value: "DESC" },
-      signatures: { checked: false, value: "DESC" },
-    };
-  }
-
-  function defaultToggleValues() {
-    return {
-      date: { checked: false, value: "DESC" },
-      signatures: { checked: true, value: "DESC" },
-    };
-  }
-
   async function queryPetitions() {
     const params = { params: queryParams };
     try {
-      let response = await axios.get(baseUrl, params);
+      let response = await axios.get(apiURL, params);
       let data = response.data;
       queryResult.current = data;
       paginationData.current = data.meta.pages;
@@ -93,6 +80,13 @@ function PetitionListController({}) {
     }
   };
 
+  function resetToggleValues(date_check = false, sig_check = false) {
+    return {
+      date: { checked: date_check, value: "DESC" },
+      signatures: { checked: sig_check, value: "DESC" },
+    };
+  }
+
   const pageChangeHandler = ({ selected }) => {
     let params = _.cloneDeep(queryParams);
     params.index = selected + 1;
@@ -103,18 +97,18 @@ function PetitionListController({}) {
     const key = event.target.name;
     let value = event.target.value;
     let currentValues = null;
+
     const isChecked = toggleValues[key].checked;
     if (isChecked) {
       currentValues = { ...toggleValues };
       value = value === "ASC" ? "DESC" : "ASC";
-      currentValues[key].value = value;
     } else {
       currentValues = resetToggleValues();
-      currentValues[key].checked = true;
-      currentValues[key].value = value;
     }
+    currentValues[key].value = value;
     currentValues[key].checked = true;
     setToggleValues(currentValues);
+
     let currQueryParams = _.cloneDeep(queryParams);
     currQueryParams.order_by = {};
     currQueryParams.order_by[key] = value;
@@ -198,7 +192,7 @@ function PetitionListController({}) {
 
       <Pagination
         pages={paginationData.current}
-        baseUrl={baseUrl}
+        baseUrl={apiURL}
         urlParams={queryParams}
         pagesToShow={5}
         pageChangeHandler={pageChangeHandler}

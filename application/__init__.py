@@ -105,18 +105,31 @@ def create_app():
     def run_overdue_tasks():
         print("checking for overdue celery tasks")
         current_app.celery_utils.run_overdue_tasks()
+    
+    @app.cli.command("react")
+    def run_yarn():
+        print("starting react frontend")
+        subprocess.run('cd frontend && yarn run start', shell=True)
 
     @app.cli.command("update-geographies")
     def update_geography_data():
         print("updating geography application choices")
         from application.tracker import geographies
 
-    @app.cli.command("react")
-    def run_yarn():
-        print("starting react frontend")
-        subprocess.run('cd frontend && yarn run start', shell=True)
+    @app.cli.command("db-create")
+    def create_db():
+        print("creating database")
+        current_app.db.create_all()
 
-    
+    @app.cli.command("db-drop")
+    def drop_db():
+        print("droping database")
+        current_app.db.drop_all()
+
+    @app.cli.command("db-drop-alembic")
+    def reset_alembic():
+        current_app.db.engine.connect().execute("DROP TABLE IF EXISTS alembic_version")
+
     @app.shell_context_processor
     def get_shell_context():
         from application import context

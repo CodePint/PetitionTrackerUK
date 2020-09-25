@@ -1,0 +1,20 @@
+.Ping {
+  display: flex;
+  flex-direction: column;
+  height: 70vh;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.Ping h1 {
+  margin-bottom: 1em;
+}
+
+.Ping h1.SUCCESS {
+  color: lime;
+}
+
+.Ping h1.FAILED {
+  color: lightblue;
+}
