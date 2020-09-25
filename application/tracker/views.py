@@ -27,7 +27,7 @@ from flask import (
 )
 
 from sqlalchemy import or_, and_, func, select
-import requests, json, os
+import requests, json, os, datetime
 
 # returns a petition with the given id
 # optionally returns a geographic/locale breakdown for a given time
@@ -36,17 +36,14 @@ def get_petition(petition_id):
     context = {}
     petition = Petition.get_or_404(petition_id)
     context['petition'] = PetitionSchema().dump(petition)
-
-    if petition and request.args.get('signatures', type=json.loads):
+    build_record = request.args.get('signatures', type=json.loads)
+    
+    if build_record:
         time_at = request.args.get('time')
-        record = None
-        if time_at:
-            record = petition.query_record_at(time_at)
-        if not record:
-            record = petition.latest_record()
-        if record:
-            record_nested_schema = RecordNestedSchema(exclude=["id", "petition"])
-            context['signatures'] = record_nested_schema.dump(record)
+        breakpoint()
+        record = petition.build_record(at=time_at)
+        context['meta'] = {"params": {"signatures": True, "time:": time_at}}
+        context['signatures'] = record
 
     return context
 
@@ -141,55 +138,6 @@ def get_petition_signatures(petition_id):
 
     return context
 
-# returns a timestamped geographical list of signatures for a petition
-@bp.route('/petition/<petition_id>/signatures_by/<geography>/', methods=['GET'])
-def get_petition_signatures_by_geography(petition_id, geography):
-    index = request.args.get('index', 1, type=int)
-    items_per_page = request.args.get('items', type=int)
-
-    ViewUtils.abort_400_if_invalid_geography(geography)
-
-    params = {'petition_id': petition_id, 'geography': geography}
-    params['since'] = request.args.get('since', type=json.loads)
-    params['between'] = request.args.get('between', type=json.loads)
-    params['items_per_page'] = items_per_page
-
-    context = {'signatures': []}
-    context['meta'] = {'query': params}
-    petition = Petition.get_or_404(petition_id)
-    context['petition']  = PetitionSchema().dump(petition)
-    query = ViewUtils.record_timestamp_query(petition, params['since'],  params['between'])
-    
-    if items_per_page:
-        page = query.paginate(index,  items_per_page , False)
-        page.curr_num = index
-        records = page.items
-
-        context['meta']['items'] = ViewUtils.items_for(page)
-        context['meta']['links'] = ViewUtils.build_pagination(
-            page,
-            'tracker_bp.get_petition_signatures_by_geography',
-            **params
-        )
-    else:
-        records = query.all()
-        context['meta']['items'] = {'total': len(records)}
-    
-    ViewUtils.abort_404_if_no_result(petition, records, query)
-
-    record_schema = RecordSchema(exclude=["id"])
-    name = 'SignaturesBy' + geography.capitalize()
-    sig_exclude = ["id", "record", "timestamp", geography]
-    sig_schema = SignaturesBySchema.get_schema_for(geography)(many=True, exclude=sig_exclude)
-    
-    for rec in records:
-        record_dump = record_schema.dump(rec)
-        signatures = getattr(rec, 'by_' + geography)
-        record_dump[name] = sig_schema.dump(signatures)
-        context['signatures'].append(record_dump)
-
-    return context
-
 # returns timestamped list of signatures for a petition, for a given geographical locale
 @bp.route('/petition/<petition_id>/signatures_by/<geography>/<locale>', methods=['GET'])
 def get_petition_signatures_by_locale(petition_id, geography, locale):
@@ -247,6 +195,55 @@ def get_petition_signatures_by_locale(petition_id, geography, locale):
         record_dump = record_schema.dump(rec)
         sig_by = rec.signatures_by(geography, locale_choice['code'])
         record_dump[sig_attrs[geography]['name']] = sig_schema.dump(sig_by)
+        context['signatures'].append(record_dump)
+
+    return context
+
+# returns a timestamped geographical list of signatures for a petition
+@bp.route('/petition/<petition_id>/signatures_by/<geography>/', methods=['GET'])
+def get_petition_signatures_by_geography(petition_id, geography):
+    index = request.args.get('index', 1, type=int)
+    items_per_page = request.args.get('items', type=int)
+
+    ViewUtils.abort_400_if_invalid_geography(geography)
+
+    params = {'petition_id': petition_id, 'geography': geography}
+    params['since'] = request.args.get('since', type=json.loads)
+    params['between'] = request.args.get('between', type=json.loads)
+    params['items_per_page'] = items_per_page
+
+    context = {'signatures': []}
+    context['meta'] = {'query': params}
+    petition = Petition.get_or_404(petition_id)
+    context['petition']  = PetitionSchema().dump(petition)
+    query = ViewUtils.record_timestamp_query(petition, params['since'],  params['between'])
+    
+    if items_per_page:
+        page = query.paginate(index,  items_per_page , False)
+        page.curr_num = index
+        records = page.items
+
+        context['meta']['items'] = ViewUtils.items_for(page)
+        context['meta']['links'] = ViewUtils.build_pagination(
+            page,
+            'tracker_bp.get_petition_signatures_by_geography',
+            **params
+        )
+    else:
+        records = query.all()
+        context['meta']['items'] = {'total': len(records)}
+    
+    ViewUtils.abort_404_if_no_result(petition, records, query)
+
+    record_schema = RecordSchema(exclude=["id"])
+    name = 'SignaturesBy' + geography.capitalize()
+    sig_exclude = ["id", "record", "timestamp", geography]
+    sig_schema = SignaturesBySchema.get_schema_for(geography)(many=True, exclude=sig_exclude)
+    
+    for rec in records:
+        record_dump = record_schema.dump(rec)
+        signatures = getattr(rec, 'by_' + geography)
+        record_dump[name] = sig_schema.dump(signatures)
         context['signatures'].append(record_dump)
 
     return context

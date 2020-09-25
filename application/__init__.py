@@ -101,6 +101,20 @@ def create_app():
         print("configuring default values for settings table")
         current_app.settings.configure(current_app.config['DEFAULT_SETTINGS'])
 
+    @app.cli.command("db-create")
+    def create_db():
+        print("creating database")
+        current_app.db.create_all()
+
+    @app.cli.command("db-drop")
+    def drop_db():
+        print("droping database")
+        current_app.db.drop_all()
+
+    @app.cli.command("db-drop-alembic")
+    def reset_alembic():
+        current_app.db.engine.connect().execute("DROP TABLE IF EXISTS alembic_version")
+
     @app.cli.command("run-overdue-tasks")
     def run_overdue_tasks():
         print("checking for overdue celery tasks")
@@ -115,7 +129,6 @@ def create_app():
     def run_yarn():
         print("starting react frontend")
         subprocess.run('cd frontend && yarn run start', shell=True)
-
     
     @app.shell_context_processor
     def get_shell_context():

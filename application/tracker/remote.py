@@ -87,11 +87,11 @@ class RemotePetition():
     # these two functions should be dryed up
     # used with petition db objects for poll_all() task
     @classmethod
-    def async_poll(cls, petitions, retries=0, backoff=5, **kwargs):
+    def async_poll(cls, petitions, callback=False, retries=0, backoff=5, **kwargs):
         session = FuturesSession()
         futures = [
             session.get(cls.url_addr(p.id),
-            hooks={'response': cls.async_hook_factory(petition=p, id=p.id)})
+            hooks={'response': cls.async_hook_factory(petition=p, id=p.id, callback=callback)})
             for p in petitions
         ]
         results = cls.sort_async_results(futures)
@@ -147,6 +147,7 @@ class RemotePetition():
     @classmethod
     def async_hook_factory(cls, **fkwargs):
         def response_hook(response, *args, **kwargs):
+            callback = fkwargs.get('callback')
             response.timestamp = datetime.datetime.now()
             response.petition_id = fkwargs['id']
             response.petition = fkwargs.get('petition')
@@ -155,6 +156,8 @@ class RemotePetition():
                 response.data = response.json()
                 response.success = True
                 print('aync fetched ID: {}'.format(response.petition_id))
+                if callback:
+                    callback(response)
             else:
                 response.success = False
                 print('HTTP error {}, when async fetching ID: {}'.format(

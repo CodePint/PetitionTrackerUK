@@ -28,7 +28,7 @@ def populate_petitions_task(task_name='populate_archived_petitions_task', *args,
     task_logger.info("Archived Petitions onboarded: {}".format(str(len(petitions))))
     return True
 
-@celery.task(name='populate_petitions_task')
+@celery.task(name='populate_all_petitions_task')
 @task_handler()
 def populate_petitions_task(task_name='populate_petitions_task', *args, **kwargs):
     petitions = Petition.populate(state='all', archived=False)

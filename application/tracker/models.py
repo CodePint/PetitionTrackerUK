@@ -106,35 +106,29 @@ class Petition(db.Model):
         populated = []
         for item in remotes:
             print("onboarding petition ID: {}".format(item.petition_id))
-            petition = cls.onboard(remote=item, commit=False)
-            db.session.add(petition)
+            petition = cls.onboard(remote=item)
             populated.append(petition)
         
-        db.session.commit()
         return populated
 
     # onboard a remote petition by id (optional commit & attributes)
     @classmethod
-    def onboard(cls, id=None, remote=None, commit=True):
+    def onboard(cls, id=None, remote=None):
         if not remote:
             remote = cls.remote.get(id, raise_404=True)
         attributes = remote.data['data']["attributes"]
         params = cls.remote.deserialize(remote.data)
         petition = Petition(**params)
         petition.update(attributes, remote.timestamp)
-        record = petition.create_record(
+        db.session.add(petition)
+        db.session.commit()
+
+        petition.create_record(
             attributes=remote.data['data']["attributes"],
             timestamp=remote.timestamp,
-            commit=False
+            force=True,
         )
 
-        if commit:
-            db.session.add(record)
-            db.session.add(petition)
-            db.session.commit()
-        else:
-            petition.records.append(record)
-        
         return petition
 
     @classmethod
@@ -142,7 +136,7 @@ class Petition(db.Model):
         petitions = cls.query.filter_by(state='O', archived=False).all()
         results = cls.remote.async_poll(petitions, retries=3)
         responses = results.get('success')
-        records = []
+        results = []
     
         for resp in responses:
             petition = resp.petition
@@ -150,40 +144,30 @@ class Petition(db.Model):
             petition.set_archive_state(resp.data['data']['type'])
             petition.update(attributes, resp.timestamp)
 
-            print("creating record for petition ID: {}".format(petition.id))
             record = petition.create_record(
                 attributes=attributes,
                 timestamp=resp.timestamp,
-                commit=True
             )
 
-            petition.records.append(record)
-            records.append(record)
+            results.append(record)
         
-        db.session.commit()
-        return records
+        return results
 
-        # poll the remote petition and return a deserialised object (optional commit)
-    def poll(self, commit=True):
+    # poll the remote petition and return a deserialised object (optional commit)
+    def poll(self):
         response = Petition.remote.get(self.id, raise_404=True)
         self.polled_at = response.timestamp
-        self.update(response.data['data']["attributes"], response.timestamp)
+        self.update(response.data['data']['attributes'], response.timestamp)
         self.set_archive_state(response.data['data']['type'])
         
-        print("creating record for petition ID: {}".format(self.id))
         return self.create_record(
-            attributes=response.data['data']["attributes"],
+            attributes=response.data['data']['attributes'],
             timestamp=response.timestamp,
-            commit=commit    
         )
 
-    # To Do: add these details to petition db model
-    # --- "moderation_threshold_reached_at" (timestamp)
-    # --- "response_threshold_reached_at" (timestamp)
     def update(self, attributes, timestamp):
         self.polled_at = timestamp
         self.state = attributes['state']
-        self.signatures = attributes['signature_count']
         self.pt_updated_at = attributes['updated_at']
         self.pt_rejected_at = attributes['rejected_at']
         self.moderation_threshold_reached_at = attributes['moderation_threshold_reached_at'] 
@@ -200,12 +184,32 @@ class Petition(db.Model):
         return self.archived
 
     # create a new record for the petition from attributres json (optional commit)
-    def create_record(self, attributes, timestamp, commit=True):
-        record = Record.create(self.id, attributes, timestamp, commit=False)
-        self.latest_data = attributes
+    def create_record(self, attributes, timestamp, force=False):
+        prev_sigs, curr_sigs, total_sigs = {}, {}, {}
 
-        if commit: 
-            db.session.commit()
+        total_sigs["curr"] = attributes.get("signature_count")
+        curr_sigs["country"] = attributes.get("signatures_by_country")
+        curr_sigs["constituency"] = attributes.get("signatures_by_constituency")
+        curr_sigs["region"] = attributes.get("signatures_by_region")
+
+        if not force:
+            total_sigs["prev"] = self.signatures
+            prev_sigs["country"] = self.latest_data.get("signatures_by_country")
+            prev_sigs["constituency"] = self.latest_data.get("signatures_by_constituency")
+            prev_sigs["region"] = self.latest_data.get("signatures_by_region")
+
+        print("creating record for petition ID: {}".format(self.id))
+        record = Record.create(
+            petition_id=self.id,
+            prev_sigs=prev_sigs,
+            curr_sigs=curr_sigs,
+            total_sigs=total_sigs,
+            timestamp=timestamp,
+            force=force,
+        )
+
+        self.latest_data = attributes
+        self.signatures = total_sigs["curr"]
         
         return record
 
@@ -214,14 +218,16 @@ class Petition(db.Model):
         query = query.filter(and_(Record.timestamp < lt))
         return query.order_by(Record.timestamp.desc())
 
-    def query_record_at(self, at):
-        at = dt.strptime(at, "%d-%m-%YT%H:%M:%S")
-        query = self.records.filter(Record.timestamp < at)
-        return query.order_by(Record.timestamp.desc()).first()
+    def query_records_before(self, timestamp):
+        if isinstance(timestamp, str):
+            timestamp = dt.strptime(timestamp, "%d-%m-%YT%H:%M:%S")
+        query = self.records.filter(Record.timestamp < timestamp)
+        return query.order_by(Record.timestamp.desc())
 
     # since ex: {'hours': 12}, {'days': 7}, {'month': 1}
-    def query_records_since(self, since, now=None):
-        now = dt.strptime(now, "%d-%m-%YT%H:%M:%S") if now else dt.now()
+    def query_records_since(self, since, now=dt.now()):
+        if isinstance(now, str):
+            now = dt.strptime(now, "%d-%m-%YT%H:%M:%S")
         ago = now - datetime.timedelta(**since)
         query = self.records.filter(Record.timestamp > ago)
         return query.order_by(Record.timestamp.desc())
@@ -237,10 +243,33 @@ class Petition(db.Model):
     def latest_record(self):
         return self.ordered_records().first()
 
-    # now = datetime.datetime.now()
-    # gt = now - datetime.timedelta(days=50)
-    # lt = now
-    # petition.query_records_between(lt, gt)
+    def build_record(self, timestamp=None):
+        if not timestamp:
+            timestamp = dt.now() if self.state.value == "open" else self.pt_closed_at 
+        
+        geographies = {}
+        geographies["constituency"] = self.latest_data["signatures_by_constituency"]
+        geographies["country"]  = self.latest_data["signatures_by_country"]
+        geographies["region"]  = self.latest_data["signatures_by_region"]
+        
+        base_query = self.query_records_before(timestamp)
+        record = {"total": self.signatures, "timestamp": self.polled_at  }
+        
+        for geo in list(geographies.keys()):
+            model = Record.get_sig_model(geo)
+            schema = SignaturesBySchema.get_schema_for(geo)(exclude=[geo, "timestamp"])
+            code = 'code' if geo == 'country' else 'ons_code'
+            key = 'signatures_by_{}'.format(geo)
+            record[key] = []
+            for locale in geographies[geo]:
+                breakpoint()
+                query = base_query.filter(and_(model.code == locale[code]))
+                signatures_by = query.first().signatures_by(geo, locale[code])
+                record[key].append(signatures_by)
+        
+        return record
+
+
 
 class Record(db.Model):
     __tablename__ = 'record'
@@ -289,20 +318,6 @@ class Record(db.Model):
                 'schema_class': SignaturesBySchema.get_schema_for(geo),
             }
         return attributes
-
-    # short hand query helper query for signature geography + code or name
-    def signatures_by(self, geography, locale):
-        model = Record.get_sig_model(geography)
-        relation = self.get_sig_relation(geography)
-        choice = Record.get_sig_choice(geography, locale)
-
-        try: 
-            return relation.filter(model.code == choice['code']).one()
-        except sqlalchemy.orm.exc.NoResultFound:
-            return None
-
-    def get_sig_relation(self, geography):
-        return getattr(self, 'signatures_by_' + geography)
     
     @classmethod
     def get_sig_choice(cls, geography, key_or_value):
@@ -318,30 +333,43 @@ class Record(db.Model):
         value = choices[code]
         return {'code': code, 'value': value}
     
-    # create a new record for the petition from attributres json (optional commit)
+    # create a new record and signatures_by for the petition from attributres json
+    # will not create new signatures_by if no new signatures exist for the locale 
+    # force=True can overide the new signatures check
     @classmethod
-    def create(cls, petition_id, attributes, timestamp, commit=True):
-        signatures = {}
-        signatures['country'] = attributes.get('signatures_by_country', None)
-        signatures['constituency'] = attributes.get('signatures_by_constituency', None)
-        signatures['region'] = attributes.get('signatures_by_region', None)
-
+    def create(cls, petition_id, prev_sigs, curr_sigs, total_sigs, timestamp, force=False):
         record = Record(petition_id=petition_id)
         record.timestamp = timestamp
-        record.signatures = attributes['signature_count']
+        record.signatures = total_sigs["curr"]
+        db.session.add(record)
+        db.session.commit()
 
-        if any(signatures.values()):
-            for geo in list(signatures.keys()):
+        new_signatures = total_sigs["curr"] != total_sigs.get("prev")
+        if force or new_signatures:
+            created = []
+            for geo in list(curr_sigs.keys()):
                 model = cls.get_sig_model(geo)
-                relation = record.get_sig_relation(geo)
                 code = 'code' if geo == 'country' else 'ons_code'
-                for locale in signatures[geo]:
-                    relation.append(model(code=locale[code], count=locale["signature_count"]))
+                for locale in curr_sigs[geo]:
+                    count = locale['signature_count']
+                    if force or cls.has_locale_count_changed(locale, prev_sigs[geo]):
+                        print("creating: {}, (updated count: {})".format(locale['name'], count))
+                        created.append(model(code=locale[code], count=count, record_id=record.id))
+                    else:
+                        print("skipping: {}, (unchanged count: {})".format(locale['name'], count))
             
-        if commit: db.session.commit()
-        
+            db.session.bulk_save_objects(created)
+            db.session.commit()
+        else:
+            print("skipping all locales, total signature count unchanged: {}".format(record.signatures))
+
         return record
-    
+
+    @classmethod
+    def has_locale_count_changed(cls, curr, previous):
+        prev = next(locale for locale in previous if (locale["name"] == curr["name"]))
+        return (prev["signature_count"] != curr["signature_count"]) if prev else True
+
     def signatures_comparison(self, schema, attrs):
         comparison = schema.dump(self)
         for geo in attrs.keys():
@@ -349,6 +377,20 @@ class Record(db.Model):
             filtered = relation.filter(attrs[geo]['model'].code.in_(attrs[geo]['locales'])).all()
             comparison[attrs[geo]['name']] = [attrs[geo]['schema'].dump(sig) for sig in filtered]
         return comparison
+
+    # short hand query helper query for signature geography + code or name
+    def signatures_by(self, geography, locale):
+        model = Record.get_sig_model(geography)
+        relation = self.get_sig_relation(geography)
+        choice = Record.get_sig_choice(geography, locale)
+
+        try: 
+            return relation.filter(model.code == choice['code']).one()
+        except sqlalchemy.orm.exc.NoResultFound:
+            return None
+
+    def get_sig_relation(self, geography):
+        return getattr(self, 'signatures_by_' + geography)
 
 
 
@@ -361,10 +403,10 @@ class SignaturesByCountry(db.Model):
     CODE_LOOKUP = LazyDict({v: k for k, v in dict(CODE_CHOICES).items()})
     code = synonym("iso_code")
 
-    id = db.Column(Integer, primary_key=True)
+    id = db.Column(Integer, index=True, primary_key=True)
     record_id = db.Column(Integer, ForeignKey(Record.id), nullable=False)
     record = relationship(Record, back_populates="signatures_by_country")
-    iso_code = db.Column(ChoiceType(CODE_CHOICES), nullable=False)
+    iso_code = db.Column(ChoiceType(CODE_CHOICES), index=True, nullable=False)
     count = db.Column(Integer, default=0)
 
     @reconstructor
@@ -389,10 +431,10 @@ class SignaturesByRegion(db.Model):
     CODE_LOOKUP = LazyDict({v: k for k, v in dict(CODE_CHOICES).items()})
     code = synonym("ons_code")
 
-    id = db.Column(Integer, primary_key=True)
+    id = db.Column(Integer, index=True, primary_key=True)
     record_id = db.Column(Integer, ForeignKey(Record.id), nullable=False)
     record = relationship(Record, back_populates="signatures_by_region")
-    ons_code = db.Column(ChoiceType(CODE_CHOICES), nullable=False)
+    ons_code = db.Column(ChoiceType(CODE_CHOICES), index=True, nullable=False)
     count = db.Column(Integer, default=0)
 
     @reconstructor
@@ -417,10 +459,10 @@ class SignaturesByConstituency(db.Model):
     CODE_LOOKUP = LazyDict({v: k for k, v in dict(CODE_CHOICES).items()})
     code = synonym("ons_code")
 
-    id = db.Column(Integer, primary_key=True)
+    id = db.Column(Integer, index=True, primary_key=True)
     record_id = db.Column(Integer, ForeignKey(Record.id), nullable=False)
     record = relationship(Record, back_populates="signatures_by_constituency")
-    ons_code = db.Column(ChoiceType(CODE_CHOICES), nullable=False)
+    ons_code = db.Column(ChoiceType(CODE_CHOICES), index=True, nullable=False)
     count = db.Column(Integer, default=0)
 
     @reconstructor
