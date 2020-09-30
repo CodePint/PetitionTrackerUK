@@ -29,7 +29,12 @@ def init_schemas(app):
 def init_tasks(app):
     from application import tasks as shared_tasks
     from application.tracker import tasks as tracker_tasks
+    from application.models import Task, TaskRun, TaskLog, TaskLogger
     app.tasks = {'shared': shared_tasks, 'tracker': tracker_tasks}
+    app.task = Task
+    app.task_run = TaskRun
+    app.task_log = TaskLog
+    app.task_logger = TaskLogger
 
 def make_celery(app_name=__name__):
     redis_uri = os.getenv('REDIS_URI')
@@ -96,15 +101,20 @@ def create_app():
         init_schemas(app)
         init_tasks(app)
 
-    @app.cli.command("configure")
-    def configure():
+    @app.cli.command("configure-settings")
+    def configure_settings():
         print("configuring default values for settings table")
         current_app.settings.configure(current_app.config['DEFAULT_SETTINGS'])
+
+    @app.cli.command("configure-tasks")
+    def configure_tasks():
+        print("configuring default values fo periodic tasks")
+        current_app.task.init_tasks(current_app.config['PERIODIC_TASK_SETTINGS'])
 
     @app.cli.command("run-overdue-tasks")
     def run_overdue_tasks():
         print("checking for overdue celery tasks")
-        current_app.celery_utils.run_overdue_tasks()
+        current_app.celery_utils.run_scheduled_tasks()
     
     @app.cli.command("react")
     def run_yarn():
@@ -128,7 +138,14 @@ def create_app():
 
     @app.cli.command("db-drop-alembic")
     def reset_alembic():
+        print("dropping alembic database table")
         current_app.db.engine.connect().execute("DROP TABLE IF EXISTS alembic_version")
+
+    @app.cli.command("celery-purge")
+    def reset_alembic():
+        print("purging celery!")
+        current_app.celery.control.purge()
+
 
     @app.shell_context_processor
     def get_shell_context():

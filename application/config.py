@@ -1,15 +1,51 @@
 import os
 
+def to_bool(var):
+    return var.upper() == "TRUE"
+
 class Config(object):
 
     DEBUG = True
 
-    # default values for db settings table
+    # default values for Setting table
     DEFAULT_SETTINGS = {
-        'poll_petitions_task__interval': os.getenv('POLL_PETITIONS_TASK_INTERVAL'),
-        'populate_petitions_task__interval': os.getenv('POPULATE_PETITIONS_TASK_INTERVAL'),
-        'test_task__interval': os.getenv('TEST_TASK_INTERVAL'),
+        'signatures_threshold': os.getenv('SIGNATURES_THRESHOLD'),
+        'trending_threshold': os.getenv('TRENDING_THRESHOLD')
     }
+
+    # default values for Task table
+    PERIODIC_TASK_SETTINGS = [
+        {
+            "name": "poll_total_sigs_task",
+            "interval": int(os.getenv('POLL_TOTAL_SIGS_TASK_INTERVAL')),
+            "enabled": to_bool(os.getenv('POLL_TOTAL_SIGS_TASK'))
+        },
+        {
+            "name": "poll_geographic_sigs_task",
+            "interval": int(os.getenv('POLL_GEOGRAPHIC_SIGS_TASK_INTERVAL')),
+            "enabled": to_bool(os.getenv('POLL_GEOGRAPHIC_SIGS_TASK'))
+        },
+        {
+            "name": "poll_trending_geographic_sigs_task",
+            "interval": int(os.getenv('POLL_TRENDING_GEOGRAPHIC_SIGS_TASK_INTERVAL')),
+            "enabled": to_bool(os.getenv('POLL_TRENDING_GEOGRAPHIC_SIGS_TASK'))
+        },
+        {
+            "name": "populate_petitions_task",
+            "interval": int(os.getenv('POPULATE_PETITIONS_TASK_INTERVAL')),
+            "enabled": to_bool(os.getenv('POPULATE_PETITIONS_TASK'))
+        },
+            {
+            "name": "update_trending_petitions_pos_task",
+            "interval": int(os.getenv('UPDATE_TRENDING_PETITION_POS_TASK_INTERVAL')),
+            "enabled": to_bool(os.getenv('UPDATE_TRENDING_PETITION_POS_TASK'))
+        },
+            {
+            "name": "test_task",
+            "interval":int(os.getenv('TEST_TASK_INTERVAL')),
+            "enabled": to_bool(os.getenv('TEST_TASK'))
+        },
+    ]
 
     # postgres config
     POSTGRES_TEMPLATE = 'postgresql://%(user)s:%(pw)s@%(host)s:%(port)s/%(db)s'
@@ -24,11 +60,11 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = True
     SQLALCHEMY_ENGINE_OPTIONS = {
-    'pool_recycle': 90,
-    'pool_timeout': 900,
-    'pool_size': 8,
-    'max_overflow': 5,
-}
+        'pool_recycle': 90,
+        'pool_timeout': 900,
+        'pool_size': 8,
+        'max_overflow': 5,
+    }
 
     # view and response settings
     JSONIFY_PRETTYPRINT_REGULAR = True

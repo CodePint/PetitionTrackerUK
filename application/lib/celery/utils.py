@@ -1,8 +1,9 @@
 from application.models import Setting
-from .schedule import schedule_tasks, startup_tasks
+from .schedule import scheduled_tasks
+from .templates import template_tasks
 from celery import Celery
 from flask import current_app
-import os, time
+import os, time, datetime
 
 class CeleryUtils():
 
@@ -20,45 +21,30 @@ class CeleryUtils():
         celery.Task = ContextTask
         return celery
 
+    # init celery schedule
     @classmethod
     def init_beat(cls, app, celery):
         with app.app_context():
-            schedule = schedule_tasks()
+            schedule = scheduled_tasks()
             celery.conf.beat_schedule = schedule
             return schedule
 
+    # init celery schedule
     @classmethod
-    def run_overdue_tasks(cls, app=None):
-        if not app:
-            app = current_app
-        
+    def run_task(cls, name, app=None, perodic=False, func_kwargs={}, async_kwargs={}):
+        app = app or current_app
         with app.app_context():
-            for task_name, params in startup_tasks().items():
-                params['function'].s(**params['func_kwargs']).apply_async(**params['async_kwargs'])
+            task = template_tasks()[name]
+            task['func_kwargs'].update(func_kwargs)
+            task['async_kwargs'].update(async_kwargs)
+            task['func_kwargs']['periodic'] = perodic
+            task['function'].s(**task['func_kwargs']).apply_async(**task['async_kwargs'])
 
     @classmethod
-    def is_overdue(cls, task_name):
-        last_run = current_app.settings.get(task_name + '__last_run')
-        if not last_run:
-            return True
-        
-        now = int(time.time())
-        last_run = int(last_run)
-        interval = cls.get_interval(task_name)
-        if (now - last_run) >= interval:
-            return True
-        
-        return False
-
-    @classmethod
-    def update_last_run(cls, task_name, run_at):
-        key = task_name + '__last_run'
-        last_run = current_app.settings.create_or_update(key=key, value=str(run_at))
-        current_app.db.session.add(last_run)
-        current_app.db.session.commit()
-
-        return last_run
-
-    @classmethod
-    def get_interval(cls, task_name):
-        return int(current_app.settings.get(task_name + '__interval'))
+    def run_scheduled_tasks(cls, app=None):
+        app = app or current_app
+        with app.app_context():
+            tasks = template_tasks()
+            for task_name, params in template_tasks().items():
+                if params.get('startup'):
+                    params['function'].s(**params['func_kwargs']).apply_async(**params['async_kwargs'])

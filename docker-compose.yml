@@ -33,4 +33,10 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data/
     env_file:
-      .env      
+      .env
+    
+  redis:
+    container_name: redis
+    image: redis:latest
+    ports:
+      - "6379:6379"

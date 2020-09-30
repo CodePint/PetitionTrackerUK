@@ -9,35 +9,35 @@ from celery.utils.log import get_task_logger
 task_logger = get_task_logger(__name__)
 
 @celery.task(name='onboard_task')
-def onboard_task(id):
-    task_logger.info('celery worker onboarding petition ID: {}'.format(id))
-    Petition.onboard(id)
-    return True
+def onboard_task(logger, *args, **kwargs):
+    logger.info('celery worker onboarding petition ID: {}'.format(id))
+    petition = Petition.onboard(id)
+    return petition
 
-@celery.task(name='poll_task')
-def poll_task(id):
-    task_logger.info('celery worker polling petition ID: {}'.format(id))
-    petition = Petition.query.get(id)
-    petition.poll()
-    return True
-
-@celery.task(name='populate_archived_petitions_task')
-@task_handler()
-def populate_petitions_task(task_name='populate_archived_petitions_task', *args, **kwargs):
-    petitions = Petition.populate(state='all', archived=True)
-    task_logger.info("Archived Petitions onboarded: {}".format(str(len(petitions))))
-    return True
-
-@celery.task(name='populate_petitions_task')
-@task_handler()
-def populate_petitions_task(task_name='populate_petitions_task', *args, **kwargs):
-    petitions = Petition.populate(state='all', archived=False)
-    task_logger.info("Petitions onboarded: {}".format(str(len(petitions))))
-    return True
+@celery.task(name='poll_self_task')
+def poll_self_task(logger, *args, **kwargs):
+    logger.info('celery worker polling petition ID: {}'.format(id))
+    petition = Petition.query.get(kwargs["id"])
+    record = petition.poll_self(**kwargs)
+    return record
 
 @celery.task(name='poll_petitions_task')
 @task_handler()
-def poll_petitions_task(task_name='poll_petitions_task', *args, **kwargs):
-    records = Petition.poll_all()
-    task_logger.info("Petitions polled: {}".format(str(len(records))))
-    return True
+def poll_petitions_task(logger, *args, **kwargs):
+    records = Petition.poll(**kwargs)
+    logger.info("Petitions polled: {}".format(len(records)))
+    return records
+
+@celery.task(name='populate_petitions_task')
+@task_handler()
+def populate_petitions_task(logger, *args, **kwargs):
+    petitions = Petition.populate(**kwargs)
+    logger.info("Petitions onboarded: {}".format(len(petitions)))
+    return petitions
+
+@celery.task(name='update_trending_petitions_pos_task')
+@task_handler()
+def update_trending_petitions_pos_task(logger, *args, **kwargs):
+    responses = Petition.update_trending(**kwargs)
+    logger.info("Petitions updated: {} (default remaining to pos 0)".format(len(responses or [])))
+    return responses

@@ -13,6 +13,7 @@ from sqlalchemy import (
     DateTime,
     UniqueConstraint
 )
+from flask import current_app
 from marshmallow import fields as ma_fields
 from marshmallow_sqlalchemy.fields import Nested
 from marshmallow_sqlalchemy import SQLAlchemySchema, SQLAlchemyAutoSchema, auto_field
@@ -21,10 +22,12 @@ import sys
 import requests
 import json
 import datetime
+from math import ceil, floor
 from datetime import datetime as dt
 from requests.structures import CaseInsensitiveDict as LazyDict
 
 from application import db
+from application.models import Task, TaskRun, TaskLog
 from .remote import RemotePetition
 from .utils import ViewUtils
 
@@ -41,9 +44,6 @@ class Petition(db.Model):
         ('O', 'open'),
     ]
     STATE_LOOKUP = LazyDict({v: k for k, v in dict(STATE_CHOICES).items()})
-
-    # To Do: replace threshold value with settings database variable
-    POLL_SIGNATURES_THRESHOLD = 2500
 
     id = db.Column(Integer, primary_key=True, autoincrement=False)
     state = db.Column(ChoiceType(STATE_CHOICES), nullable=False)
@@ -65,11 +65,13 @@ class Petition(db.Model):
     government_response_at = db.Column(DateTime)
     scheduled_debate_date = db.Column(DateTime)
     debate_outcome_at = db.Column(DateTime)
-    polled_at = db.Column(DateTime(timezone=True))
-    db_created_at = db.Column(DateTime(timezone=True), default=sqlfunc.now())
-    db_updated_at = db.Column(DateTime(timezone=True), default=sqlfunc.now(), onupdate=sqlfunc.now())
+    polled_at = db.Column(DateTime)
+    geo_polled_at = db.Column(DateTime)
+    db_created_at = db.Column(DateTime, default=sqlfunc.now())
+    db_updated_at = db.Column(DateTime, default=sqlfunc.now(), onupdate=sqlfunc.now())
     initial_data = db.Column(JSONType)
     latest_data = db.Column(JSONType)
+    trend_pos = db.Column(Integer, default=0)
     
     # handles requests for remote operations
     remote = RemotePetition
@@ -98,91 +100,170 @@ class Petition(db.Model):
         petition = Petition.query.get(id)
         return petition or ViewUtils.json_abort(404, "Petition ID: {}, not found".format(id))
 
-    # onboard multiple remote petitions from the result of query
     @classmethod
-    def populate(cls, state, query=[], count=False, archived=False):
+    def filter_sigs_by(cls, attributes):
+        return { 
+            key.replace('signatures_by_', ''): val
+            for key, val in attributes.items() if key.startswith('signatures_by_')
+        }
+
+    @classmethod
+    def get_setting(cls, *args, **kwargs):
+        return current_app.settings.get(*args, **kwargs)
+
+    # onboard multiple remote petitions from the result of a query
+    @classmethod
+    def populate(cls, state="open", query=[], signatures_by=False, count=False, archived=False, **kwargs):
         query = cls.remote.query(count=count, query=query, state=state, archived=archived)
         ids = [item['id'] for item in query if not cls.query.get(item['id'])]
-        result = cls.remote.async_get(ids, retries=3)
-        remotes = result.get('success')
+        remotes = cls.remote.async_get(ids, retries=3).get('success')
+        petitions = [cls.onboard(remote=r, signatures_by=signatures_by) for r in remotes]
 
-        populated = []
-        for item in remotes:
-            print("onboarding petition ID: {}".format(item.petition_id))
-            petition = cls.onboard(remote=item, commit=False)
-            db.session.add(petition)
-            populated.append(petition)
-        
-        db.session.commit()
-        return populated
+        return petitions
 
-    # onboard a remote petition by id (optional commit & attributes)
+    # onboard a remote petition by id
     @classmethod
-    def onboard(cls, id=None, remote=None, commit=True):
-        if not remote:
-            remote = cls.remote.get(id, raise_404=True)
+    def onboard(cls, id=None, remote=None, signatures_by=False, **kwargs):
+        remote = remote or cls.remote.get(id, raise_404=True)
+
+        print("onboarding petition ID: {}".format(id))
         attributes = remote.data['data']["attributes"]
+        total_sigs = attributes['signature_count']
         params = cls.remote.deserialize(remote.data)
         petition = Petition(**params)
-        petition.update(attributes, remote.timestamp)
-        record = petition.create_record(
-            attributes=remote.data['data']["attributes"],
+        
+        if signatures_by:
+            petition.geo_polled_at = remote.timestamp
+        else:
+            petition.polled_at = remote.timestamp
+        
+        db.session.add(petition)
+        record = Record.create(
+            petition_id=petition.id,
             timestamp=remote.timestamp,
-            commit=False
+            sigs_by=cls.filter_sigs_by(attributes),
+            total_sigs=total_sigs,
+            build_sigs_by=signatures_by
         )
 
-        if commit:
-            db.session.add(record)
-            db.session.add(petition)
-            db.session.commit()
-        else:
-            petition.records.append(record)
-        
+        db.session.commit()
         return petition
 
+    # poll all petitions which match where param and kwargs opts
+    # signatures_by = True for full geo records, signatures_by = False for basic total records
+    # if commit = False, poll will return the filtered responses with attached petition objs
     @classmethod
-    def poll_all(cls):
-        query = cls.query.filter_by(state='O', archived=False)
-        petitions = query.filter(cls.signatures > cls.POLL_SIGNATURES_THRESHOLD).all()
-        results = cls.remote.async_poll(petitions, retries=3)
-        responses = results.get('success')
-        records = []
+    def poll(cls, where="all", signatures_by=False, commit=True, **kwargs):
+        valid_where_values = ["trending", "signatures_gt", "signatures_lt", "all"]
+        if not where in valid_where_values:
+            raise ValueError("Invalid param: 'where'. Valid values: {}".format(valid_where_values))
+
+        base_query = cls.query.filter_by(state="O", archived=False)
+        if kwargs.get("last_polled"):
+            polled_attr = Petition.geo_polled_at if kwargs.get("geo") else Petition.polled_at
+            base_query = base_query.filter(polled_attr < kwargs["last_polled"])
+        if where == "trending":
+            threshold = kwargs.get("threshold") or Petition.get_setting('trending_threshold', type=int)
+            petitions = base_query.order_by(Petition.trend_pos.desc()).limit(threshold).all()
+        elif where == "signatures":
+            threshold = kwargs.get("threshold") or Petition.get_setting('signatures_threshold', type=int)
+            if kwargs.get("lt"):
+                petitions = base_query.filter(Petition.signatures < threshold).all()
+            else:
+                petitions = base_query.filter(Petition.signatures > threshold).all()
+        elif where == "all":
+            petitions = base_query.all()
+        
+        responses = cls.remote.async_poll(petitions, retries=3).get('success')
+        return [r.petition.commit_poll(r, signatures_by) for r in responses] if commit else responses
     
-        for resp in responses:
-            petition = resp.petition
-            attributes = resp.data['data']['attributes']            
-            petition.set_archive_state(resp.data['data']['type'])
-            petition.update(attributes, resp.timestamp)
+    # get the closest record for every petition within the lt/gt/now bounds
+    @classmethod
+    def get_all_with_distinct_record_at(cls, gt, lt=0, now=dt.now()):
+        lt = now - datetime.timedelta(minutes=lt)
+        gt = now - datetime.timedelta(minutes=gt)
 
-            print("creating record for petition ID: {}".format(petition.id))
-            record = petition.create_record(
-                attributes=attributes,
-                timestamp=resp.timestamp,
-                commit=True
-            )
-
-            petition.records.append(record)
-            records.append(record)
+        query = Record.query.distinct(Record.petition_id)
+        query = query.filter(Record.timestamp > gt)
+        query = query.filter(and_(Record.timestamp < lt))
+        query = query.from_self().order_by(Record.timestamp.desc())
         
+        petitions = []
+        for record in query.all():
+            record.petition.distinct_record = record
+            petitions.append(record.petition)
+        
+        return petitions
+
+    # update the trending pos for all petitions
+    # optional before arg is the time of closest poll to compare
+    @classmethod
+    def update_trending(cls, task_name="poll_total_sigs_task", before={"minutes": 60}, ts_range=2.5):
+        last_run = Task.get_last_run(name=task_name, before=before)
+        if not last_run:
+            raise RuntimeError("No run found before: {}".format(before))
+
+        compare_to = round((dt.now() - last_run.finished_at).total_seconds() / 60)
+        if not math.ceil(compare_to / 60) not in range(1, 13):
+            raise RuntimeError("Comparison interval must be in range '1 to 12 hours'")
+
+        gt, lt = compare_to + ts_range, compare_to - ts_range
+        petitions = Petition.get_all_with_distinct_record_at(gt=gt, lt=lt)
+        not_found = Petition.query.filter(Petition.id.notin_([p.id for p in petitions])).all()
+
+        def sort_func(response):
+            petition = response.petition
+            curr_count = response.data['data']['attributes']['signature_count']
+            petition.growth = curr_count - petition.distinct_record.signatures
+            return petition.growth
+
+        responses = cls.remote.async_poll(petitions, retries=3).get('success')
+        responses.sort(key=lambda r: sort_func(r))
+
+        for index, resp in enumerate(responses):
+            resp.petition.trend_pos = index + 1
+        
+        for petition in not_found:
+            petition.trend_pos = 0
+
         db.session.commit()
-        return records
+        return responses
 
-        # poll the remote petition and return a deserialised object (optional commit)
-    def poll(self, commit=True):
+    # poll the petition instance, optional record commit and record build type (signatures_by) 
+    def poll_self(self, signatures_by=True, commit=True, **kwargs):
         response = Petition.remote.get(self.id, raise_404=True)
-        self.polled_at = response.timestamp
-        self.update(response.data['data']["attributes"], response.timestamp)
-        self.set_archive_state(response.data['data']['type'])
+        if commit:
+            return self.commit_poll(response, signatures_by)
+        else:
+            return response
+
+    # build record from poll response, must specify record build type (signatures_by) 
+    def commit_poll(self, response, signatures_by):
+        attributes = response.data['data']["attributes"]
+        total_sigs = attributes['signature_count']
+                
+        if signatures_by:
+            self.geo_polled_at = response.timestamp
+        else:
+            self.polled_at = response.timestamp
         
-        print("creating record for petition ID: {}".format(self.id))
-        return self.create_record(
-            attributes=response.data['data']["attributes"],
+        self.update_attrs(attributes)        
+        self.set_archive_state(response.data['data']['type'])
+        self.latest_data = attributes
+        self.signatures = attributes['signature_count']
+        
+        record = Record.create(
+            petition_id=self.id,
             timestamp=response.timestamp,
-            commit=commit    
+            sigs_by=Petition.filter_sigs_by(attributes),
+            total_sigs=attributes['signature_count'],
+            build_sigs_by=signatures_by
         )
 
-    def update(self, attributes, timestamp):
-        self.polled_at = timestamp
+        return record
+
+    # update petition with new attributes
+    def update_attrs(self, attributes):
         self.state = attributes['state']
         self.pt_updated_at = attributes['updated_at']
         self.pt_rejected_at = attributes['rejected_at']
@@ -194,21 +275,10 @@ class Petition(db.Model):
         self.debate_outcome_at = attributes['debate_outcome_at']
         self.pt_closed_at = attributes['closed_at']
 
-    
+    # set petition archival state
     def set_archive_state(self, type):
         self.archived = True if (type == 'archived-petition') else False
         return self.archived
-
-    # create a new record for the petition from attributres json (optional commit)
-    def create_record(self, attributes, timestamp, commit=True):
-        record = Record.create(self.id, attributes, timestamp, commit=False)
-        self.latest_data = attributes
-        self.signatures = attributes['signature_count']
-
-        if commit: 
-            db.session.commit()
-        
-        return record
 
     def query_records_between(self, lt, gt):
         query = self.records.filter(Record.timestamp > gt)
@@ -232,7 +302,7 @@ class Petition(db.Model):
         if order == "DESC":
             return self.records.order_by(Record.timestamp.desc())
         if order == "ASC":
-            return self.records.order_by(Record.timestamp)
+            return self.records.order_by(Record.timestamp.asc())
         
         raise ValueError("Invalid order param, Must be 'DESC' or 'ASC'")
     
@@ -240,12 +310,11 @@ class Petition(db.Model):
         return self.ordered_records().first()
 
 
-
 class Record(db.Model):
     __tablename__ = 'record'
 
     id = db.Column(Integer, primary_key=True)
-    petition_id = db.Column(Integer, ForeignKey(Petition.id), nullable=False)
+    petition_id = db.Column(Integer, ForeignKey(Petition.id), index=True, nullable=False)
     petition = relationship(Petition, back_populates="records")
     by_country = relationship("SignaturesByCountry", back_populates="record", cascade="all,delete")
     by_region = relationship("SignaturesByRegion", back_populates="record", cascade="all,delete")
@@ -253,16 +322,17 @@ class Record(db.Model):
     signatures_by_country = relationship("SignaturesByCountry", lazy='dynamic', back_populates="record", cascade="all,delete")
     signatures_by_region = relationship("SignaturesByRegion", lazy='dynamic', back_populates="record", cascade="all,delete")
     signatures_by_constituency = relationship("SignaturesByConstituency", lazy='dynamic', back_populates="record", cascade="all,delete")
-    timestamp = db.Column(DateTime(timezone=True), nullable=False)
-    db_created_at = db.Column(DateTime(timezone=True), default=sqlfunc.now(), nullable=False)
+    timestamp = db.Column(DateTime, index=True, nullable=False)
+    db_created_at = db.Column(DateTime, default=sqlfunc.now(), nullable=False)
     signatures = db.Column(Integer, nullable=False)
+    geographic = db.Column(Boolean, default=False)
 
     def __repr__(self):
-        template = '<record_id: {}, petition_id: {}, timestamp: {}>'
-        return template.format(self.id, self.petition_id, self.timestamp)
-
+        template = '<record_id: {}, petition_id: {}, timestamp: {}, signatures: {}>'
+        return template.format(self.id, self.petition_id, self.timestamp, self.signatures)
+    
     def __str__(self):
-        template = 'Total signatures for petition id: {}, at {} - {}'
+        template = 'Total signatures for petition id: {}, at {}: {}'
         return template.format(self.petition_id, self.timestamp, self.signatures)
     
     @classmethod
@@ -288,20 +358,6 @@ class Record(db.Model):
                 'schema_class': SignaturesBySchema.get_schema_for(geo),
             }
         return attributes
-
-    # short hand query helper query for signature geography + code or name
-    def signatures_by(self, geography, locale):
-        model = Record.get_sig_model(geography)
-        relation = self.get_sig_relation(geography)
-        choice = Record.get_sig_choice(geography, locale)
-
-        try: 
-            return relation.filter(model.code == choice['code']).one()
-        except sqlalchemy.orm.exc.NoResultFound:
-            return None
-
-    def get_sig_relation(self, geography):
-        return getattr(self, 'signatures_by_' + geography)
     
     @classmethod
     def get_sig_choice(cls, geography, key_or_value):
@@ -317,29 +373,46 @@ class Record(db.Model):
         value = choices[code]
         return {'code': code, 'value': value}
     
-    # create a new record for the petition from attributres json (optional commit)
+    # create a new record for the petition
     @classmethod
-    def create(cls, petition_id, attributes, timestamp, commit=True):
-        signatures = {}
-        signatures['country'] = attributes.get('signatures_by_country', None)
-        signatures['constituency'] = attributes.get('signatures_by_constituency', None)
-        signatures['region'] = attributes.get('signatures_by_region', None)
+    def create(cls, petition_id, timestamp, sigs_by, total_sigs, build_sigs_by):
+        print("creating record for petition ID: {}".format(petition_id))
+        record = Record(
+            timestamp=timestamp,
+            signatures=total_sigs,
+            petition_id=petition_id,
+            geographic=build_sigs_by
+        )
 
-        record = Record(petition_id=petition_id)
-        record.timestamp = timestamp
-        record.signatures = attributes['signature_count']
-
-        if any(signatures.values()):
-            for geo in list(signatures.keys()):
-                model = cls.get_sig_model(geo)
-                relation = record.get_sig_relation(geo)
-                code = 'code' if geo == 'country' else 'ons_code'
-                for locale in signatures[geo]:
-                    relation.append(model(code=locale[code], count=locale["signature_count"]))
-            
-        if commit: db.session.commit()
+        db.session.add(record)
+        db.session.commit()
         
+        if record.geographic and any(sigs_by.values()):
+            created = []
+            for geo in list(sigs_by.keys()):
+                model = cls.get_sig_model(geo)
+                code = 'code' if geo == 'country' else 'ons_code'
+                for locale in sigs_by[geo]:
+                    created.append(model(record_id=record.id, code=locale[code], count=locale["signature_count"]))
+
+            db.session.bulk_save_objects(created)
+
+        db.session.commit()
         return record
+    
+    # short hand query helper query for signature geography + code or name
+    def signatures_by(self, geography, locale):
+        model = Record.get_sig_model(geography)
+        relation = self.get_sig_relation(geography)
+        choice = Record.get_sig_choice(geography, locale)
+
+        try: 
+            return relation.filter(model.code == choice['code']).one()
+        except sqlalchemy.orm.exc.NoResultFound:
+            return None
+
+    def get_sig_relation(self, geography):
+        return getattr(self, 'signatures_by_' + geography)
     
     def signatures_comparison(self, schema, attrs):
         comparison = schema.dump(self)
@@ -361,9 +434,9 @@ class SignaturesByCountry(db.Model):
     code = synonym("iso_code")
 
     id = db.Column(Integer, primary_key=True)
-    record_id = db.Column(Integer, ForeignKey(Record.id), nullable=False)
+    record_id = db.Column(Integer, ForeignKey(Record.id), index=True, nullable=False)
     record = relationship(Record, back_populates="signatures_by_country")
-    iso_code = db.Column(ChoiceType(CODE_CHOICES), nullable=False)
+    iso_code = db.Column(ChoiceType(CODE_CHOICES), index=True, nullable=False)
     count = db.Column(Integer, default=0)
 
     @reconstructor
@@ -389,9 +462,9 @@ class SignaturesByRegion(db.Model):
     code = synonym("ons_code")
 
     id = db.Column(Integer, primary_key=True)
-    record_id = db.Column(Integer, ForeignKey(Record.id), nullable=False)
+    record_id = db.Column(Integer, ForeignKey(Record.id), index=True, nullable=False)
     record = relationship(Record, back_populates="signatures_by_region")
-    ons_code = db.Column(ChoiceType(CODE_CHOICES), nullable=False)
+    ons_code = db.Column(ChoiceType(CODE_CHOICES), index=True, nullable=False)
     count = db.Column(Integer, default=0)
 
     @reconstructor
@@ -417,9 +490,9 @@ class SignaturesByConstituency(db.Model):
     code = synonym("ons_code")
 
     id = db.Column(Integer, primary_key=True)
-    record_id = db.Column(Integer, ForeignKey(Record.id), nullable=False)
+    record_id = db.Column(Integer, ForeignKey(Record.id), index=True, nullable=False)
     record = relationship(Record, back_populates="signatures_by_constituency")
-    ons_code = db.Column(ChoiceType(CODE_CHOICES), nullable=False)
+    ons_code = db.Column(ChoiceType(CODE_CHOICES), index=True,  nullable=False)
     count = db.Column(Integer, default=0)
 
     @reconstructor
@@ -432,22 +505,6 @@ class SignaturesByConstituency(db.Model):
     
     def __str__(self):
         return '{} - {}'.format(self.code.value, self.count)
-
-
-# model helper utils
-class ModelUtils():
-
-    @classmethod
-    def validate_geography_choice(cls, instance, key, value):
-        model = instance.__class__
-        choices = dict(model.CODE_CHOICES)
-        
-        try:
-            choices[value]
-        except KeyError:
-            value = model.CODE_LOOKUP[value]
-        
-        return value
 
 
 
@@ -544,3 +601,19 @@ class PetitionNestedSchema(SQLAlchemyAutoSchema):
         include_relationships = True
 
     records = Nested(RecordSchema, many=True)
+
+
+
+class ModelUtils():
+
+    @classmethod
+    def validate_geography_choice(cls, instance, key, value):
+        model = instance.__class__
+        choices = dict(model.CODE_CHOICES)
+        
+        try:
+            choices[value]
+        except KeyError:
+            value = model.CODE_LOOKUP[value]
+        
+        return value
