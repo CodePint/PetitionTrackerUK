@@ -84,8 +84,6 @@ class RemotePetition():
         else:
             response.raise_for_status()
 
-    # these two functions should be dryed up
-    # used with petition db objects for poll_all() task
     @classmethod
     def async_poll(cls, petitions, retries=0, backoff=5, **kwargs):
         session = FuturesSession()
@@ -94,21 +92,19 @@ class RemotePetition():
             hooks={'response': cls.async_hook_factory(petition=p, id=p.id)})
             for p in petitions
         ]
+
         results = cls.sort_async_results(futures)
         results['success'] = results['success'] + kwargs.get('successful', [])
         
         if (retries > 0 and results['failed']):
             retries -= 1
             petitions = [r.petition for r in results['failed']]
-            print('Retrying async get for {} petitions'.format(len(petitions)))
+            print('Retrying async poll for {} petitions'.format(len(petitions)))
             time.sleep(backoff)
             cls.async_poll(petitions=petitions, retries=retries, successful=results['success'])
         
         return results
 
-    
-    # these two functions should be dryed up
-    # used with list of petition IDs
     @classmethod
     def async_get(cls, ids, retries=0, backoff=5, **kwargs):
         session = FuturesSession()
@@ -117,6 +113,7 @@ class RemotePetition():
             hooks={'response': cls.async_hook_factory(id=id)})
             for id in ids
         ]
+        
         results = cls.sort_async_results(futures)
         results['success'] = results['success'] + kwargs.get('successful', [])
         
@@ -224,7 +221,7 @@ class RemotePetition():
         return page_range[1:]
     
     # executes the query with get_page() and collects the items from each page
-    # returns the results of the query when co
+    # returns the results of the query when complete
     @classmethod
     def get_items(cls, count=False, query=[], state='all', archived=False):
         results = []
@@ -251,15 +248,3 @@ class RemotePetition():
                 
         print("total petitions fetched: {}".format(fetched))             
         return results
-
-    # pagination for remote petition list view
-    @classmethod
-    def get_fetched_index_pagination(cls, current, data):
-        if "?page=" in data['links']['last']:
-            final = int(data['links']['last'].split("?page=")[1].split("&")[0])
-        else:
-            final = 1
-        
-        range_start = (current - 5) if ((current - 5) > 1 ) else 1
-        range_end = (current + 5) if ((current + 5 < final)) else final
-        return {'current': current, 'final': final, 'range': [range_start, range_end] }
