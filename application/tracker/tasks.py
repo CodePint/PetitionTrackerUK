@@ -32,7 +32,7 @@ def poll_petitions_task(logger, *args, **kwargs):
 @task_handler()
 def populate_petitions_task(logger, *args, **kwargs):
     petitions = Petition.populate(**kwargs)
-    logger.info("Petitions onboarded: {}".format(len(pteitions)))
+    logger.info("Petitions onboarded: {}".format(len(petitions)))
     return petitions
 
 @celery.task(name='update_trending_petitions_pos_task')

@@ -34,19 +34,22 @@ import requests, json, os
 @bp.route('/petition/<petition_id>', methods=['GET'])
 def get_petition(petition_id):
     context = {}
+    time_arg = request.args.get('time')
     petition = Petition.get_or_404(petition_id)
     context['petition'] = PetitionSchema().dump(petition)
 
     if petition and request.args.get('signatures', type=json.loads):
-        time_at = request.args.get('time')
         record = None
-        if time_at:
-            record = petition.query_record_at(time_at)
-        if not record:
+        if time_arg:
+            record = petition.get_closest_record_to(time_arg)
+        else:
             record = petition.latest_record()
+        
         if record:
             record_nested_schema = RecordNestedSchema(exclude=["id", "petition"])
             context['signatures'] = record_nested_schema.dump(record)
+        else:
+            context['signatures'] = []
 
     return context
 
@@ -148,7 +151,7 @@ def get_petition_signatures_by_geography(petition_id, geography):
     items_per_page = request.args.get('items', type=int)
 
     ViewUtils.abort_400_if_invalid_geography(geography)
-
+    
     params = {'petition_id': petition_id, 'geography': geography}
     params['since'] = request.args.get('since', type=json.loads)
     params['between'] = request.args.get('between', type=json.loads)

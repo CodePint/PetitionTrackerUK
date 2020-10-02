@@ -219,12 +219,15 @@ function Petition({ match }) {
 
     let geoNavData = null;
     const petitionResponse = await fetchPetition();
+
     if (petitionResponse.status === 200) {
       geoNavData = buildGeoNavData(petitionResponse.data.signatures);
     } else if (petitionResponse.status === 404) {
+      lastPolledAt.current = prev_poll;
       setPetitionNotFound(true);
       return false;
     } else {
+      lastPolledAt.current = prev_poll;
       let error = { msg: "Server Error" };
       setChartError({ status: true, error: error });
       return false;

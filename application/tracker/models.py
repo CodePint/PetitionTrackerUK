@@ -101,11 +101,15 @@ class Petition(db.Model):
         return petition or ViewUtils.json_abort(404, "Petition ID: {}, not found".format(id))
 
     @classmethod
-    def filter_sigs_by(cls, attributes):
+    def filter_sig_attr(cls, attributes):
         return { 
             key.replace('signatures_by_', ''): val
             for key, val in attributes.items() if key.startswith('signatures_by_')
         }
+    
+    @classmethod
+    def str_or_datetime(cls, time):
+        return datetime.datetime.strptime(time, "%d-%m-%YT%H:%M:%S") if isinstance(time, str) else time
 
     @classmethod
     def get_setting(cls, *args, **kwargs):
@@ -141,7 +145,7 @@ class Petition(db.Model):
         record = Record.create(
             petition_id=petition.id,
             timestamp=remote.timestamp,
-            sigs_by=cls.filter_sigs_by(attributes),
+            sigs_by=cls.filter_sigs_attr(attributes),
             total_sigs=total_sigs,
             build_sigs_by=signatures_by
         )
@@ -255,7 +259,7 @@ class Petition(db.Model):
         record = Record.create(
             petition_id=self.id,
             timestamp=response.timestamp,
-            sigs_by=Petition.filter_sigs_by(attributes),
+            sigs_by=Petition.filter_sig_attr(attributes),
             total_sigs=attributes['signature_count'],
             build_sigs_by=signatures_by
         )
@@ -280,22 +284,26 @@ class Petition(db.Model):
         self.archived = True if (type == 'archived-petition') else False
         return self.archived
 
-    def query_records_between(self, lt, gt):
-        query = self.records.filter(Record.timestamp > gt)
-        query = query.filter(and_(Record.timestamp < lt))
-        return query.order_by(Record.timestamp.desc())
+    def get_closest_record_to(self, to, geographic=True):
+        to = Petition.str_or_datetime(to)
+        query = self.records.filter_by(geographic=geographic)
+        query = query.filter(Record.timestamp < to)
+        return query.order_by(Record.timestamp.desc()).first()
 
-    def query_record_at(self, timestamp, at):
-        if isinstance(timestamp, str):
-            timestamp = dt.strptime(timestamp, "%d-%m-%YT%H:%M:%S")
-        query = self.records.filter(Record.timestamp < timestamp)
+    # need to call .all() on returned value
+    def query_records_between(self, lt, gt, geographic=True):
+        lt, gt = Petition.str_or_datetime(lt), Petition.str_or_datetime(gt)
+        query = self.records.filter_by(geographic=geographic)
+        query = query.filter(Record.timestamp > gt).filter(and_(Record.timestamp < lt))
         return query.order_by(Record.timestamp.desc())
 
     # since ex: {'hours': 12}, {'days': 7}, {'month': 1}
-    def query_records_since(self, since, now=None):
-        now = dt.strptime(now, "%d-%m-%YT%H:%M:%S") if now else dt.now()
+    # need to call .all() on returned value
+    def query_records_since(self, since, now=None, geographic=True):
+        now = Petition.str_or_datetime(now) if now else dt.now()
         ago = now - datetime.timedelta(**since)
         query = self.records.filter(Record.timestamp > ago)
+        query = query.filter_by(geographic=geographic)
         return query.order_by(Record.timestamp.desc())
 
     def ordered_records(self, order="DESC"):
@@ -306,8 +314,8 @@ class Petition(db.Model):
         
         raise ValueError("Invalid order param, Must be 'DESC' or 'ASC'")
     
-    def latest_record(self):
-        return self.ordered_records().first()
+    def latest_record(self, geographic=True):
+        return self.ordered_records().filter(geographic=geographic).first()
 
 
 class Record(db.Model):
@@ -342,8 +350,7 @@ class Record(db.Model):
     @classmethod
     def get_sig_model_table(cls, geography):
         model = cls.get_sig_model(geography)
-        table = model.__table__
-        return model, table
+        return model, model.__table__
 
     @classmethod
     def signature_model_attributes(cls, geographies):
