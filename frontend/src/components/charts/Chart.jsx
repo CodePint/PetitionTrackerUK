@@ -57,7 +57,7 @@ function Chart({ datasets, handleDatasetDeletion, toggleTotalSignatures, showTot
         datasets = datasets.map((data, index) => {
           let config = { ...baseDataConfig };
           data.borderColor = Object.values(chartColors)[index];
-          if (data.label.includes("Total")) {
+          if (data.label && data.label.includes("Total")) {
             config = merge(config, { ...totalSigDataConfig });
           }
 
@@ -119,7 +119,9 @@ function Chart({ datasets, handleDatasetDeletion, toggleTotalSignatures, showTot
 
   function handleLegendToggle(value) {
     let toggled = [...legendValuesToggle];
-    if (!legendValuesToggle.includes(value)) {
+    if (datasets.length === 1) {
+      return false;
+    } else if (!legendValuesToggle.includes(value)) {
       toggled.push(value);
       setLegendValuesToggle(toggled);
     } else {
@@ -129,7 +131,7 @@ function Chart({ datasets, handleDatasetDeletion, toggleTotalSignatures, showTot
   }
 
   function renderLegendItem(colorKey, value, meta, geography) {
-    const isToggled = legendValuesToggle.includes(value);
+    const isToggled = legendValuesToggle.includes(value) || datasets.length === 1;
     return (
       <li
         key={`${geography || ""}-legend- ${value}`}
@@ -150,17 +152,16 @@ function Chart({ datasets, handleDatasetDeletion, toggleTotalSignatures, showTot
             <span>{lazyIntToCommaString(meta.total || meta.count)}</span>
           </div>
         </div>
-
-        <div className="expanded">
-          {datasets.length > 1 ? renderLegendDeleteBtn(geography, value) : <div></div>}
-        </div>
+        <div className="expanded">{renderLegendDeleteBtn(geography, value)}</div>
       </li>
     );
   }
 
   function renderLegendDeleteBtn(geography, value) {
+    const isDisabled = value === "Total" && datasets.length === 1;
     return (
-      <div
+      <button
+        disabled={isDisabled}
         className="delete"
         onClick={() =>
           value === "Total" && !showTotalSigs
@@ -171,7 +172,7 @@ function Chart({ datasets, handleDatasetDeletion, toggleTotalSignatures, showTot
         <div>
           <FontAwesomeIcon className="fa-fw" icon={faTimesCircle} />
         </div>
-      </div>
+      </button>
     );
   }
 

@@ -3,7 +3,7 @@ import axios from "axios";
 
 function Ping({ match }) {
   const sender = match.params.sender;
-  const API_URL_PREFIX = process.env.REACT_APP_FLASK_API_URL_PREFIX;
+  const API_URL_PREFIX = process.env.REACT_APP_FLASK_API_URL_PREFIX || "";
   const [data, setData] = useState({});
 
   useEffect(() => {

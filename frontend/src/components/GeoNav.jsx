@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import usePrev from "./utils/usePrev";
-import useIsFirstRender from "./utils/useIsFirstRender";
 import Autocomplete from "react-autocomplete";
 import _ from "lodash";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";

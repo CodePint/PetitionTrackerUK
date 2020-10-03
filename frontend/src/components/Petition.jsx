@@ -41,7 +41,7 @@ function geographiesJSON() {
 
 function Petition({ match }) {
   const petition_id = match.params.petition_id;
-  const API_URL_PREFIX = process.env.REACT_APP_FLASK_API_URL_PREFIX;
+  const API_URL_PREFIX = process.env.REACT_APP_FLASK_API_URL_PREFIX || "";
 
   const maxDatsets = 11;
   const isFirstRender = useIsFirstRender();
@@ -223,11 +223,11 @@ function Petition({ match }) {
     if (petitionResponse.status === 200) {
       geoNavData = buildGeoNavData(petitionResponse.data.signatures);
     } else if (petitionResponse.status === 404) {
-      lastPolledAt.current = prev_poll;
+      lastPolledAt.current = prevPoll;
       setPetitionNotFound(true);
       return false;
     } else {
-      lastPolledAt.current = prev_poll;
+      lastPolledAt.current = prevPoll;
       let error = { msg: "Server Error" };
       setChartError({ status: true, error: error });
       return false;
@@ -371,7 +371,10 @@ function Petition({ match }) {
   async function fetchSignatures() {
     let params = {};
     let url = `${API_URL_PREFIX}/petition/${petition_id}/signatures`;
-    params.between = { gt: chartTime.from, lt: getChartTimeTo() };
+    params.between = {
+      gt: moment(chartTime.from).format("DD-MM-YYYYTH:m:ss"),
+      lt: moment(getChartTimeTo()).format("DD-MM-YYYYTH:m:ss"),
+    };
     console.log("fetching signatures!!");
     try {
       return await axios.get(url, { params: params });
@@ -409,7 +412,10 @@ function Petition({ match }) {
   async function fetchSignaturesBy(geography, locale) {
     let params = {};
     let url = `${API_URL_PREFIX}/petition/${petition_id}/signatures_by/${geography}/${locale}`;
-    params.between = { gt: chartTime.from, lt: getChartTimeTo() };
+    params.between = {
+      gt: moment(chartTime.from).format("DD-MM-YYYYTH:m:ss"),
+      lt: moment(getChartTimeTo()).format("DD-MM-YYYYTH:m:ss"),
+    };
     try {
       console.log("fetching signatures by", geography, "-", locale);
       return await axios.get(url, { params: params });
@@ -459,8 +465,8 @@ function Petition({ match }) {
     dataset.meta = input.meta.latest_data;
     dataset.meta.name = dataset_name;
     dataset.meta.code = "T";
-
     if (dataset.meta.total === 0) {
+      console.log("0 items found");
       dataset.data = [];
     } else {
       dataset.data = input.signatures.map((r) => ({

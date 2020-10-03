@@ -29,7 +29,6 @@ from requests.structures import CaseInsensitiveDict as LazyDict
 from application import db
 from application.models import Task, TaskRun, TaskLog
 from .remote import RemotePetition
-from .utils import ViewUtils
 
 from .geographies.choices.regions import REGIONS
 from .geographies.choices.constituencies import CONSTITUENCIES
@@ -94,11 +93,6 @@ class Petition(db.Model):
     def __str__(self):
         template = 'petiton id: {}, action: {}'
         return template.format(self.id, self.action)
-
-    @classmethod
-    def get_or_404(cls, id):
-        petition = Petition.query.get(id)
-        return petition or ViewUtils.json_abort(404, "Petition ID: {}, not found".format(id))
 
     @classmethod
     def filter_sig_attr(cls, attributes):
@@ -306,7 +300,7 @@ class Petition(db.Model):
         query = query.filter_by(geographic=geographic)
         return query.order_by(Record.timestamp.desc())
 
-    def ordered_records(self, order="DESC"):
+    def ordered_records(self, order="DESC", geographic=True):
         if order == "DESC":
             return self.records.order_by(Record.timestamp.desc())
         if order == "ASC":
@@ -315,7 +309,7 @@ class Petition(db.Model):
         raise ValueError("Invalid order param, Must be 'DESC' or 'ASC'")
     
     def latest_record(self, geographic=True):
-        return self.ordered_records().filter(geographic=geographic).first()
+        return self.ordered_records().filter_by(geographic=geographic).first()
 
 
 class Record(db.Model):
@@ -564,7 +558,7 @@ class SignaturesByRegionSchema(SignaturesBySchema):
 class RecordSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = Record
-        exclude = ["db_created_at", "signatures", "by_country", "by_region", "by_constituency"]
+        exclude = ["db_created_at", "geographic", "signatures", "by_country", "by_region", "by_constituency"]
     
     def format_timestamp(self, obj):
         return obj.timestamp.strftime("%d-%m-%YT%H:%M:%S")

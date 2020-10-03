@@ -16,7 +16,7 @@ import PetitionList from "./PetitionList";
 import Pagination from "./Pagination";
 
 function PetitionListController() {
-  const API_URL_PREFIX = process.env.REACT_APP_FLASK_API_URL_PREFIX;
+  const API_URL_PREFIX = process.env.REACT_APP_FLASK_API_URL_PREFIX || "";
   const apiURL = `${API_URL_PREFIX}/petitions`;
   const [queryParams, setQueryParams] = useState(baseQuery());
   const [petitionID, setPetitionID] = useState(null);
@@ -124,7 +124,7 @@ function PetitionListController() {
           value={radio.value}
           name={key}
           type="radio"
-          checked={radio.checked}
+          defaultChecked={radio.checked}
           onClick={handleToggle}
         />
         <label htmlFor={`${key}-toggle`}>
@@ -142,7 +142,7 @@ function PetitionListController() {
 
   function renderToggles() {
     return (
-      <div class="toggles">
+      <div className="toggles">
         <ul>
           <li>
             <div>{renderRadioToggle("date")}</div>
@@ -161,7 +161,7 @@ function PetitionListController() {
 
   function renderSearchBar() {
     return (
-      <div class="searchBar">
+      <div className="searchBar">
         <input type="text" name="query" placeholder="Search Petitions..."></input>
         <button type="submit" value="Submit">
           {" "}

@@ -109,11 +109,13 @@ function TimeNav({ timeChangeHandler, timeConfig = {}, fromNavValue, toNavValue,
 
   function renderPresets() {
     return (
-      <div className="container">
-        {presetTimesOpts.map((item) => {
-          return renderPresetItem(item);
-        })}
-      </div>
+      <form onChange={submitTimeSince}>
+        <div className="container">
+          {presetTimesOpts.map((item) => {
+            return renderPresetItem(item);
+          })}
+        </div>
+      </form>
     );
   }
 
@@ -123,7 +125,6 @@ function TimeNav({ timeChangeHandler, timeConfig = {}, fromNavValue, toNavValue,
     return (
       <div className={`${name} preset-item`} key={id}>
         <input
-          id={id}
           name={item.unit}
           value={item.value || ""}
           type="radio"
@@ -158,9 +159,7 @@ function TimeNav({ timeChangeHandler, timeConfig = {}, fromNavValue, toNavValue,
           </div>
         </form>
 
-        <form id="presetQuickSelectForm" onChange={submitTimeSince}>
-          <div className="presets">{renderPresets()}</div>
-        </form>
+        <div className="presets">{renderPresets()}</div>
       </div>
     );
   }
@@ -222,9 +221,7 @@ function TimeNav({ timeChangeHandler, timeConfig = {}, fromNavValue, toNavValue,
         </div>
       </div>
       <div className="mobile">
-        <form id="presetQuickSelectForm" onChange={submitTimeSince}>
-          <div className="presets"> {renderPresets()} </div>
-        </form>
+        <div className="presets"> {renderPresets()} </div>
       </div>
     </div>
   );

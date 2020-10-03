@@ -49,7 +49,6 @@
   flex-wrap: none;
   margin: 0 auto;
   margin-bottom: 2.5em;
-
 }
 
 
@@ -96,10 +95,7 @@
 
 .Petition .meta .state {
   flex-grow: 0;
-  /* flex-basis: 30%; */
 }
-
-
 
 /* --- Petition text details --- */
 .Petition .text {
@@ -263,13 +259,21 @@
   text-overflow: ellipsis;
 }
 
-.petition__chart .Chart .legend .delete {
+.petition__chart .Chart .legend button.delete {
   margin: auto;
   color: red;
   font-size: 1.5em;
   padding: 0.3em 0.5em;
-  cursor: pointer !important;
+  cursor: pointer;
+  border: none;
+  background: none;
 }
+.petition__chart .Chart .legend button.delete:disabled {
+  color: gray;
+  cursor: not-allowed;
+}
+
+.petition__chart .Chart .legend .delete
 
 .petition__chart .Chart .legend li.Total {
   order: -1;
@@ -400,10 +404,13 @@
 /* Chart Time Nav */
 
 /* dependency styles */
-.Petition .react-date-picker input,
-.Petition .react-date-picker {
+
+.Petition .react-date-picker__wrapper,
+.Petition .react-date-picker__inputGroup {
   color: var(--slate-black) !important;
-  font-size: 1em;
+  border: none !important;
+  font-size: 1.05em;
+  font-weight: 400;
 }
 
 /* wrappers */
@@ -431,7 +438,6 @@
   display: block;
   font-size: 0.85em;
   padding: 0.5em;
-  background: darkgray;
   background: gray;
   color: var(--smoke-white);
 }
@@ -562,7 +568,7 @@
 }
 
 .Petition .TimeNav .divider {
-  color: black;
+  color: var(--slate-black);
   margin: 0 0.4em;
   font-size: 1.2em;
   font-weight: 600;
@@ -585,7 +591,7 @@
 
 .TimeNav .view .pipe {
   margin: 0 0.25em;
-  color: black;
+  color: var(--slate-black);
 }
 
 
@@ -644,6 +650,10 @@
 @media only screen and (min-width: 1050px) {
   .Petition {
     width: 85%;
+  }
+
+  .Petition .meta .flex-child {
+    flex-grow: 1;
   }
 
   .signatures-heading {
