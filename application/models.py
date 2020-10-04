@@ -15,11 +15,12 @@ from sqlalchemy import (
 )
 
 from flask import current_app
-
+from celery.utils.log import get_task_logger
 from requests.structures import CaseInsensitiveDict as LazyDict
 from application import db
 from datetime import datetime as dt
 import datetime
+import logging
 
 class Setting(db.Model):
     id = db.Column(Integer, primary_key=True)
@@ -164,11 +165,11 @@ class Task(db.Model):
 class TaskRun(db.Model):
 
     STATE_CHOICES = [
-        ('PEND', 'PENDING'),
-        ('RUN', 'RUNNING'),
-        ('COMPLETE', 'COMPLETED'),
-        ('FAIL', 'FAILED'),
-        ('REJECT', 'REJECTED'),
+        ('0', 'PENDING'),
+        ('1', 'RUNNING'),
+        ('2', 'COMPLETED'),
+        ('3', 'FAILED'),
+        ('4', 'REJECTED'),
     ]
 
     STATE_LOOKUP = LazyDict({v: k for k, v in dict(STATE_CHOICES).items()})
@@ -176,7 +177,7 @@ class TaskRun(db.Model):
     id = db.Column(Integer, primary_key=True)
     task_id = db.Column(Integer, ForeignKey(Task.id), index=True, nullable=False)
     task = relationship(Task, back_populates="runs")
-    logs = relationship(lambda: TaskLog, back_populates="run")
+    logs = relationship(lambda: TaskLog, back_populates="run", cascade="all, delete")
     state = db.Column(ChoiceType(STATE_CHOICES), nullable=False)
     args = db.Column(String)
     started_at = db.Column(DateTime)
@@ -195,14 +196,19 @@ class TaskRun(db.Model):
 
         return state
     
-    def successful(self):
+    def is_successful(self):
         return self.state.value == "COMPLETED" and self.state.finished_at
     
-    def failed(self):
+    def is_failed(self):
         return self.state.value == "FAILED"
 
+    def reject(self):
+        self.state = "REJECTED"
+        self.finished_at = datetime.datetime.now()
+        db.session.commit()
 
-class TaskLog(db.Model):
+
+class BaseLog(db.Model):
 
     LEVELS = [
         ('I', 'INFO'),
@@ -215,13 +221,9 @@ class TaskLog(db.Model):
     LEVEL_LOOKUP = LazyDict({v: k for k, v in dict(LEVELS).items()})
 
     id = db.Column(Integer, primary_key=True)
-    task_id = db.Column(Integer, ForeignKey(Task.id), index=True, nullable=False)
-    task_run_id = db.Column(Integer, ForeignKey(TaskRun.id), index=True, nullable=False)
-    task = relationship(Task, back_populates="logs")
-    run = relationship(TaskRun, back_populates="logs")
-    message = db.Column(String)
     level = db.Column(ChoiceType(LEVELS), nullable=False)
     timestamp = db.Column(DateTime, default=sqlfunc.now())
+    message = db.Column(String)
 
     # manual work around for broken choice validation in sqlalchemy utils
     @validates('level')
@@ -233,27 +235,56 @@ class TaskLog(db.Model):
 
         return level
 
-class TaskLogger:
-    
-    LEVELS = {'INFO': 0, 'DEBUG': 1, 'WARN': 2, 'ERROR': 3, 'FATAL': 4}
+class TaskLog(BaseLog):
+    task_id = db.Column(Integer, ForeignKey(Task.id), index=True, nullable=False)
+    task_run_id = db.Column(Integer, ForeignKey(TaskRun.id), index=True, nullable=False)
+    task = relationship(Task, back_populates="logs")
+    run = relationship(TaskRun, back_populates="logs")
 
-    def __init__(self, task_run, celery_logger):
-        self.task_run = task_run
-        self.task = task_run.task
-        self.celery_logger = celery_logger
+class AppLog(BaseLog):
+    app = db.Column(String, index=True, nullable=False)
+    module = db.Column(String, index=True, nullable=False)
+
+
+class Logger:
+
+    LEVELS = ('DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL')
+
+    def __init__(self, source, app_name='FLASK'):
+        self.source = source
+        self.app_name = app_name
+        self.base_logger = logging.getLogger(source)
 
     def __getattr__(self, f_name):
         def _missing(*args, **kwargs):
             level = f_name.upper()
-            if level in TaskLogger.LEVELS.keys():
+            if level in Logger.LEVELS:
                 return self.log(level=level, *args, **kwargs)
         return _missing
 
+    def log(self, msg, level="INFO"):
+        getattr(self.base_logger, level)(msg)
+
+class TaskLogger(Logger):
+
+    def __init__(self, task_run, worker):
+        self.task_run = task_run
+        self.worker = worker
+        base_logger = get_task_logger(worker)
 
     def log(self, msg, level="INFO"):
-        self.celery_logger.info(msg)
-        
+        super().log(msg, level)
         log = TaskLog(message=msg, level=level, task_id=self.task.id)
         self.task_run.logs.append(log)
+        db.session.commit()
+        return log
+
+
+class AppLogger(Logger):
+
+    def log(self, msg, level="INFO"):
+        super().log(msg, level)
+        log = AppLog(message=msg, level=level, app=self.app_name, module=self.source)
+        db.session.add(log)
         db.session.commit()
         return log

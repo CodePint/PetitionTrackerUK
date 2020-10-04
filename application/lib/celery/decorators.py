@@ -17,15 +17,17 @@ def task_handler( *args, **kwargs):
             
             result = func(**kwargs)
 
-            logger.info("Task completed succesfully")
             if periodic:
                 task.last_run = task_run.started_at
+
+            logger.info("Task completed succesfully")
             task_run.state = "COMPLETED"
         except Exception as error:
-            logger.fatal("Task failed, Error: {}".format(error))
-            task_run.state = "FAILED"
             if periodic:
                 task.last_failed = dt.now()
+            
+            task_run.state = "FAILED"
+            logger.fatal("Task failed, Error: {}".format(error))
             raise error
         finally:
             task_run.finished_at = dt.now()
@@ -41,11 +43,12 @@ def task_handler( *args, **kwargs):
             task = current_app.task.get(kwargs.get("task_name", "N/A"))
             if task:
                 task_run = task.init_run(started_at=dt.now(), task_args=kwargs)
-                logger = current_app.task_logger(task_run, celery_logger)
+                logger = current_app.task_logger(task_run)
                 if kwargs.get('periodic') and task.enabled:
                     if task.is_overdue():
                         return task_runner(func, task, task_run, logger, periodic=True **kwargs)
                     else:
+                        task_run.reject()
                         logger.debug("Skipping task (run recently)")
                 else:
                     return task_runner(func, task, task_run, logger, **kwargs)

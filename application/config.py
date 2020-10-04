@@ -1,98 +1,111 @@
 import os
-ENV_FILE = '.env'
 from dotenv import load_dotenv
-load_dotenv(dotenv_path=ENV_FILE, override=True)
 
 def to_bool(var):
     return var.upper() == "TRUE"
 
+def to_list(var):
+    return var.split(",")
+
+def getenv(var, type=str):
+    var = os.getenv(var)
+    return type(var) if var else None
+
 class Config(object):
 
     @classmethod
-    def set_env(cls, env="development", overide=True):
-        if env == "development":
+    def init_env(cls):
+        cls.BASE_ENV_FILE = '.env'
+        load_dotenv(dotenv_path=cls.BASE_ENV_FILE, override=True)
+
+        cls.FLASK_ENV = os.getenv('FLASK_ENV')
+        print("LOADING FLASK_ENV: {}".format(cls.FLASK_ENV))
+        if cls.FLASK_ENV == "development":
             env_file = ".dev.env"
-        elif env == "production":
+        elif cls.FLASK_ENV == "production":
             env_file = ".prod.env"
-        elif env == "testing":
+        elif cls.FLASK_ENV == "testing":
             env_file = ".test.env"
         
         cls.FLASK_ENV_FILE = env_file
-        return load_dotenv(dotenv_path=cls.FLASK_ENV_FILE, override=overide)
+        return load_dotenv(dotenv_path=cls.FLASK_ENV_FILE, override=True)
 
-    DEBUG = os.get_env('FLASK_DEBUG')
+    @classmethod
+    def import_env(cls):
+        cls.DEBUG = getenv('FLASK_DEBUG', type=to_bool)
 
-    # default values for Setting table
-    DEFAULT_SETTINGS = {
-        'signatures_threshold': os.getenv('SIGNATURES_THRESHOLD'),
-        'trending_threshold': os.getenv('TRENDING_THRESHOLD')
-    }
+        # default values for Setting table
+        cls.DEFAULT_SETTINGS = {
+            'signatures_threshold': getenv('SIGNATURES_THRESHOLD'),
+            'trending_threshold': getenv('TRENDING_THRESHOLD')
+        }
 
-    # default values for Task table
-    PERIODIC_TASK_SETTINGS = [
-        {
-            "name": "poll_total_sigs_task",
-            "interval": int(os.getenv('POLL_TOTAL_SIGS_TASK_INTERVAL')),
-            "enabled": to_bool(os.getenv('POLL_TOTAL_SIGS_TASK'))
-        },
-        {
-            "name": "poll_geographic_sigs_task",
-            "interval": int(os.getenv('POLL_GEOGRAPHIC_SIGS_TASK_INTERVAL')),
-            "enabled": to_bool(os.getenv('POLL_GEOGRAPHIC_SIGS_TASK'))
-        },
-        {
-            "name": "poll_trending_geographic_sigs_task",
-            "interval": int(os.getenv('POLL_TRENDING_GEOGRAPHIC_SIGS_TASK_INTERVAL')),
-            "enabled": to_bool(os.getenv('POLL_TRENDING_GEOGRAPHIC_SIGS_TASK'))
-        },
-        {
-            "name": "populate_petitions_task",
-            "interval": int(os.getenv('POPULATE_PETITIONS_TASK_INTERVAL')),
-            "enabled": to_bool(os.getenv('POPULATE_PETITIONS_TASK'))
-        },
+        # default values for Task table
+        cls.PERIODIC_TASK_SETTINGS = [
             {
-            "name": "update_trending_petitions_pos_task",
-            "interval": int(os.getenv('UPDATE_TRENDING_PETITION_POS_TASK_INTERVAL')),
-            "enabled": to_bool(os.getenv('UPDATE_TRENDING_PETITION_POS_TASK'))
-        },
+                "name": "poll_total_sigs_task",
+                "interval":getenv('POLL_TOTAL_SIGS_TASK_INTERVAL', type=int),
+                "enabled": getenv('POLL_TOTAL_SIGS_TASK', type=to_bool)
+            },
             {
-            "name": "test_task",
-            "interval":int(os.getenv('TEST_TASK_INTERVAL')),
-            "enabled": to_bool(os.getenv('TEST_TASK'))
-        },
-    ]
+                "name": "poll_geographic_sigs_task",
+                "interval": getenv('POLL_GEOGRAPHIC_SIGS_TASK_INTERVAL', type=int),
+                "enabled": getenv('POLL_GEOGRAPHIC_SIGS_TASK', type=to_bool)
+            },
+            {
+                "name": "poll_trending_geographic_sigs_task",
+                "interval": getenv('POLL_TRENDING_GEOGRAPHIC_SIGS_TASK_INTERVAL', type=int),
+                "enabled": getenv('POLL_TRENDING_GEOGRAPHIC_SIGS_TASK', type=to_bool)
+            },
+            {
+                "name": "populate_petitions_task",
+                "interval": getenv('POPULATE_PETITIONS_TASK_INTERVAL', type=int),
+                "enabled": getenv('POPULATE_PETITIONS_TASK', type=to_bool)
+            },
+                {
+                "name": "update_trending_petitions_pos_task",
+                "interval": getenv('UPDATE_TRENDING_PETITION_POS_TASK_INTERVAL', type=int),
+                "enabled": getenv('UPDATE_TRENDING_PETITION_POS_TASK', type=to_bool)
+            },
+                {
+                "name": "test_task",
+                "interval":getenv('TEST_TASK_INTERVAL', type=int),
+                "enabled": getenv('TEST_TASK', type=to_bool)
+            },
+        ]
 
-    # postgres config
-    POSTGRES_TEMPLATE = 'postgresql://%(user)s:%(pw)s@%(host)s:%(port)s/%(db)s'
-    POSTGRES_CONFIG = {
-        'user': os.getenv('POSTGRES_USER'),
-        'pw': os.getenv('POSTGRES_PASSWORD'), 
-        'db': os.getenv('POSTGRES_DB'),
-        'host': os.getenv('POSTGRES_HOST'),
-        'port': os.getenv('POSTGRES_PORT')
-    }
-    SQLALCHEMY_DATABASE_URI = POSTGRES_TEMPLATE % POSTGRES_CONFIG
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ECHO = True
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_recycle': 90,
-        'pool_timeout': 900,
-        'pool_size': 8,
-        'max_overflow': 5,
-    }
+        # postgres config
+        cls.POSTGRES_TEMPLATE = 'postgresql://%(user)s:%(pw)s@%(host)s:%(port)s/%(db)s'
+        cls.POSTGRES_CONFIG = {
+            'user': getenv('POSTGRES_USER'),
+            'pw': getenv('POSTGRES_PASSWORD'), 
+            'db': getenv('POSTGRES_DB'),
+            'host': getenv('POSTGRES_HOST'),
+            'port': getenv('POSTGRES_PORT')
+        }
 
-    # view and response settings
-    JSONIFY_PRETTYPRINT_REGULAR = True
+        cls.SQLALCHEMY_DATABASE_URI = cls.POSTGRES_TEMPLATE % cls.POSTGRES_CONFIG
+        cls.SQLALCHEMY_TRACK_MODIFICATIONS = False
+        cls.SQLALCHEMY_ECHO = True
+        cls.SQLALCHEMY_ENGINE_OPTIONS = {
+            'pool_recycle': 90,
+            'pool_timeout': 900,
+            'pool_size': 8,
+            'max_overflow': 5,
+        }
 
-    # log files and settings
-    LOG_FILE= os.getenv('LOG_FILE')
-    LOG_LEVEL = os.getenv('LOG_LEVEL')
+        # view and response settings
+        cls.JSONIFY_PRETTYPRINT_REGULAR = True
 
-    # CORS config
-    CORS_RESOURCE_ORIGINS = os.getenv('CORS_RESOURCE_ORIGINS').split(",")
+        # log files and settings
+        cls.LOG_FILE= getenv('LOG_FILE')
+        cls.LOG_LEVEL = getenv('LOG_LEVEL')
 
-    # Flask-Compress control settings
-    COMPRESS_MIMETYPES = ['application/json']
-    COMPRESS_MIN_SIZE = 500
-    COMPRESS_LEVEL = 6 # (1 = faster/bigger, 9 = slower/smaller, 6 = default)
-    COMPRESS_CACHE_BACKEND = None # may implement redis caching in the future
+        # CORS config
+        cls.CORS_RESOURCE_ORIGINS = getenv('CORS_RESOURCE_ORIGINS', to_list)
+
+        # Flask-Compress control settings
+        cls.COMPRESS_MIMETYPES = ['application/json']
+        cls.COMPRESS_MIN_SIZE = 500
+        cls.COMPRESS_LEVEL = 6 # (1 = faster/bigger, 9 = slower/smaller, 6 = default)
+        cls.COMPRESS_CACHE_BACKEND = None # may implement redis caching in the future

@@ -13,17 +13,55 @@ services:
     ports:
       - 80:80
       - 443:443
+    env_file:
+      - ./frontend/.env.production
 
   flask:
     container_name: flask_api
     restart: always
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     expose:
       - 5000
     volumes:
       - ./application:/usr/src/application
-    env_file:
-      - .env
+  
+  tracker_worker:
+    container_name: tracker_worker
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile
+    depends_on:
+      - redis
+    volumes:
+      - ./application:/usr/src/application
+    command:
+      - ./run_tracker_worker.sh
+
+  schedule_worker:
+    container_name: schedule_worker
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile
+    depends_on:
+      - redis
+    volumes:
+      - ./application:/usr/src/application
+    command:
+      - ./run_schedule_worker.sh
+
+  system_worker:
+      container_name: system_worker
+      build:
+        context: .
+        dockerfile: scripts/Dockerfile
+      depends_on:
+        - redis
+      volumes:
+        - ./application:/usr/src/application
+      command:
+        - ./run_worker.sh
 
   postgres:
     container_name: postgres
@@ -33,7 +71,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data/
     env_file:
-      .env
+      .dev.env
     
   redis:
     container_name: redis

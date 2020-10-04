@@ -6,6 +6,7 @@ from flask_compress import Compress
 
 from celery import Celery
 from types import SimpleNamespace
+from dotenv import load_dotenv
 
 import logging
 import subprocess
@@ -28,10 +29,9 @@ def init_schemas(app):
 def init_tasks(app):
     from application import tasks as shared_tasks
     from application.tracker import tasks as tracker_tasks
-    from application.models import Task, TaskRun, TaskLog, TaskLogger
+    from application.models import Task, TaskRun, TaskLog
     app.tasks = {'shared': shared_tasks, 'tracker': tracker_tasks}
     app.task = Task
-    app.task_logger = TaskLogger
 
 def make_celery(app_name=__name__):
     redis_uri = os.getenv('REDIS_URI')
@@ -61,10 +61,15 @@ def load_models():
     from application import models
     from application.tracker import models
 
-from .config import Config
-Config.set_env(env=os.getenv('FLASK_ENV'))
-logging.basicConfig(filename=Config.LOG_FILE, level=Config.LOG_LEVEL)
+def init_logging(app):
+    logging.basicConfig(filename=Config.LOG_FILE, level=Config.LOG_LEVEL)
+    from application.models import TaskLogger, AppLogger
+    app.logger = AppLogger
+    app.task_logger = TaskLogger
 
+from .config import Config
+Config.init_env()
+Config.import_env()
 db = SQLAlchemy()
 celery = make_celery()
 load_models()
@@ -80,8 +85,10 @@ def create_app():
     with app.app_context():
         # configure database
         app.db = db
+        
         db.init_app(app)
         migrate.init_app(app, db)
+        init_logging(app)
 
         # configure celery
         app.celery_utils = init_celery_utils()
@@ -138,10 +145,9 @@ def create_app():
         current_app.db.engine.connect().execute("DROP TABLE IF EXISTS alembic_version")
 
     @app.cli.command("celery-purge")
-    def reset_alembic():
+    def purge_celery():
         print("purging celery!")
         current_app.celery.control.purge()
-
 
     @app.shell_context_processor
     def get_shell_context():
