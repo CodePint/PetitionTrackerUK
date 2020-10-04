@@ -6,11 +6,11 @@ def make():
     context.update(import_schemas())
     context.update(import_utils())
     context.update(import_settings())
-    context.update(import_task_models())
     context.update(import_task_logger())
     return context
 
 def import_models():
+    from application.models import Task, TaskRun, TaskLog
     from application.tracker.models import (
         Petition,
         Record,
@@ -20,6 +20,9 @@ def import_models():
         SignaturesByConstituency,
     )
     return {
+        'Task': Task,
+        'TaskRun': TaskRun,
+        'TaskLog': TaskLog,
         'Petition': Petition,
         'Record': Record,
         'SignaturesByCountry': SignaturesByCountry,
@@ -30,10 +33,6 @@ def import_models():
 def import_settings():
     from application.models import Setting
     return {'Setting': Setting}
-
-def import_task_models():
-    from application.models import Task, TaskRun, TaskLog
-    return {'Task': Task, 'TaskRun': TaskRun, 'TaskLog': TaskLog}
 
 def import_task_logger():
     from application.models import TaskLogger

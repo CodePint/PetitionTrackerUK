@@ -5,7 +5,6 @@ from flask_cors import CORS
 from flask_compress import Compress
 
 from celery import Celery
-from dotenv import load_dotenv
 from types import SimpleNamespace
 
 import logging
@@ -32,8 +31,6 @@ def init_tasks(app):
     from application.models import Task, TaskRun, TaskLog, TaskLogger
     app.tasks = {'shared': shared_tasks, 'tracker': tracker_tasks}
     app.task = Task
-    app.task_run = TaskRun
-    app.task_log = TaskLog
     app.task_logger = TaskLogger
 
 def make_celery(app_name=__name__):
@@ -64,9 +61,8 @@ def load_models():
     from application import models
     from application.tracker import models
 
-ENV_FILE = '.env'
-load_dotenv(dotenv_path=ENV_FILE, override=True)
 from .config import Config
+Config.set_env(env=os.getenv('FLASK_ENV'))
 logging.basicConfig(filename=Config.LOG_FILE, level=Config.LOG_LEVEL)
 
 db = SQLAlchemy()

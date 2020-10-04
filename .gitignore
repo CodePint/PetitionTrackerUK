@@ -1,4 +1,5 @@
 development
+.prod.env
 **__pycache__
 celerybeat-schedule
 logs/*

@@ -1,11 +1,26 @@
 import os
+ENV_FILE = '.env'
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=ENV_FILE, override=True)
 
 def to_bool(var):
     return var.upper() == "TRUE"
 
 class Config(object):
 
-    DEBUG = True
+    @classmethod
+    def set_env(cls, env="development", overide=True):
+        if env == "development":
+            env_file = ".dev.env"
+        elif env == "production":
+            env_file = ".prod.env"
+        elif env == "testing":
+            env_file = ".test.env"
+        
+        cls.FLASK_ENV_FILE = env_file
+        return load_dotenv(dotenv_path=cls.FLASK_ENV_FILE, override=overide)
+
+    DEBUG = os.get_env('FLASK_DEBUG')
 
     # default values for Setting table
     DEFAULT_SETTINGS = {
