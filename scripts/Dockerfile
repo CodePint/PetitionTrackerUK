@@ -11,7 +11,7 @@ RUN mkdir -p ${PROJECT_DIR}
 RUN mkdir -p /usr/src/logs/app
 
 WORKDIR /usr/src
-COPY Pipfile Pipfile.lock .dev.env .prod.env  /usr/src/
+COPY Pipfile Pipfile.lock .env .docker.dev.env .prod.env .dev.env /usr/src/
 COPY scripts /usr/src
 RUN pipenv install --system --deploy
 

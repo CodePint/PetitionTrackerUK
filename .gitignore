@@ -1,7 +1,10 @@
-development
+.env
 .prod.env
+.dev.env
+.docker.dev.env
 **__pycache__
 celerybeat-schedule
+development
 logs/*
 logs/app/*
 logs/celery/schedule/*
