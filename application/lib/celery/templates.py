@@ -5,7 +5,6 @@ def template_tasks():
     return {
     "poll_total_sigs_task": {
         "function": current_app.tasks["tracker"].poll_petitions_task,
-        "startup": True,
         "func_kwargs": {
             "task_name": "poll_total_sigs_task",
             "where": "all",
@@ -18,7 +17,6 @@ def template_tasks():
 
     "poll_geographic_sigs_task": {
         "function": current_app.tasks["tracker"].poll_petitions_task,
-        "startup": True,
         "func_kwargs": {
             "task_name": "poll_geographic_sigs_task",
             "where": "signatures",
@@ -31,7 +29,6 @@ def template_tasks():
     },
     "poll_trending_geographic_sigs_task": {
         "function": current_app.tasks["tracker"].poll_petitions_task,
-        "startup": False,
         "func_kwargs": {
             "task_name": "poll_trending_task",
             "periodic": True,
@@ -44,9 +41,9 @@ def template_tasks():
     },
     "populate_petitions_task": {
         "function": current_app.tasks["tracker"].populate_petitions_task,
-        "startup": True,
         "func_kwargs": {
-            "task_name": "populate_petitions_task"
+            "task_name": "populate_petitions_task",
+            "state": "open"
         },
         "async_kwargs": {
             "queue": "tracker",
@@ -54,7 +51,6 @@ def template_tasks():
     },
     "update_trending_petitions_pos_task": {
         "function": current_app.tasks["tracker"].update_trending_petitions_pos_task,
-        "startup": True,
         "func_kwargs": {
             "task_name": "update_trending_petitions_pos_task"
         },

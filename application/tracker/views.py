@@ -100,7 +100,7 @@ def get_petition_signatures(petition_id):
     signatures = ViewUtils.get_total_signatures_and_latest_data(records, latest_record)
     context['meta']['latest_data'] = signatures['latest_data']
     context['signatures'] = signatures['signatures']
-    # breakpoint()
+
     return context
 
 # returns a timestamped geographical list of signatures for a petition

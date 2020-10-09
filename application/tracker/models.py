@@ -27,7 +27,9 @@ from datetime import datetime as dt
 from requests.structures import CaseInsensitiveDict as LazyDict
 
 from application import db
-from application.models import Task, TaskRun, TaskLog
+from application.models import Setting
+from application.models import Task, TaskRun
+from application.decorators import with_logging
 from .remote import RemotePetition
 
 from .geographies.choices.regions import REGIONS
@@ -107,24 +109,34 @@ class Petition(db.Model):
 
     @classmethod
     def get_setting(cls, *args, **kwargs):
-        return current_app.settings.get(*args, **kwargs)
+        return Setting.get(*args, **kwargs)
 
     # onboard multiple remote petitions from the result of a query
     @classmethod
-    def populate(cls, state="open", query=[], signatures_by=False, count=False, archived=False, **kwargs):
-        query = cls.remote.query(count=count, query=query, state=state, archived=archived)
+    @with_logging()
+    def populate(cls, logger, state="open", signatures_by=False, count=False, archived=False, **kwargs):
+        query = cls.remote.query(state=state, count=count, archived=archived, logger=logger)
+        logger.info("remote query completed, matching petitions found: {}.".format(len(query)))
+        
+        logger.info("filtering query result against existing petition IDs")
+        # this should be refactored into a single id.in_ query 
         ids = [item['id'] for item in query if not cls.query.get(item['id'])]
-        remotes = cls.remote.async_get(ids, retries=3).get('success')
-        petitions = [cls.onboard(remote=r, signatures_by=signatures_by) for r in remotes]
+
+        logger.info("filter complete, to be onboarded: {}".format(len(ids)))
+        remotes = cls.remote.async_get(ids=ids, retries=3, logger=logger).get('success')
+
+        logger.info("populating petitions table from from result of async get")
+        petitions = [cls.onboard(remote=r, signatures_by=signatures_by, logger=logger) for r in remotes]
+        logger.info("petitions onboarded succesffully: {}".format(len(petitions)))
 
         return petitions
 
     # onboard a remote petition by id
     @classmethod
-    def onboard(cls, id=None, remote=None, signatures_by=False, **kwargs):
-        remote = remote or cls.remote.get(id, raise_404=True)
+    @with_logging()
+    def onboard(cls, logger, id=None, remote=None, signatures_by=False, **kwargs):
+        remote = remote or cls.remote.get(id=id, raise_404=True, logger=logger)
 
-        print("onboarding petition ID: {}".format(id))
         attributes = remote.data['data']["attributes"]
         total_sigs = attributes['signature_count']
         params = cls.remote.deserialize(remote.data)
@@ -136,26 +148,30 @@ class Petition(db.Model):
             petition.polled_at = remote.timestamp
         
         db.session.add(petition)
+        db.session.commit()
+
         record = Record.create(
             petition_id=petition.id,
             timestamp=remote.timestamp,
-            sigs_by=cls.filter_sigs_attr(attributes),
+            sigs_by=cls.filter_sig_attr(attributes),
             total_sigs=total_sigs,
-            build_sigs_by=signatures_by
+            build_sigs_by=signatures_by,
+            logger=logger
         )
 
-        db.session.commit()
+        logger.info("onboarding complete for petition ID: {}".format(petition.id))
         return petition
 
     # poll all petitions which match where param and kwargs opts
     # signatures_by = True for full geo records, signatures_by = False for basic total records
     # if commit = False, poll will return the filtered responses with attached petition objs
     @classmethod
-    def poll(cls, where="all", signatures_by=False, commit=True, **kwargs):
-        valid_where_values = ["trending", "signatures_gt", "signatures_lt", "all"]
+    @with_logging()
+    def poll(cls, logger, where="all", signatures_by=False, commit=True, **kwargs):
+        valid_where_values = ["trending", "signatures", "all"]
         if not where in valid_where_values:
-            raise ValueError("Invalid param: 'where'. Valid values: {}".format(valid_where_values))
-
+            raise ValueError("Invalid param: {'where': {}}. Valid values: {}".format(where, valid_where_values))
+        
         base_query = cls.query.filter_by(state="O", archived=False)
         if kwargs.get("last_polled"):
             polled_attr = Petition.geo_polled_at if kwargs.get("geo") else Petition.polled_at
@@ -172,8 +188,18 @@ class Petition(db.Model):
         elif where == "all":
             petitions = base_query.all()
         
-        responses = cls.remote.async_poll(petitions, retries=3).get('success')
-        return [r.petition.commit_poll(r, signatures_by) for r in responses] if commit else responses
+        logger.info("Petitions returned from query: {}".format(len(petitions)))
+        if any(petitions):
+            responses = cls.remote.async_poll(logger=logger, petitions=petitions, retries=3)
+        if commit:
+            responses = responses.get('success')
+            logger.info("beginning poll commit")
+            records =  [r.petition.commit_poll(logger=logger, response=r, signatures_by=signatures_by) for r in responses]
+            logger.info("completed poll commmit")
+            return records
+        else:
+            logger.info("skipping commit and returning poll responses")
+            return responses
     
     # get the closest record for every petition within the lt/gt/now bounds
     @classmethod
@@ -196,17 +222,19 @@ class Petition(db.Model):
     # update the trending pos for all petitions
     # optional before arg is the time of closest poll to compare
     @classmethod
-    def update_trending(cls, task_name="poll_total_sigs_task", before={"minutes": 60}, ts_range=2.5):
+    @with_logging()
+    def update_trending(cls, logger, task_name="poll_total_sigs_task", before={"minutes": 60}, ts_range=2.5, **kwargs):
         last_run = Task.get_last_run(name=task_name, before=before)
         if not last_run:
-            raise RuntimeError("No run found before: {}".format(before))
+            logger.info("Could not find any '{}' runs found before: {}".format(task_name, before))
+            return []
 
         compare_to = round((dt.now() - last_run.finished_at).total_seconds() / 60)
         if not math.ceil(compare_to / 60) not in range(1, 13):
             raise RuntimeError("Comparison interval must be in range '1 to 12 hours'")
-
-        gt, lt = compare_to + ts_range, compare_to - ts_range
-        petitions = Petition.get_all_with_distinct_record_at(gt=gt, lt=lt)
+        
+        time_range = {"gt": (compare_to + ts_range), "lt": (compare_to - ts_range)}
+        petitions = Petition.get_all_with_distinct_record_at(**time_range)
         not_found = Petition.query.filter(Petition.id.notin_([p.id for p in petitions])).all()
 
         def sort_func(response):
@@ -215,31 +243,45 @@ class Petition(db.Model):
             petition.growth = curr_count - petition.distinct_record.signatures
             return petition.growth
 
-        responses = cls.remote.async_poll(petitions, retries=3).get('success')
-        responses.sort(key=lambda r: sort_func(r))
+        logger.info("async polling {} petitions, in range: {}".format(len(petitions), time_range))
+        responses = cls.remote.async_poll(logger=logger, petitions=petitions, retries=3)
+        successful, failed = responses.get('success', []), responses.get('failed', [])
 
-        for index, resp in enumerate(responses):
+        logger.info("sorting successful responses and updating trend_pos for petitions")
+        responses.sort(key=lambda r: sort_func(r))
+        for index, resp in enumerate(successful):
             resp.petition.trend_pos = index + 1
         
-        for petition in not_found:
-            petition.trend_pos = 0
+        if any(not_found):
+            logger.info("defaulting 'not_found' petition trend_pos to 0")
+            for petition in not_found:
+                resp.petition.trend_pos = 0
+        
+        if any(failed):
+            logger.info("defaulting 'failed' petition trend_pos to 0")
+            for response in failed:
+                petition.trend_pos = 0
 
+        logger.info("trending petitions positions updated, commiting result")
         db.session.commit()
-        return responses
+        return [response.petition for response in successful]
 
     # poll the petition instance, optional record commit and record build type (signatures_by) 
-    def poll_self(self, signatures_by=True, commit=True, **kwargs):
+    @with_logging()
+    def poll_self(self, logger, signatures_by=True, commit=True, **kwargs):
+        logger.info('fetching remote petition ID: {}'.format(self.id))
+
         response = Petition.remote.get(self.id, raise_404=True)
         if commit:
-            return self.commit_poll(response, signatures_by)
+            return self.commit_poll(response=response, signatures_by=signatures_by)
         else:
             return response
 
-    # build record from poll response, must specify record build type (signatures_by) 
-    def commit_poll(self, response, signatures_by):
-        attributes = response.data['data']["attributes"]
-        total_sigs = attributes['signature_count']
-                
+    # build record from poll response, must specify record build type (signatures_by)
+    @with_logging("DEBUG")
+    def commit_poll(self, logger, response, signatures_by, **kwargs):
+        attributes = response.data['data']['attributes']
+        total_sigs = attributes['signature_count']             
         if signatures_by:
             self.geo_polled_at = response.timestamp
         else:
@@ -255,9 +297,12 @@ class Petition(db.Model):
             timestamp=response.timestamp,
             sigs_by=Petition.filter_sig_attr(attributes),
             total_sigs=attributes['signature_count'],
-            build_sigs_by=signatures_by
+            build_sigs_by=signatures_by,
+            logger=logger
         )
 
+        logger.debug("completed poll for petition ID: {}".format(self.id))
+        db.session.commit()
         return record
 
     # update petition with new attributes
@@ -334,7 +379,7 @@ class Record(db.Model):
         return template.format(self.id, self.petition_id, self.timestamp, self.signatures)
     
     def __str__(self):
-        template = 'Total signatures for petition id: {}, at {}: {}'
+        template = 'Total signatures for petition ID: {}, at {}: {}'
         return template.format(self.petition_id, self.timestamp, self.signatures)
     
     @classmethod
@@ -376,8 +421,8 @@ class Record(db.Model):
     
     # create a new record for the petition
     @classmethod
-    def create(cls, petition_id, timestamp, sigs_by, total_sigs, build_sigs_by):
-        print("creating record for petition ID: {}".format(petition_id))
+    @with_logging("DEBUG")
+    def create(cls, logger, petition_id, timestamp, sigs_by, total_sigs, build_sigs_by, **kwargs):
         record = Record(
             timestamp=timestamp,
             signatures=total_sigs,
@@ -387,7 +432,7 @@ class Record(db.Model):
 
         db.session.add(record)
         db.session.commit()
-        
+
         if record.geographic and any(sigs_by.values()):
             created = []
             for geo in list(sigs_by.keys()):
@@ -397,6 +442,9 @@ class Record(db.Model):
                     created.append(model(record_id=record.id, code=locale[code], count=locale["signature_count"]))
 
             db.session.bulk_save_objects(created)
+            logger.debug("signatures_by record created for petition ID: {}".format(petition_id))
+        else:
+            logger.debug("total_signatures record created for petition ID: {}".format(petition_id))
 
         db.session.commit()
         return record

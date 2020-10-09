@@ -30,9 +30,9 @@ def init_tasks(app):
     from application import tasks as shared_tasks
     from application.tracker import tasks as tracker_tasks
     from application.models import Task, TaskRun, TaskLog
-    from application.lib.celery.schedule import Schedule
-    app.task_schedule = Schedule()
-    app.tasks = {'shared': shared_tasks, 'tracker': tracker_tasks}
+    from application.lib.celery.schedule import TaskSchedule
+    app.TaskSchedule = TaskSchedule
+    app.tasks = { shared': shared_tasks, 'tracker': tracker_tasks}
 
 def make_celery(app_name=__name__):
     redis_uri = os.getenv('REDIS_URI')
