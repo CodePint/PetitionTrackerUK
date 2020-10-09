@@ -30,16 +30,18 @@ def init_tasks(app):
     from application import tasks as shared_tasks
     from application.tracker import tasks as tracker_tasks
     from application.models import Task, TaskRun, TaskLog
+    from application.lib.celery.schedule import Schedule
+    app.task_schedule = Schedule()
     app.tasks = {'shared': shared_tasks, 'tracker': tracker_tasks}
-    app.task = Task
 
 def make_celery(app_name=__name__):
     redis_uri = os.getenv('REDIS_URI')
     return Celery(app_name, backend=redis_uri, broker=redis_uri)
 
-def init_celery_utils():
-    from application.lib.celery.utils import CeleryUtils as celery_utils
-    return celery_utils
+def init_celery(app):
+    from application.lib.celery.utils import CeleryUtils
+    app.celery_utils = CeleryUtils
+    app.celery = CeleryUtils.init_celery(celery, app)
 
 def init_settings(app):
     from application.models import Setting
@@ -61,15 +63,22 @@ def load_models():
     from application import models
     from application.tracker import models
 
-def init_logging(app):
-    logging.basicConfig(filename=Config.LOG_FILE, level=Config.LOG_LEVEL)
-    from application.models import TaskLogger, AppLogger
-    app.logger = AppLogger
-    app.task_logger = TaskLogger
+def init_logging():
+    config = {}
+    config["level"] = Config.LOG_LEVEL
+    config["datefmt"] = '%Y-%m-%d,%H:%M:%S'
+    config["format"] ='%(asctime)s.%(msecs)03d %(levelname)s {%(module)s} %(message)s'
+    logging.basicConfig(**config)
+
+def init_app_logger(app):
+    from application.models import Logger, AppLog
+    app.app_logger = Logger(model='app', worker="FLASK", module=__name__)
 
 from .config import Config
 Config.init_env()
 Config.import_env()
+init_logging()
+
 db = SQLAlchemy()
 celery = make_celery()
 load_models()
@@ -85,14 +94,14 @@ def create_app():
     with app.app_context():
         # configure database
         app.db = db
-        
         db.init_app(app)
         migrate.init_app(app, db)
-        init_logging(app)
+
+        # init_app_logger()
+        init_app_logger(app)
 
         # configure celery
-        app.celery_utils = init_celery_utils()
-        app.celery = app.celery_utils.init_celery(celery, app)
+        init_celery(app)
 
         # configure views
         compress.init_app(app)
@@ -104,20 +113,20 @@ def create_app():
         init_schemas(app)
         init_tasks(app)
 
-    @app.cli.command("configure-settings")
+    @app.cli.command("init-settings")
     def configure_settings():
         print("configuring default values for settings table")
         current_app.settings.configure(current_app.config['DEFAULT_SETTINGS'])
 
-    @app.cli.command("configure-tasks")
+    @app.cli.command("init-tasks")
     def configure_tasks():
-        print("configuring default values fo periodic tasks")
-        current_app.task.init_tasks(current_app.config['PERIODIC_TASK_SETTINGS'])
+        print("configuring default values for periodic tasks")
+        current_app.models.Task.init_tasks(current_app.config['PERIODIC_TASK_SETTINGS'])
 
-    @app.cli.command("run-overdue-tasks")
+    @app.cli.command("run-tracker-tasks")
     def run_overdue_tasks():
-        print("checking for overdue celery tasks")
-        current_app.celery_utils.run_scheduled_tasks()
+        print("checking for overdue tracker tasks")
+        current_app.celery_utils.run_tasks_for(queue="tracker")
     
     @app.cli.command("react")
     def run_yarn():
@@ -143,6 +152,15 @@ def create_app():
     def reset_alembic():
         print("dropping alembic database table")
         current_app.db.engine.connect().execute("DROP TABLE IF EXISTS alembic_version")
+    
+    @app.cli.command("db-delete-petitions")
+    def delete_all_petitions():
+        print("deleting all petitions...")
+        petitions = current_app.models.Petition.query.all()
+        for p in petitions:
+            current_app.db.session.delete(p)
+        db.session.commit()
+        print("Petitions deleted: {}".format(len(petitions)))
 
     @app.cli.command("celery-purge")
     def purge_celery():
@@ -152,11 +170,12 @@ def create_app():
     @app.shell_context_processor
     def get_shell_context():
         from application import context
-
         context = context.make()
-        context['db'] = db
-        context['app'] = app
-        
+        app.config["DEBUG"] = True
+        app.config["SQLALCHEMY_ECHO"] = True
+
+        context["db"] = db
+        context["app"] = app
         return context
 
     return app
