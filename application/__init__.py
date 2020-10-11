@@ -21,10 +21,10 @@ def init_namespaced_context(app, name, data):
     setattr(app, name, namespace)
 
 def init_models(app):
-    init_namespaced_context(app, 'models', context.import_models())
+    init_namespaced_context(app, "models", context.import_models())
 
 def init_schemas(app):
-    init_namespaced_context(app, 'schemas', context.import_schemas())
+    init_namespaced_context(app, "schemas", context.import_schemas())
 
 def init_tasks(app):
     from application import tasks as shared_tasks
@@ -32,10 +32,10 @@ def init_tasks(app):
     from application.models import Task, TaskRun, TaskLog
     from application.lib.celery.schedule import TaskSchedule
     app.TaskSchedule = TaskSchedule
-    app.tasks = { shared': shared_tasks, 'tracker': tracker_tasks}
+    app.tasks = { "shared": shared_tasks, "tracker": tracker_tasks}
 
 def make_celery(app_name=__name__):
-    redis_uri = os.getenv('REDIS_URI')
+    redis_uri = os.getenv("REDIS_URI")
     return Celery(app_name, backend=redis_uri, broker=redis_uri)
 
 def init_celery(app):
@@ -66,13 +66,13 @@ def load_models():
 def init_logging():
     config = {}
     config["level"] = Config.LOG_LEVEL
-    config["datefmt"] = '%Y-%m-%d,%H:%M:%S'
-    config["format"] ='%(asctime)s.%(msecs)03d %(levelname)s {%(module)s} %(message)s'
+    config["datefmt"] = "%Y-%m-%d,%H:%M:%S"
+    config["format"] ="%(asctime)s.%(msecs)03d %(levelname)s {%(module)s} %(message)s"
     logging.basicConfig(**config)
 
 def init_app_logger(app):
     from application.models import Logger, AppLog
-    app.app_logger = Logger(model='app', worker="FLASK", module=__name__)
+    app.app_logger = Logger(model="app", worker="FLASK", module=__name__)
 
 from .config import Config
 Config.init_env()
@@ -116,12 +116,12 @@ def create_app():
     @app.cli.command("init-settings")
     def configure_settings():
         print("configuring default values for settings table")
-        current_app.settings.configure(current_app.config['DEFAULT_SETTINGS'])
+        current_app.settings.configure(current_app.config["DEFAULT_SETTINGS"])
 
     @app.cli.command("init-tasks")
     def configure_tasks():
-        print("configuring default values for periodic tasks")
-        current_app.models.Task.init_tasks(current_app.config['PERIODIC_TASK_SETTINGS'])
+        print("configuring values for periodic tasks")
+        current_app.models.Task.init_tasks(current_app.config["PERIODIC_TASK_SETTINGS"])
 
     @app.cli.command("run-tracker-tasks")
     def run_overdue_tasks():
@@ -131,7 +131,7 @@ def create_app():
     @app.cli.command("react")
     def run_yarn():
         print("starting react frontend")
-        subprocess.run('cd frontend && yarn run start', shell=True)
+        subprocess.run("cd frontend && yarn run start", shell=True)
 
     @app.cli.command("update-geographies")
     def update_geography_data():
@@ -162,10 +162,15 @@ def create_app():
         db.session.commit()
         print("Petitions deleted: {}".format(len(petitions)))
 
-    @app.cli.command("celery-purge")
+    @app.cli.command("purge-celery")
     def purge_celery():
         print("purging celery!")
         current_app.celery.control.purge()
+
+    @app.cli.command("clear-task-runs")
+    def clear_task_runs():
+        print("clearing haning task runs")
+        current_app.models.Task.clear_all_hanging()
 
     @app.shell_context_processor
     def get_shell_context():
