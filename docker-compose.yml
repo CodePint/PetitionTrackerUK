@@ -39,8 +39,8 @@ services:
     command:
       - ./run_tracker_worker.sh
 
-  schedule_worker:
-    container_name: schedule_worker
+  beat_scheduler:
+    container_name: beat_scheduler
     build:
       context: .
       dockerfile: scripts/Dockerfile
@@ -49,7 +49,7 @@ services:
     volumes:
       - ./application:/usr/src/application
     command:
-      - ./run_schedule_worker.sh
+      - ./run_beat_scheduler.sh
 
   system_worker:
       container_name: system_worker
@@ -62,6 +62,20 @@ services:
         - ./application:/usr/src/application
       command:
         - ./run_worker.sh
+
+  flower_monitor:
+    container_name: flower_monitor
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile
+    ports:
+      - 5555:5555
+    depends_on:
+      - redis
+    volumes:
+      - ./application:/usr/src/application
+    command:
+      - ./run_flower_monitor.sh
 
   postgres:
     container_name: postgres

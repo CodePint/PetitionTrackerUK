@@ -9,6 +9,7 @@ RUN pip install pipenv
 ENV PROJECT_DIR /usr/src/application
 RUN mkdir -p ${PROJECT_DIR}
 RUN mkdir -p /usr/src/logs/app
+RUN mkdir -p /usr/src/logs/celery
 
 WORKDIR /usr/src
 COPY Pipfile Pipfile.lock .env .docker.dev.env .prod.env .dev.env /usr/src/
