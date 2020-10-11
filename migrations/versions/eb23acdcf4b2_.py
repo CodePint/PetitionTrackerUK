@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 965b6bbc2483
-Revises: 594efc2b2119
-Create Date: 2020-10-08 18:40:36.401594
+Revision ID: eb23acdcf4b2
+Revises: 9c2154fff738
+Create Date: 2020-10-10 15:15:48.136079
 
 """
 from alembic import op
@@ -14,8 +14,8 @@ from application.tracker.models import *
 import sqlalchemy_utils
 
 # revision identifiers, used by Alembic.
-revision = '965b6bbc2483'
-down_revision = '594efc2b2119'
+revision = 'eb23acdcf4b2'
+down_revision = '9c2154fff738'
 branch_labels = None
 depends_on = None
 
@@ -97,9 +97,11 @@ def upgrade():
     op.create_index(op.f('ix_record_timestamp'), 'record', ['timestamp'], unique=False)
     op.create_table('task_run',
     sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('celery_id', sa.String(), nullable=False),
     sa.Column('task_id', sa.Integer(), nullable=False),
     sa.Column('state', sqlalchemy_utils.types.choice.ChoiceType([('0', 'PENDING'), ('1', 'RUNNING'), ('2', 'COMPLETED'), ('3', 'FAILED'), ('4', 'REJECTED')]), nullable=False),
     sa.Column('periodic', sa.Boolean(), nullable=True),
+    sa.Column('retries', sa.Integer(), nullable=True),
     sa.Column('args', sa.String(), nullable=True),
     sa.Column('started_at', sa.DateTime(), nullable=True),
     sa.Column('finished_at', sa.DateTime(), nullable=True),
