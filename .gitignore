@@ -2,9 +2,10 @@
 .env
 docker-compose.yml
 docker-compose.prod.yml
-
 **__pycache__
 celerybeat-schedule
+
+debug/*
 logs/*
 logs/app/*
 logs/celery/schedule/*
