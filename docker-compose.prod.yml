@@ -85,7 +85,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data/
     env_file:
-      .dev.env
+      .prod.env
     
   redis:
     container_name: redis

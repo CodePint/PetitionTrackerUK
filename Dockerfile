@@ -8,6 +8,9 @@ RUN pip3 install --upgrade pip
 RUN pip install pipenv
 
 ENV PROJECT_DIR /usr/src/application
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
 RUN mkdir -p ${PROJECT_DIR}
 RUN mkdir -p /usr/src/logs/app
 

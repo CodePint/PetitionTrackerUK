@@ -2,6 +2,7 @@
 .prod.env
 .dev.env
 .docker.dev.env
+docker-compose.yml
 **__pycache__
 celerybeat-schedule
 development

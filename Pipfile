@@ -27,6 +27,7 @@ marshmallow-sqlalchemy = "*"
 marshmallow = "*"
 flask-compress = "*"
 flower = "*"
+gunicorn = "*"
 
 [requires]
 python_version = "3.8"
