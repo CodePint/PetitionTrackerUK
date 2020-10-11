@@ -1,0 +1,92 @@
+
+version: "3"
+
+volumes:
+  pg_data:
+
+services:
+  react_ui:
+    container_name: react_ui
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - 80:80
+      - 443:443
+
+  flask_api:
+    container_name: flask_api
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    expose:
+      - 5000
+    volumes:
+      - ./application:/usr/src/application
+    command:
+      - ./boot.sh
+  
+  tracker_worker:
+    container_name: tracker_worker
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile
+    depends_on:
+      - redis
+    volumes:
+      - ./application:/usr/src/application
+    command:
+      - ./run_tracker_worker.sh
+
+  beat_scheduler:
+    container_name: beat_scheduler
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile
+    depends_on:
+      - redis
+    volumes:
+      - ./application:/usr/src/application
+    command:
+      - ./run_beat_scheduler.sh
+
+  worker:
+      container_name: worker
+      build:
+        context: .
+        dockerfile: scripts/Dockerfile
+      depends_on:
+        - redis
+      volumes:
+        - ./application:/usr/src/application
+      command:
+        - ./run_worker.sh
+
+  flower_monitor:
+    container_name: flower_monitor
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile
+    ports:
+      - 5555:5555
+    depends_on:
+      - redis
+    volumes:
+      - ./application:/usr/src/application
+    command:
+      - ./run_flower_monitor.sh
+
+  postgres:
+    container_name: postgres
+    image: postgres:latest
+    ports:
+      - 5432:5432
+    volumes:
+      - pg_data:/var/lib/postgresql/data/
+    
+  redis:
+    container_name: redis
+    image: redis:latest
+    ports:
+      - "6379:6379"

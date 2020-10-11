@@ -15,11 +15,10 @@ RUN mkdir -p ${PROJECT_DIR}
 RUN mkdir -p /usr/src/logs/app
 
 WORKDIR /usr/src
-COPY Pipfile Pipfile.lock .boot.sh .env .env.* /usr/src/
+COPY Pipfile Pipfile.lock boot.sh .env .env.* /usr/src/
 COPY migrations /usr/src/migrations/
-RUN chmod -R +X /usr/src/*.sh
+RUN chmod +x boot.sh
 
 RUN pipenv install --system --deploy
 
-ENTRYPOINT [ "flask" ]
-CMD ["run", "--host=0.0.0.0", "--port=5000"]
+ENTRYPOINT [ "" ]

@@ -1,7 +1,10 @@
 .*.env
 .env
-docker-compose.yml
+
+docker-compose.overide.yml
+docker-compose.dev.yml
 docker-compose.prod.yml
+
 **__pycache__
 celerybeat-schedule
 
@@ -10,7 +13,6 @@ logs/*
 logs/app/*
 logs/celery/schedule/*
 logs/celery/schedule/workers/*
-
 
 !.example.*.env
 !.example.env

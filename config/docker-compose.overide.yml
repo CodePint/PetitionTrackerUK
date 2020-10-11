@@ -1,0 +1,3 @@
+# copy enviroment specific docker-compose overides here
+# examples in .dev.yml and .prod.yml
+# then copy this file to project root directory
