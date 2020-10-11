@@ -8,7 +8,7 @@ import os
 @celery.task(bind=True, name='test_task', max_retires=3)
 @task_handler()
 def test_task(self, *args, **kwargs):
-    directory = 'development/celery'
+    directory = 'debug/celery'
     timestamp = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     self.logger.info("running test task! - {}".format(timestamp))
     file_path = os.path.join(os.getcwd(), directory, kwargs['file'])

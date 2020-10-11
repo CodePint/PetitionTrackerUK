@@ -12,8 +12,11 @@ RUN mkdir -p /usr/src/logs/app
 RUN mkdir -p /usr/src/logs/celery
 
 WORKDIR /usr/src
-COPY Pipfile Pipfile.lock .env .docker.dev.env .prod.env .dev.env /usr/src/
+COPY Pipfile Pipfile.lock .env .env.* /usr/src/
+COPY migrations /usr/src/migrations/
 COPY scripts /usr/src
+RUN chmod -R +X /usr/src/*.sh
+
 RUN pipenv install --system --deploy
 
 ENTRYPOINT [ "" ]

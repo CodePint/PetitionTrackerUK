@@ -7,33 +7,32 @@ def to_bool(var):
 def to_list(var):
     return var.split(",")
 
-def getenv(var, type=str):
+def getenv(var, type=str, fallback=None):
     var = os.getenv(var)
-    return type(var) if var else None
+    return type(var) if var else fallback
 
 class Config(object):
 
     @classmethod
     def init_env(cls):
-        load_dotenv(dotenv_path=base_env_file, override=True)
+        load_dotenv(dotenv_path=".env", override=True)
         cls.FLASK_ENV = os.getenv('FLASK_ENV')
-        cls.BASE_ENV_FILE = ".base.env"
-
+        
         print("LOADING FLASK_ENV: {}".format(cls.FLASK_ENV))
         if cls.FLASK_ENV == "development":
             cls.DOCKER_ENV = getenv('DOCKER_ENV', type=to_bool)
-            if cls.DOCKER_ENV:
-                print("USING DOCKER DEV ENV")
-                env_file = ".docker.dev.env"
-            else:
-                env_file = ".dev.env"
+            env_file = ".docker.env" if cls.DOCKER_ENV else ".dev.env"
         elif cls.FLASK_ENV == "production":
             env_file = ".prod.env"
         elif cls.FLASK_ENV == "testing":
             env_file = ".test.env"
         
         cls.FLASK_ENV_FILE = env_file
-        return load_dotenv(dotenv_path=cls.FLASK_ENV_FILE, override=True)
+        load_dotenv(dotenv_path=cls.FLASK_ENV_FILE, override=True)
+
+        cls.TASK_ENV_FILE = os.getenv("TASK_ENV_FILE")
+        load_dotenv(dotenv_path=cls.FLASK_ENV_FILE, override=True)
+
 
     @classmethod
     def import_env(cls):
