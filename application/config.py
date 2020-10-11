@@ -14,10 +14,10 @@ def getenv(var, type=str):
 class Config(object):
 
     @classmethod
-    def init_env(cls, base_env_file=".env"):
+    def init_env(cls):
         load_dotenv(dotenv_path=base_env_file, override=True)
         cls.FLASK_ENV = os.getenv('FLASK_ENV')
-        cls.BASE_ENV_FILE = '.env'
+        cls.BASE_ENV_FILE = ".base.env"
 
         print("LOADING FLASK_ENV: {}".format(cls.FLASK_ENV))
         if cls.FLASK_ENV == "development":
