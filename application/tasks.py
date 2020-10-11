@@ -5,12 +5,12 @@ from datetime import datetime
 import time
 import os
 
-@celery.task(name='test_task')
+@celery.task(bind=True, name='test_task', max_retires=3)
 @task_handler()
-def test_task(logger, *args, **kwargs):
+def test_task(self, *args, **kwargs):
     directory = 'development/celery'
     timestamp = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-    logger.info("running test task! - {}".format(timestamp))
+    self.logger.info("running test task! - {}".format(timestamp))
     file_path = os.path.join(os.getcwd(), directory, kwargs['file'])
     with open(file_path, "a") as file:
         file.write(timestamp)
@@ -18,5 +18,5 @@ def test_task(logger, *args, **kwargs):
         file.write(kwargs['content'])
         file.write("\n")
         
-    logger.info("ending test task!")
-    return True
+    self.logger.info("ending test task!")
+    return kwargs['content']
