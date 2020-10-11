@@ -10,14 +10,14 @@ class CeleryUtils():
     @classmethod
     def init_celery(cls, celery, app):
         celery.conf.update(app.config)
-        celery.conf.default_queue = 'default'
-        celery.conf.timezone = 'UTC'
-        
+        celery.conf["DEFAULT_QUEUE"] = "default"
+        celery.conf["TIMEZONE"] = "Europe/London"
+        celery.conf["CELERY_ENABLE_UTC"] = False
+
         class ContextTask(celery.Task):
             def __call__(self, *args, **kwargs):
                 with app.app_context():
                     kwargs['queue'] =  self.request.delivery_info['routing_key']
-                    self.request.delivery_info['routing_key']
                     return self.run(*args, **kwargs)
 
         celery.Task = ContextTask
@@ -36,13 +36,13 @@ class CeleryUtils():
     # func_kwargs overrides the actual predefined task arguments
     # can be executed from corresponding Task object via Task.Run
     @classmethod
-    def run_task(cls, name, app=None, perodic=False, func_kwargs={}, async_kwargs={}):
+    def run_task(cls, name, app=None, periodic=False, func_kwargs={}, async_kwargs={}):
         app = app or current_app
         with app.app_context():
             task = template_tasks()[name]
             task['func_kwargs'].update(func_kwargs)
             task['async_kwargs'].update(async_kwargs)
-            task['func_kwargs']['periodic'] = perodic
+            task['func_kwargs']['periodic'] = periodic
             task['function'].s(**task['func_kwargs']).apply_async(**task['async_kwargs'])
 
     # runs tasks by queue type, optional startup param (will check if task is a startup task)
@@ -62,8 +62,8 @@ class CeleryUtils():
                 task = current_app.models.Task.get(task_name)
                 task_queue = params['async_kwargs']['queue']
                 params['func_kwargs']['periodic'] = periodic
-                # if task not found or queue does not match: next
-                if not task or (task_queue != queue):
+                # if task not found or task disabled or queue does not match: next
+                if not task or not task.enabled or (task_queue != queue):
                     next
                 # if not startup param or if startup param and task.run_on_startup 
                 if not startup or task.run_on_startup:
