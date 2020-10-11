@@ -51,8 +51,8 @@ services:
     command:
       - ./run_beat_scheduler.sh
 
-  system_worker:
-      container_name: system_worker
+  worker:
+      container_name: worker
       build:
         context: .
         dockerfile: scripts/Dockerfile
