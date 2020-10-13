@@ -1,2 +1,3 @@
 #!/bin/sh
-exec gunicorn -b :5000 --access-logfile - --error-logfile - microblog:app
+
+exec pipenv run gunicorn -b :5000 --access-logfile - --error-logfile - application.wsgi:app

@@ -5,7 +5,7 @@ volumes:
   pg_data:
 
 services:
-  react_ui:
+  react_nginx:
     container_name: react_ui
     build:
       context: ./frontend
@@ -14,20 +14,20 @@ services:
       - 80:80
       - 443:443
 
-  flask_api:
+  flask_gunicorn:
     container_name: flask_api
     restart: always
     build:
       context: .
       dockerfile: Dockerfile
-    expose:
-      - 5000
+    ports:
+      - 5000:5000
     volumes:
       - ./application:/usr/src/application
     command:
       - ./boot.sh
   
-  tracker_worker:
+  celery_worker_tracker:
     container_name: tracker_worker
     build:
       context: .
@@ -39,20 +39,8 @@ services:
     command:
       - ./run_tracker_worker.sh
 
-  beat_scheduler:
-    container_name: beat_scheduler
-    build:
-      context: .
-      dockerfile: scripts/Dockerfile
-    depends_on:
-      - redis
-    volumes:
-      - ./application:/usr/src/application
-    command:
-      - ./run_beat_scheduler.sh
-
-  worker:
-      container_name: worker
+  celery_worker_default:
+      container_name: system_worker
       build:
         context: .
         dockerfile: scripts/Dockerfile
@@ -63,8 +51,20 @@ services:
       command:
         - ./run_worker.sh
 
-  flower_monitor:
-    container_name: flower_monitor
+  celery_beat:
+    container_name: celery_beat
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile
+    depends_on:
+      - redis
+    volumes:
+      - ./application:/usr/src/application
+    command:
+      - ./run_beat_scheduler.sh
+
+  celery_flower:
+    container_name: celery_flower
     build:
       context: .
       dockerfile: scripts/Dockerfile
