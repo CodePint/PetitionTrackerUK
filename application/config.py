@@ -13,7 +13,7 @@ class Config(object):
     @classmethod
     def init(cls):
         Config.init_env()
-        Config.overide_env()
+        Config.override_env()
         Config.import_env()
 
     @classmethod
@@ -30,11 +30,11 @@ class Config(object):
         load_dotenv(dotenv_path=cls.FLASK_ENV_FILE, override=True)
 
     @classmethod
-    def overide_env(cls):
-        cls.ENV_OVERIDES = getenv("OVERIDES", type=to_list)
-        print("ENV_OVERIDES: {}".format(cls.ENV_OVERIDES))
+    def override_env(cls):
+        cls.ENV_OVERRIDES = getenv("OVERRIDES", type=to_list)
+        print("ENV_OVERRIDES: {}".format(cls.ENV_OVERRIDES))
 
-        [load_dotenv(dotenv_path=env, override=True ) for env in cls.ENV_OVERIDES]
+        [load_dotenv(dotenv_path=env, override=True ) for env in cls.ENV_OVERRIDES]
 
     @classmethod
     def import_env(cls):

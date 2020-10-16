@@ -1,5 +1,6 @@
 .*.env
 .env
+.vscode/*
 
 docker-compose.override.yml
 docker-compose.dev.yml
@@ -14,6 +15,7 @@ logs/app/*
 logs/celery/*
 logs/celery/schedule/*
 logs/celery/schedule/workers/*
+application/profile.py
 
 !config/docker/*
 !config/env/*

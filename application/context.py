@@ -1,6 +1,22 @@
 from flask import current_app
 
-def make():
+def register_context(app, db, celery):
+
+    @app.shell_context_processor
+    def context_processor():
+        context = make_context()
+        app.config["DEBUG"] = True
+        app.config["SQLALCHEMY_ECHO"] = True
+
+        context["db"] = db
+        context["app"] = app
+        context["celery"] = celery
+
+        return context
+
+
+
+def make_context():
     context = {}
     context.update(import_models())
     context.update(import_schemas())
@@ -84,44 +100,3 @@ def import_utils():
     from application.tracker.utils import ViewUtils as TrackerViewUtils
     from application.lib.celery.utils import CeleryUtils
     return {"TrackerViewUtils": TrackerViewUtils, "CeleryUtils": CeleryUtils}
-
-def drop_tables():
-    print("dropping all tables!")
-
-    with current_app.app_context():
-        dropped = []
-        for name, model in import_models().items():
-            try:
-                    model.__table__.drop(current_app.db.engine)
-                    dropped.append(name)
-            except Exception as error:
-                    print("Table: '{}', does not exist".format(name))
-
-        print("Tables dropped: {}".format(dropped))
-        return dropped
-
-def drop_alembic():
-    print("dropping alembic database table!")
-    current_app.db.engine.connect().execute("DROP TABLE IF EXISTS alembic_version")
-
-def delete_all_petitions():
-    print("deleting all petitions!")
-    with current_app.app_context(): 
-        petitions = current_app.models.Petition.query.all()
-        for p in petitions:
-            current_app.db.session.delete(p)
-        current_app.db.session.commit()
-
-        print("Petitions deleted: {}".format(len(petitions)))
-        return petitions
-
-def check_tables():
-    with current_app.app_context():
-        app_models = import_models().items()
-        tables = [
-            name for name, model in app_models
-            if current_app.db.engine.has_table(model.__tablename__)
-        ]
-
-        print("Tables ({}/{}) found: {}".format(len(tables), len(app_models), tables))
-        return tables
