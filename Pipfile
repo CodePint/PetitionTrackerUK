@@ -9,7 +9,7 @@ verify_ssl = true
 pylint = "*"
 flask = "*"
 python-dotenv = "*"
-psycopg2 = "*"
+psycopg2cffi = "===2.8.0"
 flask-sqlalchemy = "===2.4.1"
 flask-migrate = "==2.5.2"
 pylint-flask = "*"
@@ -28,6 +28,7 @@ marshmallow = "*"
 flask-compress = "*"
 flower = "*"
 gunicorn = "*"
+py-spy = "*"
 
 [requires]
-python_version = "3.8"
+python_version = "3.6"
