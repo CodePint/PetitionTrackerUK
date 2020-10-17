@@ -5,7 +5,7 @@ volumes:
   pg_data:
 
 services:
-  react:
+  react_ui:
     container_name: react_ui
     build:
       context: ./frontend
@@ -13,10 +13,10 @@ services:
     ports:
       - 80:80
       - 443:443
-    env_file:
-      - ./frontend/.env.production
+      env_file:
+        - ./frontend/.env.development.local  
 
-  flask:
+  flask_api:
     container_name: flask_api
     restart: always
     build:
@@ -37,7 +37,7 @@ services:
     volumes:
       - ./application:/usr/src/application
     command:
-      - ./run_tracker_worker.sh
+      - ./run/tracker_worker.sh
 
   beat_scheduler:
     container_name: beat_scheduler
@@ -49,7 +49,7 @@ services:
     volumes:
       - ./application:/usr/src/application
     command:
-      - ./run_beat_scheduler.sh
+      - ./run/beat_scheduler.sh
 
   worker:
       container_name: worker
@@ -61,7 +61,7 @@ services:
       volumes:
         - ./application:/usr/src/application
       command:
-        - ./run_worker.sh
+        - ./run/worker.sh
 
   flower_monitor:
     container_name: flower_monitor
@@ -75,7 +75,7 @@ services:
     volumes:
       - ./application:/usr/src/application
     command:
-      - ./run_flower_monitor.sh
+      - ./run/flower_monitor.sh
 
   postgres:
     container_name: postgres
@@ -85,7 +85,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data/
     env_file:
-      .prod.env
+      .dev.env
     
   redis:
     container_name: redis

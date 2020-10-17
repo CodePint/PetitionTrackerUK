@@ -7,19 +7,15 @@ volumes:
 services:
   react_nginx:
     container_name: react_ui
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: rougedock/petition_tracker_uk:REACT-NGINX-01
     ports:
       - 80:80
       - 443:443
 
   flask_gunicorn:
     container_name: flask_api
+    image: rougedock/petition_tracker_uk:PY-APP-01
     restart: always
-    build:
-      context: .
-      dockerfile: Dockerfile
     ports:
       - 5000:5000
     command:
@@ -27,9 +23,7 @@ services:
   
   celery_tracker_worker:
     container_name: tracker_worker
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: rougedock/petition_tracker_uk:PY-APP-01
     depends_on:
       - redis
     command:
@@ -37,9 +31,7 @@ services:
 
   celery_worker:
       container_name: celery_worker
-      build:
-        context: .
-        dockerfile: Dockerfile
+      image: rougedock/petition_tracker_uk:PY-APP-01
       depends_on:
         - redis
       command:
@@ -47,9 +39,7 @@ services:
 
   celery_beat:
     container_name: celery_beat
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: rougedock/petition_tracker_uk:PY-APP-01
     depends_on:
       - redis
     command:
@@ -57,9 +47,7 @@ services:
 
   celery_flower:
     container_name: celery_flower
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: rougedock/petition_tracker_uk:PY-APP-01
     ports:
       - 5555:5555
     depends_on:
@@ -74,6 +62,8 @@ services:
       - 5432:5432
     volumes:
       - pg_data:/var/lib/postgresql/data/
+    env_file:
+      .prod.env
     
   redis:
     container_name: redis

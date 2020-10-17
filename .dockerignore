@@ -1,8 +1,12 @@
-.git
-.vscode
+
 README.md
+.gitignore
 docker-compose.yml
 docker-compose.prod.yml
 logs/
 development/
+frontend/
+.git/
+.vscode/
 debug/
+config/

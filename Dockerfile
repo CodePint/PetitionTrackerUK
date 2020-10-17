@@ -1,5 +1,5 @@
-
 FROM ubuntu:20.04
+
 RUN adduser --shell /bin/bash tracker
 
 RUN apt-get update && apt-get install -y \ 
@@ -9,20 +9,21 @@ RUN pip3 install --upgrade pip
 RUN pip install pipenv
 
 ENV FLASK_APP=application
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-ENV PROJECT_DIR /usr/src/application
-
-RUN mkdir -p ${PROJECT_DIR}
-RUN mkdir -p /usr/src/logs/app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /usr/src
-COPY Pipfile Pipfile.lock boot.sh .env .*.env /usr/src/
+COPY Pipfile Pipfile.lock .env .*.env /usr/src/
+COPY application /usr/src/application/
 COPY migrations /usr/src/migrations/
+COPY scripts /usr/src/run/
 
-RUN chmod +x boot.sh
+RUN chmod -R +x /usr/src/run/*.sh
+RUN mkdir -p /usr/src/logs/app
+RUN mkdir -p /usr/src/logs/celery
+
 RUN pipenv install --system --deploy
 RUN chown -R tracker:tracker ./
-
 USER tracker
+
 ENTRYPOINT [ "" ]
