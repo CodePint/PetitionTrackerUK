@@ -252,7 +252,7 @@ class TaskRun(db.Model):
             result = func(self, *args, **kwargs)
             self.complete()
         except Exception as error:
-            if self.retries == self.max_retries:
+            if self.retries >= self.max_retries:
                 self.fail(error)
             else:
                 self.retry(error)
@@ -335,7 +335,9 @@ class TaskRun(db.Model):
         self.execution_time = (self.finished_at - self.started_at).total_seconds()
         template = "{} - (FINISHED/{} - [EXECUTION TIME: {}])"
         self.logger.info(template.format(self.task.name, self.state.value, self.execution_time))
-        db.session.commit()
+
+        db.session.rollback()
+        self.logger.commit()
 
     def is_retrying(self):
         return self.state.value == "RETRYING"
@@ -421,11 +423,13 @@ class Logger():
     LEVELS = BaseLog.LEVEL_LOOKUP
     MODELS = {'app': AppLog, 'task': TaskLog}
 
-    def __init__(self, model, worker="FLASK", module=__name__, **kwargs):
-        self.Model =  Logger.MODELS[model]
-        self.kwargs = kwargs
+    def __init__(self, model='', worker="FLASK", module=__name__, defer_commit=False, **kwargs):
+        self.Model =  Logger.MODELS.get(model, False)
+        self.defer_commit = defer_commit
+        self.kwargs = kwargs or {}
         self.kwargs['worker'] = worker
         self.kwargs['module'] = module
+        self.logs = []
 
     def __getattr__(self, f_name):
         def _missing(*args, **kwargs):
@@ -437,7 +441,7 @@ class Logger():
     @will_save_log
     def log(self, msg, level="INFO", save=True):
         self.py_log(msg, level)
-        if save: self.db_log(msg, level)
+        if save and self.Model: self.db_log(msg, level)
 
     def py_log(self, msg, level="DEBUG"):
         module, worker = self.kwargs['module'], self.kwargs['worker']
@@ -447,7 +451,14 @@ class Logger():
 
     def db_log(self, msg, level="INFO"):
         log = self.Model(message=msg, level=level, **self.kwargs)
-        db.session.add(log)
+        if self.defer_commit:
+            self.logs.append(log)
+        else:
+            db.session.add(log)
+            db.session.commit()
+    
+    def commit(self):
+        db.session.add_all(self.logs)
         db.session.commit()
     
     def func_log(self, name, level="INFO", **kwargs):

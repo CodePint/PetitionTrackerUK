@@ -1,7 +1,7 @@
 from flask import current_app
 from functools import wraps
 from datetime import datetime as dt
-
+import pdb
 def with_logging(level="INFO"):
 
     def truncate_arg(val):
@@ -15,7 +15,7 @@ def with_logging(level="INFO"):
         def setup_logger(*args, **kwargs):
             from application.models import Logger
             
-            logger = kwargs.pop("logger", Logger(model='app'))
+            logger = kwargs.pop("logger", Logger())
             logger.kwargs.update({"module": func.__qualname__})
 
             func_log_kwargs = str({k: truncate_arg(v) for k, v in kwargs.items()})

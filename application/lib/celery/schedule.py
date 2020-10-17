@@ -34,7 +34,7 @@ class TaskSchedule():
                     "task_name": task.name,
                     "periodic": True,
                     "where": "all",
-                    "signatures_by": False
+                    "geographic": False
                 },
                 "options": {
                     "queue": "tracker",
@@ -56,7 +56,7 @@ class TaskSchedule():
                     "periodic": True,
                     "where": "signatures",
                     "gt": True,
-                    "signatures_by": True
+                    "geographic": True
                 },
                 "options": {
                     "queue":"tracker",
@@ -77,7 +77,7 @@ class TaskSchedule():
                     "task_name": task.name,
                     "periodic": True,
                     "where": "trending",
-                    "signatures_by": True
+                    "geographic": True
                 },
                 "options": {
                     "queue":"tracker",
@@ -97,7 +97,6 @@ class TaskSchedule():
                 "kwargs": {
                     "task_name": task.name,
                     "periodic": True,
-                    "archived": False,
                     "state": "open",
                 },
                 "options": {
