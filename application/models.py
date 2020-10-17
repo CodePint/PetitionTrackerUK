@@ -224,7 +224,7 @@ class TaskRun(db.Model):
     db_updated_at = db.Column(DateTime, default=sqlfunc.now(), onupdate=sqlfunc.now())
 
     # manual work around for broken choice validation in sqlalchemy utils
-    @validates('state')
+    @validates("state")
     def validate_state_choice(self, key, state):
         try:
             state = TaskRun.STATE_LOOKUP[state]
@@ -234,7 +234,7 @@ class TaskRun(db.Model):
         return state
     
     def __repr__(self):
-        template = '<id: {}, task_name: {}, state: {}>'
+        template = "<id: {}, task_name: {}, state: {}>"
         return template.format(self.id, self.task.name, self.state.value)
 
     def timeout(self):
