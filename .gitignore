@@ -18,7 +18,4 @@ logs/celery/schedule/*
 logs/celery/schedule/workers/*
 application/profile.py
 
-!config/docker/*
-!config/env/*
-!config/env/overrides/*
-!config/env/context/*
+!config/**/**/**/**
