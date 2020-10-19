@@ -18,6 +18,6 @@ def test_task(self, *args, **kwargs):
     result = Petition.task_log(greeting="hello world!")
     logger.info(result)
     logger.debug("exiting from task")
-    
+
     return True
 

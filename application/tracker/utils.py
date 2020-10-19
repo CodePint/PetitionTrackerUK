@@ -76,7 +76,7 @@ class ViewUtils():
     @classmethod
     def build_pagination(cls, page, function, **url_kwargs):
         if not page.items:
-            return None 
+            return None
         if (page.curr_num > page.pages):
             cls.json_abort(404, "Page out of range: ({}/{})".format((page.curr_num, page.pages)))
 
@@ -119,7 +119,7 @@ class ViewUtils():
             return query
         if key == "date":
             key = "pt_created_at"
-        
+
         model_attr = getattr(current_app.models.Petition, key)
         order_by = getattr(model_attr, by.lower())
         return query.order_by(order_by())
@@ -156,7 +156,7 @@ class ViewUtils():
             query = cls.order_petitions_by(query, ordering_key, ordering_by)
 
         return query
-    
+
     @classmethod
     def get_record_for_petition(cls, petition, time_arg):
         if time_arg:
@@ -177,7 +177,7 @@ class ViewUtils():
                 sig_attrs[geography]["model"].code == locale["code"]
             )
         )
-    
+
     @classmethod
     def build_signatures_by_locale(cls, records, sig_schema, sig_attrs, params):
         geography, locale = params["geography"], params["locale"]['code']
@@ -189,7 +189,7 @@ class ViewUtils():
             sig_by = rec.signatures_by(geography, locale)
             record_dump[sig_attrs[geography]["name"]] = sig_schema.dump(sig_by)
             signatures.append(record_dump)
-        
+
         return signatures
 
     @classmethod
@@ -197,7 +197,7 @@ class ViewUtils():
         geography = params["geography"]
         name = "SignaturesBy{}".format(geography.capitalize())
         record_schema = RecordSchema(exclude=["id"])
-        
+
         signatures = []
         for rec in records:
             record_dump = record_schema.dump(rec)

@@ -26,7 +26,7 @@ class SessionMaker():
             backoff_factor=backoff,
             method_whitelist=["HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE"]
         )
-        
+
         if future:
             executor = ThreadPoolExecutor(max_workers=max_workers)
             session = FuturesSession()
@@ -119,7 +119,7 @@ class RemotePetition():
         results = {}
         results['failed'] = []
         results['success'] = []
-        
+
         for f in futures:
             response = f.result()
             if response.success:
@@ -142,14 +142,14 @@ class RemotePetition():
         results = cls.handle_async_responses(futures)
         results["success"] = results["success"] + kwargs.get("successful", [])
         retries = kwargs.get("retries", 0)
-        
+
         if (retries > 0 and results['failed']):
             petitions = [r.petition for r in results['failed']]
             retry_kwargs = {"retries": retries + 1, "max_retries": max_retries, "backoff": backoff ** retries}
             logger.error("Retrying async poll for: '{}' petitions".format(len(petitions)))
             time.sleep(backoff)
             cls.async_poll(logger=logger, petitions=petitions, successful=results["success"], **retry_kwargs)
-        
+
         success, fail = results["success"], results["failed"]
         logger.info("async poll completed. (Success: '{}', Fail: '{}')".format(len(success), len(fail)))
 
@@ -164,18 +164,18 @@ class RemotePetition():
                 hooks={"response": cls.async_petition_callback(id=id, logger=logger)})
                 for id in ids
             ]
-        
+
         results = cls.handle_async_responses(futures)
         results["success"] = results["success"] + kwargs.get("successful", [])
         retries = kwargs.get("retries", 0)
-        
+
         if ((retries >= max_retries) and results["failed"]):
             ids = [r.petition_id for r in results['failed']]
             retry_kwargs = {"retries": retries + 1, "max_retries": max_retries, "backoff": backoff ** retries}
             logger.error("Retrying async fetch for ids: '{}'".format(ids))
             time.sleep(backoff)
             cls.async_fetch(logger=logger, ids=ids, successful=results["success"], **retry_kwargs)
-        
+
         success, fail = results["success"], results["failed"]
         logger.info("async fetch completed. (Success: '{}', Fail: '{}')".format(len(success), len(fail)))
 
@@ -228,16 +228,16 @@ class RemotePetition():
             logger.error("Retrying async query (%(retries)s}/%(max_retries)s). Failed: %(indexes)s" % kwargs)
             time.sleep(backoff)
             cls.async_query(logger=logger,  successful=results["success"], **retry_kwargs, **kwargs)
-        
+
         if any(results["success"]):
             results["success"] = [item for page in results["success"] for item in page.data]
-        
+
         success, failed = len(results["success"]), len(results["failed"])
         logger.info("async query completed, pages failed: '{}', items returned: {}".format(success, failed))
 
         return results
 
-    
+
     @classmethod
     def async_query_callback(cls, **fkwargs):
         def response_hook(response, *args, **kwargs):
@@ -250,7 +250,7 @@ class RemotePetition():
                 response.success = False
                 error_template = "HTTP error {}, when async fetching page: {}"
                 print(error_template.format(response.status_code, response.index))
-            
+
         return response_hook
 
     @classmethod
@@ -258,13 +258,13 @@ class RemotePetition():
         template_url = cls.page_url_template(state)
         indexes = cls.get_page_range(logger=logger, template_url=template_url)
         return {"template_url": template_url, "indexes": indexes, "state": state}
-    
+
     @classmethod
     def get_page_range(cls, logger, template_url, **kwargs):
         logger.info("fetching page indexes")
         response = cls.standard_session.get(template_url % {"page": 1} )
         response.raise_for_status()
-        
+
         first_page = response.json()
         if first_page['links']['next']:
             page_ints = cls.page_ints(first_page["links"])

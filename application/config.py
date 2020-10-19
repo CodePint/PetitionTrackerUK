@@ -9,7 +9,7 @@ class Config(object):
         "production": ".prod.env",
         "testing": ".test.env",
     }
-    
+
     @classmethod
     def init(cls):
         Config.init_env()
@@ -95,7 +95,7 @@ class Config(object):
         cls.POSTGRES_TEMPLATE = "postgresql://%(user)s:%(pw)s@%(host)s:%(port)s/%(db)s"
         cls.POSTGRES_CONFIG = {
             "user": getenv("POSTGRES_USER", else_raise=True),
-            "pw": getenv("POSTGRES_PASSWORD", else_raise=True), 
+            "pw": getenv("POSTGRES_PASSWORD", else_raise=True),
             "db": getenv("POSTGRES_DB", else_raise=True),
             "host": getenv("POSTGRES_HOST", else_raise=True),
             "port": getenv("POSTGRES_PORT", else_raise=True)
@@ -118,7 +118,7 @@ class Config(object):
         cls.LOG_FILE = getenv("LOG_FILE")
         cls.LOG_LEVEL = getenv("LOG_LEVEL", else_raise=True)
         cls.DB_LOG_LEVEL = getenv("DB_LOG_LEVEL", else_raise=True)
-        
+
         # Flask-Compress control settings
         cls.COMPRESS_MIMETYPES = ["application/json"]
         cls.COMPRESS_MIN_SIZE = 500
@@ -127,7 +127,7 @@ class Config(object):
 
 
 ## Config Helper Functions ##
-def raiser(ex, msg): 
+def raiser(ex, msg):
     raise ex(msg)
 
 def to_bool(var):

@@ -47,7 +47,7 @@ class Setting(db.Model):
             setting = cls.create_or_update(key=key, value=value)
             db.session.add(setting)
             defaults.append(setting)
-        
+
         db.session.commit()
         return defaults
 
@@ -61,7 +61,7 @@ class Setting(db.Model):
         else:
             setting = existing_setting
             setting.value = value
-        
+
         db.session.commit()
         return setting
 
@@ -88,11 +88,11 @@ class Task(db.Model):
     @classmethod
     def get(cls, name):
         return cls.query.filter_by(name=name.lower()).first()
-    
+
     @classmethod
     def get_or_create(cls, name, **kwargs):
         return cls.get(name) or cls.create(name=name, **kwargs)
-    
+
     @classmethod
     def get_interval(cls, task_name):
         return cls.get(task_name).interval
@@ -135,7 +135,7 @@ class Task(db.Model):
     def purge(self):
         runs_to_purge = self.runs.filter(TaskRun.state.in_(["0","1","5"])).all()
         return [run.timeout() for run in runs_to_purge]
-    
+
     # None periodic run from template
     def run(self, *args, **kwargs):
         return current_app.celery_utils.run_task(self.name, *args, **kwargs)
@@ -150,7 +150,7 @@ class Task(db.Model):
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
-    
+
     # create new task run or initialize retrying task run
     def init_run(self, bind):
         kwargs = bind.request.kwargs
@@ -167,7 +167,7 @@ class Task(db.Model):
         task_run.celery_id = bind.request.id
         db.session.commit()
         task_run.init_logger(worker_name.upper())
-        
+
         return task_run
 
     def clear_logs(self):
@@ -231,7 +231,7 @@ class TaskRun(db.Model):
             dict(TaskRun.STATE_CHOICES)[state]
 
         return state
-    
+
     def __repr__(self):
         template = "<id: {}, task_name: {}, state: {}>"
         return template.format(self.id, self.task.name, self.state.value)
@@ -257,7 +257,7 @@ class TaskRun(db.Model):
                 self.retry(error)
         finally:
             self.finish()
-        
+
         return result
 
     def init_logger(self, worker="default"):
@@ -268,14 +268,14 @@ class TaskRun(db.Model):
             task_id=self.task_id,
             task_run_id=self.id
         )
-    
+
     def is_overdue(self):
-        if self.task.is_overdue(): 
+        if self.task.is_overdue():
             self.logger.info("{} - (OVERDUE [LAST RUN: {}])".format(self.task.name, self.task.last_run))
             return True
         else:
             return False
-    
+
     def start(self):
         self.state = "RUNNING"
         self.started_at = dt.now()
@@ -454,11 +454,11 @@ class Logger():
         else:
             db.session.add(log)
             db.session.commit()
-    
+
     def commit(self):
         db.session.add_all(self.logs)
         db.session.commit()
-    
+
     def func_log(self, name, level="INFO", **kwargs):
         msg = "executing function: '{}', kwargs: {}".format(name, kwargs)
         self.log(msg=msg, level=level)
