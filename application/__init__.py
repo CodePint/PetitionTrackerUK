@@ -8,13 +8,15 @@ from psycopg2cffi import compat
 from celery import Celery
 from types import SimpleNamespace
 from dotenv import load_dotenv
+from pythonjsonlogger import jsonlogger
 
 from application import context
 from application.config import Config
 from application.context import register_context
 from application.cli import register_cli
+from application.logging.formatter import EFKJsonFormatter
 
-import logging, subprocess, click, os
+import logging, subprocess, os, click
 
 def init_namespaced_context(app, name, data):
     namespace = SimpleNamespace(name=name)
@@ -75,17 +77,21 @@ def init_logging(app, **kwargs):
         init_app_logging(app, **kwargs)
 
 def init_app_logging(app, **kwargs):
-    config = {}
-    config["level"] = Config.LOG_LEVEL
-    config["datefmt"] = "%Y-%m-%d,%H:%M:%S"
-    config["format"] ="%(asctime)s.%(msecs)03d %(levelname)s {%(module)s} %(message)s"
-    logging.basicConfig(**config)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(Config.LOG_LEVEL)
+    json_handler = logging.StreamHandler()
+    formatter_template = "%(asctime)s %(levelname)s %(name)s %(message)s"
+    formatter = EFKJsonFormatter(formatter_template)
+    json_handler.setFormatter(formatter)
+    logger.addHandler(json_handler)
 
 def init_task_logging(app, **kwargs):
     from application.lib.celery.logging import TaskLogFormatter
     logger = logging.getLogger()
     sh = logging.StreamHandler()
-    sh.setFormatter(TaskLogFormatter('%(asctime)s - %(task_id)s - %(task_name)s - %(name)s - %(levelname)s - %(message)s'))
+    formatter_template = "%(asctime)s - %(task_id)s - %(task_name)s - %(name)s - %(levelname)s - %(message)s"
+    formatter = TaskLogFormatter(formatter_template)
+    sh.setFormatter(formatter)
     logger.setLevel(logging.INFO)
     logger.addHandler(sh)
 

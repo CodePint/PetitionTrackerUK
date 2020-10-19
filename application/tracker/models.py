@@ -30,7 +30,6 @@ from requests.structures import CaseInsensitiveDict as LazyDict
 from application import db
 from application.models import Setting
 from application.models import Task, TaskRun
-from application.decorators import with_logging
 from .remote import RemotePetition
 
 from .geographies.choices.regions import REGIONS
@@ -102,7 +101,7 @@ class Petition(db.Model):
         return template.format(self.id, self.action)
 
     @classmethod
-    def task_log(cls, *args, **kwargs):
+    def log(cls, *args, **kwargs):
         logger.info("logging from petition: {}".format(kwargs.get("greeting")))
         return True
     
@@ -116,7 +115,6 @@ class Petition(db.Model):
 
     # onboard multiple remote petitions from the result of a query
     @classmethod
-    @with_logging()
     def populate(cls, logger, ids=[], state="open"):
         fetched = ids or cls.find_new(logger=logger, state=state)
         if not any(fetched):
@@ -140,7 +138,6 @@ class Petition(db.Model):
         return petitions
 
     @classmethod
-    @with_logging()
     def find_new(cls, logger, state):
         query = cls.remote.async_query(logger=logger, state=state)
         if any(query["success"]):
@@ -158,7 +155,6 @@ class Petition(db.Model):
     # signatures_by = True for full geo records, signatures_by = False for basic total records
     # if commit = False, poll will return the filtered responses with attached petition objs
     @classmethod
-    @with_logging()
     def poll(cls, logger, petitions=[], where="all", geo=True, commit=True, **kwargs):
         petitions = petitions or cls.build_poll_query(logger=logger, where=where, **kwargs).all()
         logger.info("Petitions returned from query: {}".format(len(petitions)))
@@ -177,7 +173,6 @@ class Petition(db.Model):
 
 
     @classmethod
-    @with_logging()
     def handle_poll(cls, logger, petitions, geographic, populating=False):
         logger.info("saving base poll")
         recorded = cls.save_base_data(logger=logger, petitions=petitions,)
@@ -193,7 +188,6 @@ class Petition(db.Model):
         return [r.petition for r in recorded] if populating else recorded
 
     @classmethod
-    @with_logging()
     def save_base_data(cls, logger, petitions):
         records = []
         for petition in petitions:
@@ -217,7 +211,6 @@ class Petition(db.Model):
         return recorded
 
     @classmethod
-    @with_logging()
     def save_geo_data(cls, logger, records):
         built = []
         for record in records:
@@ -236,7 +229,6 @@ class Petition(db.Model):
         return records
 
     @classmethod
-    @with_logging()
     def build_poll_query(cls, logger, where="all", **kwargs):
         valid_wheres = ["trending", "signatures", "all"]
         if not where in valid_wheres:
@@ -279,7 +271,6 @@ class Petition(db.Model):
     # update the trending pos for all petitions
     # optional before arg is the time of closest poll to compare
     @classmethod
-    @with_logging()
     def update_trending(cls, logger, before={"minutes": 60}, ts_range=2.5, **kwargs):
         petitions = cls.find_recently_polled(logger=logger, before=before, ts_range=ts_range, **kwargs)
 
@@ -298,7 +289,6 @@ class Petition(db.Model):
         return [response.petition for response in response["success"]]
 
     @classmethod
-    @with_logging()
     def find_recently_polled(logger, before, ts_range, task="poll_total_sigs_task"):
         logger.info("searching for recenly polled petitions...")
         last_run = Task.get_last_run(name=task, before=before)
@@ -317,7 +307,6 @@ class Petition(db.Model):
         return {"found": found, "missing": missing}
 
     @classmethod
-    @with_logging()
     def handle_trending_errors(logger, petitions, responses):
         if any(petitions["missing"]):
             logger.info("defaulting 'not_found' petition trend_pos to 0")

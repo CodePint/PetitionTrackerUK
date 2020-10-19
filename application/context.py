@@ -22,7 +22,6 @@ def make_context():
     context.update(import_schemas())
     context.update(import_utils())
     context.update(import_logger())
-    context.update(import_decorators())
 
     return context
 
@@ -68,10 +67,6 @@ def import_setting_model():
 def import_logger():
     from application.models import Logger
     return {"Logger": Logger}
-
-def import_decorators():
-    from application.decorators import with_logging, will_save_log
-    return {"with_logging": with_logging, "will_save_log": will_save_log}
 
 def import_schemas():
     from application.tracker.models import (

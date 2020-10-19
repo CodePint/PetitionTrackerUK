@@ -1,6 +1,5 @@
 from flask import current_app
 from application.models import Setting
-from application.decorators import with_logging
 
 from requests.adapters import HTTPAdapter
 from requests.packages import urllib3
@@ -131,7 +130,6 @@ class RemotePetition():
         return results
 
     @classmethod
-    @with_logging()
     def async_poll(cls, logger, petitions, max_retries=0, backoff=3, **kwargs):
 
         futures = [
@@ -158,7 +156,6 @@ class RemotePetition():
         return results
 
     @classmethod
-    @with_logging()
     def async_fetch(cls, logger, ids, max_retries=0, backoff=3, **kwargs):
 
         futures = [
@@ -206,7 +203,6 @@ class RemotePetition():
         return response_hook
 
     @classmethod
-    @with_logging()
     def async_query(cls, logger, indexes=[], state='all', max_retries=0, backoff=3, **kwargs):
         if not any(indexes):
             cls.validate_state(state)
@@ -258,14 +254,12 @@ class RemotePetition():
         return response_hook
 
     @classmethod
-    @with_logging()
     def setup_query(cls, logger, state):
         template_url = cls.page_url_template(state)
         indexes = cls.get_page_range(logger=logger, template_url=template_url)
         return {"template_url": template_url, "indexes": indexes, "state": state}
     
     @classmethod
-    @with_logging()
     def get_page_range(cls, logger, template_url, **kwargs):
         logger.info("fetching page indexes")
         response = cls.standard_session.get(template_url % {"page": 1} )

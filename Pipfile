@@ -29,6 +29,7 @@ flask-compress = "*"
 flower = "*"
 gunicorn = "*"
 py-spy = "*"
+python-json-logger = "*"
 
 [requires]
 python_version = "3.6"

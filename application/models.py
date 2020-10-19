@@ -16,7 +16,6 @@ from sqlalchemy import (
 
 from flask import current_app
 from application import db
-from application.decorators import will_save_log
 
 from requests.structures import CaseInsensitiveDict as LazyDict
 from datetime import datetime as dt
@@ -438,7 +437,6 @@ class Logger():
                 return self.log(level=level, *args, **kwargs)
         return _missing
 
-    @will_save_log
     def log(self, msg, level="INFO", save=True):
         self.py_log(msg, level)
         if save and self.Model: self.db_log(msg, level)
