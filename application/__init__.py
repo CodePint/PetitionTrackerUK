@@ -68,24 +68,29 @@ def load_models():
     from application import models
     from application.tracker import models
 
+def init_logging(app, **kwargs):
+    if kwargs.get("worker"):
+        init_task_logging(app, **kwargs)
+    else:
+        init_app_logging(app, **kwargs)
 
-def init_db_logger(app):
-    from application.models import Logger, AppLog
-    app.app_logger = Logger(model="app", worker="FLASK", module=__name__)
-
-def init_logging():
+def init_app_logging(app, **kwargs):
     config = {}
     config["level"] = Config.LOG_LEVEL
     config["datefmt"] = "%Y-%m-%d,%H:%M:%S"
     config["format"] ="%(asctime)s.%(msecs)03d %(levelname)s {%(module)s} %(message)s"
     logging.basicConfig(**config)
 
+def init_task_logging(app, **kwargs):
+    from application.lib.celery.logging import TaskLogFormatter
+    logger = logging.getLogger()
+    sh = logging.StreamHandler()
+    sh.setFormatter(TaskLogFormatter('%(asctime)s - %(task_id)s - %(task_name)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.setLevel(logging.INFO)
+    logger.addHandler(sh)
 
 # init config
 Config.init()
-
-# init logging
-init_logging()
 
 # init database/adapter
 compat.register()
@@ -102,18 +107,19 @@ celery = make_celery()
 compress = Compress()
 
 
-def create_app():
+def create_app(**kwargs):
     # create app and load configuration variables
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(Config)
     cors = CORS(app, resources={r"*": {"origins": "*"}}) 
 
     with app.app_context():
+        init_logging(app, **kwargs)
+
         # configure database
         app.db = db
         db.init_app(app)
         migrate.init_app(app, db)
-        init_db_logger(app)
 
         # configure celery
         init_celery(app)

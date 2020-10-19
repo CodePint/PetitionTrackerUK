@@ -36,6 +36,10 @@ from .remote import RemotePetition
 from .geographies.choices.regions import REGIONS
 from .geographies.choices.constituencies import CONSTITUENCIES
 from .geographies.choices.countries import COUNTRIES
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 class Petition(db.Model):
     __tablename__ = "petition"
@@ -96,10 +100,15 @@ class Petition(db.Model):
     def __str__(self):
         template = "petiton id: {}, action: {}"
         return template.format(self.id, self.action)
+
+    @classmethod
+    def task_log(cls, *args, **kwargs):
+        logger.info("logging from petition: {}".format(kwargs.get("greeting")))
+        return True
     
     @classmethod
     def str_or_datetime(cls, time):
-        return datetime.datetime.strptime(time, "%d-%m-%YT%H:%M:%S") if isinstance(time, str) else time
+        return dt.strptime(time, "%d-%m-%YT%H:%M:%S") if isinstance(time, str) else time
 
     @classmethod
     def get_setting(cls, *args, **kwargs):

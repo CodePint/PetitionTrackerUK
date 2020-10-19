@@ -5,23 +5,23 @@ from datetime import datetime as dt
 def task_handler(*args, **kwargs):
     def wrapper(func):
         @wraps(func)
-        def handle(self, *args, **kwargs):
-            from .utils import CeleryUtils
+        def handle(self, task_name, *args, **kwargs):
             from application.models import Task
-            
             self.request.kwargs.update(**kwargs)
-            task = Task.get(kwargs['task_name'])
-            if not task:
-                raise RuntimeError("Task not found: {}".format(kwargs['task_name']))
-                
-            task_run = task.init_run(self)
-            if task_run.periodic:
-                if task_run.is_retrying() or task_run.is_overdue():
-                    return task_run.execute(func, *args, **kwargs)
-                else:
-                    return task_run.skip()
+            
+            task = Task.get(task_name)
+            if task:
+                self.task_run = task.init_run(bind=self)
             else:
-                return task_run.execute(func, *args, **kwargs)
+                raise RuntimeError("Task not found: {}".format(task_name))
+            
+            if self.task_run.periodic:
+                if self.task_run.is_retrying() or self.task_run.is_overdue():
+                    return self.task_run.execute(func, *args, **kwargs)
+                else:
+                    return self.task_run.skip()
+            else:
+                return self.task_run.execute(func, *args, **kwargs)
             return False
         return handle
     return wrapper
