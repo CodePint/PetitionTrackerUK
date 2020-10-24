@@ -19,5 +19,6 @@ logs/celery/*
 logs/celery/schedule/*
 logs/celery/schedule/workers/*
 application/profile.py
+application/lib/celery/schedule/deploy.json
 
 !config/**/**/**/**

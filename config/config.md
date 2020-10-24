@@ -24,3 +24,8 @@
 - the compose files uses enviroment variables to specify which docker image tag to use
 - the base project can be run with docker-compose up -d
 - additional celery workers can be spun up with the create_worker.sh script
+
+## Tasks
+- the task schedule can be found in tasks/deploy.json, included is an example config
+- topy deploy.json file into application/lib/celery/tasks/schedule/deploy.json
+- these tasks can be then loaded into the database by running CeleryUtils.init_schedule()

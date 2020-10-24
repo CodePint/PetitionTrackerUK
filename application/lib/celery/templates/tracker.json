@@ -1,0 +1,71 @@
+
+[
+    {
+        "name": "base_poll_petitions_task",
+        "key": "[base_pol]-[base]",
+        "description": "base poll petitions - base task",
+        "enabled": true,
+        "module": "tracker",
+        "run": {
+            "singleton": false,
+            "periodic": false
+        },
+        "kwargs": {
+            "condition": "any"
+        },
+        "options": {
+        }
+    },
+
+    {
+        "name": "geo_poll_petitions_task",
+        "key": "[geo_poll]-[base]",
+        "description": "geo poll petitions - base task",
+        "enabled": true,
+        "module": "tracker",
+        "run": {
+            "singleton": false,
+            "periodic": false
+        },
+        "kwargs": {
+
+        },
+        "options": {
+        }
+    },
+
+    {
+        "name": "populate_petitions_task",
+        "key": "[populate_task]-[base]",
+        "description": "populate petitions - base task",
+        "enabled": true,
+        "module": "tracker",
+        "run": {
+            "singleton": false,
+            "periodic": false
+        },
+        "kwargs": {
+            "state": "open"
+        },
+        "options": {
+        }
+    },
+
+    {
+        "name": "update_trending_pos_task",
+        "key": "[update_trending_pos]-[base]",
+        "description": "update trending petitions pos - base task",
+        "enabled": true,
+        "module": "tracker",
+        "run": {
+            "singleton": false,
+            "periodic": false
+        },
+        "kwargs": {
+            "before": 60,
+            "ts_range": 2.5
+        },
+        "options": {
+        }
+    }
+]

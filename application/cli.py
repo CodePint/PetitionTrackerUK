@@ -10,15 +10,15 @@ def register_cli(app, db, celery):
         print("configuring default values for settings table")
         app.settings.configure(app.config["DEFAULT_SETTINGS"])
 
-    @app.cli.command("init-tasks")
-    def cli_init_tasks():
-        print("configuring values for periodic tasks")
-        app.models.Task.init_tasks(app.config["PERIODIC_TASK_SETTINGS"])
+    @app.cli.command("init-task-schedule")
+    def cli_init_task_schedule():
+        print("initializing task schedule")
+        app.celery_utils.init_db_schedule(overwrite=True)
 
-    @app.cli.command("re-init")
-    def cli_reinit():
-        print("initializing enviroment variables")
-        return True
+    @app.cli.command("init-task-templates")
+    def cli_init_task_schedule():
+        print("initializing task templates")
+        app.celery_utils.init_db_templates(overwrite=True)
 
     @app.cli.command("run-tracker-tasks")
     def cli_run_overdue_tasks():
@@ -48,7 +48,6 @@ def register_cli(app, db, celery):
     @app.cli.command("db-drop")
     def cli_drop_db():
         cli.drop_tables()
-        cli.drop_alembic()
         print("database drop completed")
 
     @app.cli.command("db-drop-alembic")

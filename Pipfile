@@ -4,13 +4,14 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+py-spy = "*"
 
 [packages]
 pylint = "*"
 flask = "*"
 python-dotenv = "*"
-psycopg2cffi = "===2.8.0"
-flask-sqlalchemy = "===2.4.1"
+psycopg2cffi = "==2.8.0"
+flask-sqlalchemy = "==2.4.1"
 flask-migrate = "==2.5.2"
 pylint-flask = "*"
 pylint-flask-sqlalchemy = "*"
@@ -20,7 +21,7 @@ requests = "*"
 grequests = "*"
 gevent = "*"
 requests-futures = "*"
-celery = "===4.4.7"
+celery = "==4.4.7"
 redis = "*"
 flask-cors = "*"
 marshmallow-sqlalchemy = "*"
@@ -28,7 +29,6 @@ marshmallow = "*"
 flask-compress = "*"
 flower = "*"
 gunicorn = "*"
-py-spy = "*"
 python-json-logger = "*"
 
 [requires]

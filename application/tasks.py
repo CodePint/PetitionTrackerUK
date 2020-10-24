@@ -1,23 +1,22 @@
 from flask import current_app
 from application import celery
 from application.lib.celery.decorators import task_handler
-from datetime import datetime
-import logging
-import time
-import os
-
+from datetime import datetime as dt
+import logging, time, os
 
 logger = logging.getLogger(__name__)
 
 
-@celery.task(bind=True, name='test_task', max_retires=3)
-@task_handler()
+@celery.task(bind=True, name='test_task')
+# @task_handler()
 def test_task(self, *args, **kwargs):
-    logger.info("logging from task!")
-    from application.tracker.models import Petition
-    result = Petition.task_log(greeting="hello world!")
-    logger.info(result)
-    logger.debug("exiting from task")
+    print("running_test_task!!!!")
+    greeting = kwargs.get("greeting")
+    logger.info(f"running test task, greeting:  {greeting}")
+    file_path = os.path.join(os.getcwd(), "debug/celery", "test_task.txt")
 
-    return True
+    with open(file_path, "a") as file:
+        file.write(f"Test Task: {greeting} - {dt.now()}")
 
+    logger.info("ending test task!")
+    return greeting

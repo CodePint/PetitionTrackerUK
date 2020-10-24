@@ -3,9 +3,8 @@ from sqlalchemy_utils import *
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship, synonym, validates, reconstructor
 from sqlalchemy.sql import functions as sqlfunc
+from sqlalchemy import and_, tuple_, inspect, event
 from sqlalchemy import (
-    and_,
-    inspect,
     Integer,
     Boolean,
     String,
@@ -19,8 +18,10 @@ from application import db
 
 from requests.structures import CaseInsensitiveDict as LazyDict
 from datetime import datetime as dt
-import datetime
+import datetime, time
 import logging
+
+logger = logging.getLogger(__name__)
 
 class Setting(db.Model):
     id = db.Column(Integer, primary_key=True)
@@ -68,73 +69,118 @@ class Setting(db.Model):
 
 
 class Task(db.Model):
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "name", "key",
+            name="uniq_name_key_for_task"),
+    )
+
     id = db.Column(Integer, primary_key=True)
-    runs = relationship(lambda: TaskRun, lazy='dynamic', back_populates="task")
-    logs = relationship(lambda: TaskLog, lazy='dynamic', back_populates="task")
-    name = db.Column(String, nullable=False, unique=True)
+    name = db.Column(String, nullable=False)
+    module = db.Column(String, nullable=False)
+    key = db.Column(String, nullable=False)
+    description = db.Column(String, nullable=False)
     enabled = db.Column(Boolean, default=False)
-    run_on_startup = db.Column(Boolean, default=False)
-    interval = db.Column(Integer)
-    last_run = db.Column(DateTime)
-    last_failed = db.Column(DateTime)
+    startup = db.Column(Boolean, default=False)
+    periodic = db.Column(Boolean, default=False)
+    last_fail = db.Column(DateTime)
+    last_success = db.Column(DateTime)
+    options = db.Column(JSONType)
+    kwargs = db.Column(JSONType)
+    interval = db.Column(JSONType)
     db_created_at = db.Column(DateTime, default=sqlfunc.now())
     db_updated_at = db.Column(DateTime, default=sqlfunc.now(), onupdate=sqlfunc.now())
-
+    runs_rel_attrs = {"lazy": "dynamic", "back_populates": "task", "cascade": "all,delete-orphan"}
+    runs = relationship(lambda: TaskRun, **runs_rel_attrs)
 
     def __repr__(self):
-        template = '<id: {}, name: {}, enabled: {}, last_run: {}>'
-        return template.format(self.id, self.name, self.enabled, self.last_run)
+        return f"<id: {self.id}, name: {self.name}, key: {self.key}, enabled: {self.enabled}>"
 
     @classmethod
-    def get(cls, name):
-        return cls.query.filter_by(name=name.lower()).first()
+    def get(cls, name, key, will_raise=False):
+        task = cls.query.filter_by(name=name.lower(), key=key).first()
+        if not task and will_raise:
+            raise NameError(f"No task found with name: {name}, key: {key}")
+
+        return task
 
     @classmethod
-    def get_or_create(cls, name, **kwargs):
-        return cls.get(name) or cls.create(name=name, **kwargs)
+    def get_all(cls, tasks):
+        task_tuples = [tuple(t.values()) for t in tasks]
+        tuple_filter = sqlalchemy.tuple_(Task.name, Task.key).in_(task_tuples)
+        return Task.query.filter(tuple_filter).all()
+
+    @classmethod
+    def get_or_create(cls, **config):
+        config = cls.parse_config(**config)
+        task = Task.get(name=config["name"], key=config["key"])
+        if not task:
+            task = Task(**config)
+            db.session.add(task)
+            db.session.commit()
+
+        return task
+
+    @classmethod
+    def create_or_update(cls, **config):
+        config = cls.parse_config(**config)
+        task = Task.get(name=config["name"], key=config["key"])
+
+        if task:
+            task.update(**config)
+        else:
+            task = Task(**config)
+
+        db.session.add(task)
+        db.session.commit()
+        return task
+
+    @classmethod
+    def parse_config(cls, **config):
+        config["kwargs"]["singleton"] = config["run"].pop("singleton", False)
+        config["kwargs"]["name"] = config["name"]
+        config["kwargs"]["key"] = config["key"]
+        config["options"]["queue"] = config["module"]
+        config.update(config.pop("run"))
+
+        return config
 
     @classmethod
     def get_interval(cls, task_name):
         return cls.get(task_name).interval
 
     @classmethod
-    def create(cls, name, **kwargs):
-        task = Task(name=name.lower(), **kwargs)
-        db.session.add(task)
-        db.session.commit()
-        return task
-
-    @classmethod
-    def init_tasks(cls, config):
-        tasks = [Task.create_or_update(**item) for item in config]
-        db.session.add_all(tasks)
-        db.session.commit()
-        return tasks
-
-    @classmethod
-    def create_or_update(cls, name, **kwargs):
-        task = cls.get(name)
-        if not task:
-            return cls.create(name, **kwargs)
-        else:
-            task.update(**kwargs)
-            db.session.commit()
-            return task
-
-    @classmethod
     def run_task(cls, name):
         current_app.celery_utils.run_task(name)
 
-    # kills unfinished runs in celery and sets them to failed (all)
+    # purge all runs for all tasks for all states
     @classmethod
     def purge_all(cls, tasks=[]):
         tasks_to_purge = tasks or Task.query.all()
-        return [task.clear_runs() for task in tasks_to_purge]
+        return [task.purge_runs() for task in tasks_to_purge]
 
-    # kills unfinished runs in celery and sets them to failed (instance)
-    def purge(self):
-        runs_to_purge = self.runs.filter(TaskRun.state.in_(["0","1","5"])).all()
-        return [run.timeout() for run in runs_to_purge]
+    # kills unfinished runs in celery and postgres for all states
+    def purge_runs(self, runs=[]):
+        run_to_purge = runs or self.runs.query.all()
+        return [run.timeout() for run in run_to_purge]
+
+    # purges runs with matching state and db_updated_at before updated
+    def purge_runs_where(self, state, updated_lt=None, except_ids=None):
+        updated_defaults = {"RETRYING": TaskRun.MAX_COUNTDOWN, "PENDING": 15, "RUNNING": self.interval}
+        query = self.runs.filter_by(state=TaskRun.STATE_LOOKUP[state])
+
+        if except_ids:
+            query = query.filter(TaskRun.id.notin_(except_ids))
+        if updated_lt:
+            updated_lt = updated_lt or updated_defaults.get(state.upper(), 0)
+            query = query.filter(TaskRun.db_updated_at < round(time.time() - updated_lt))
+
+        runs_to_purge = query.all()
+        purged = [run.timeout() for run in runs_to_purge]
+        logger.debug(f"Purged {len(purged)} {state} runs. IDs: {purged}")
+
+        return purged
 
     # None periodic run from template
     def run(self, *args, **kwargs):
@@ -155,67 +201,63 @@ class Task(db.Model):
     def init_run(self, bind):
         kwargs = bind.request.kwargs
         worker_name = "{}_worker".format(kwargs["queue"])
-        is_periodic = kwargs.get('periodic', False)
+        is_singleton = kwargs.get("singleton", False)
 
         if bind.request.retries > 0:
             task_run = TaskRun.query.get(kwargs["task_run_id"])
         else:
-            task_run = TaskRun(state="PENDING", periodic=is_periodic, args=str(kwargs))
+            task_run = TaskRun(state="PENDING", singleton=is_singleton, kwargs=kwargs)
             self.runs.append(task_run)
 
         task_run.bind = bind
         task_run.celery_id = bind.request.id
         db.session.commit()
-        task_run.init_logger(worker_name.upper())
+
+        for state in ["RETRYING", "PENDING", "RUNNING"]:
+            self.purge_runs_where(state, except_ids=[task_run.id])
 
         return task_run
 
-    def clear_logs(self):
-        logs = self.logs.all()
-        for l in logs: db.session.delete(l)
-        db.session.commit()
-        return logs
+    def any_active_runs(self, excluding_id):
+        states = [TaskRun.STATE_LOOKUP[s] for s in ["PENDING", "RUNNING", "RETRYING",]]
+        query = self.runs.filter(TaskRun.state.in_(states))
+        if excluding_id:
+            query = query.filter(TaskRun.id != excluding_id)
 
-    # return False if any TaskRuns with state in: [PENDING, RETRYING, RUNNING]
-    # return True if last_run is None
-    # return True if interval greater than time since last run
+        return any(query.all())
+
     def is_overdue(self):
-        running_or_retrying = self.runs.filter(TaskRun.state.in_(["1","5"]))
-        pending = self.runs.filter_by(state="0")
-
-        if any(running_or_retrying.all()) or len(pending.all()) > 1:
-            return False
-        if not self.last_run:
+        if not self.last_success:
             return True
-        else:
-            interval = datetime.timedelta(seconds=self.interval)
-            elapsed = dt.now() - self.last_run
-            return elapsed >= interval
+
+        interval = datetime.timedelta(seconds=self.interval)
+        elapsed = dt.now() - self.last_success
+        return elapsed >= interval
 
 
 
 class TaskRun(db.Model):
 
     STATE_CHOICES = [
-        ('0', 'PENDING'),
-        ('1', 'RUNNING'),
-        ('2', 'COMPLETED'),
-        ('3', 'FAILED'),
-        ('4', 'REJECTED'),
-        ('5', 'RETRYING')
+        ("0", "PENDING"),
+        ("1", "RUNNING"),
+        ("2", "SUCCESSFUL"),
+        ("3", "FAILED"),
+        ("4", "REJECTED"),
+        ("5", "RETRYING")
     ]
 
     STATE_LOOKUP = LazyDict({v: k for k, v in dict(STATE_CHOICES).items()})
+    MAX_COUNTDOWN = 300
 
     id = db.Column(Integer, primary_key=True)
     celery_id = db.Column(String, nullable=False)
     task_id = db.Column(Integer, ForeignKey(Task.id), index=True, nullable=False)
     task = relationship(Task, back_populates="runs")
-    logs = relationship(lambda: TaskLog, lazy='dynamic', back_populates="run", cascade="all, delete")
     state = db.Column(ChoiceType(STATE_CHOICES), nullable=False)
-    periodic = db.Column(Boolean, default=False)
+    singleton = db.Column(Boolean, default=False)
     retries = db.Column(Integer, default=0)
-    args = db.Column(String)
+    kwargs = db.Column(JSONType)
     started_at = db.Column(DateTime)
     finished_at = db.Column(DateTime)
     execution_time = db.Column(Integer)
@@ -234,16 +276,10 @@ class TaskRun(db.Model):
 
     def __repr__(self):
         template = "<id: {}, task_name: {}, state: {}>"
-        return template.format(self.id, self.task.name, self.state.value)
+        return template.format(self.id, self.task.name, self.state)
 
-    def timeout(self):
-        self.init_logger()
-        self.revoke()
-        self.fail("manual timeout", reraise=False)
-        self.finish()
-        db.session.commit()
-
-        return self
+    def get_state(self):
+        return dict(TaskRun.STATE_CHOICES)[self.state]
 
     def execute(self, func, *args, **kwargs):
         try:
@@ -253,6 +289,7 @@ class TaskRun(db.Model):
         except Exception as error:
             if self.retries >= self.max_retries:
                 self.fail(error)
+                raise
             else:
                 self.retry(error)
         finally:
@@ -260,205 +297,109 @@ class TaskRun(db.Model):
 
         return result
 
-    def init_logger(self, worker="default"):
-        self.logger = Logger(
-            model='task',
-            worker=worker,
-            module='handler',
-            task_id=self.task_id,
-            task_run_id=self.id
-        )
-
-    def is_overdue(self):
-        if self.task.is_overdue():
-            self.logger.info("{} - (OVERDUE [LAST RUN: {}])".format(self.task.name, self.task.last_run))
-            return True
+    def will_run(self):
+        if self.singleton:
+            if self.task.any_active_runs(excluding_id=self.id):
+                return False
+            if self.task.periodic:
+                return self.task.is_overdue()
         else:
-            return False
+            return True
+
+    def timeout(self):
+        self.revoke()
+
+        if not self.state in ["FAILED", "SUCCESSFUL", "REJECTED"]:
+            self.fail("[MANUAL TIMEOUT")
+            self.finish()
+
+        db.session.commit()
+        return self.id
 
     def start(self):
+        task_type = "periodic" if self.periodic else "lone"
+        logger.info(f"executing {task_type} task: {self.task.name}!")
         self.state = "RUNNING"
         self.started_at = dt.now()
         self.retries = self.bind.request.retries
         self.max_retries = self.bind.max_retries
-        self.logger.info("{} - (RUNNING)".format(self.task.name))
         db.session.commit()
 
-    def reject(self):
+    def reject(self, msg):
         self.state = "REJECTED"
         self.finished_at = datetime.datetime.now()
-        self.logger.info("{} - (REJECTED)".format(self.task.name))
+        logger.info(msg)
         db.session.commit()
 
-    def skip(self):
-        self.reject()
-        self.logger.info("{} - (SKIPPING)".format(self.task.name))
-        db.session.commit()
-
-    def fail(self, error, reraise=True):
-        if self.periodic:
+    def fail(self, error):
+        if self.task.periodic:
             self.task.last_failed = dt.now()
-        self.state = "FAILED"
-        self.logger.error("{} - (FAILED) - ERROR: '{}'".format(self.task.name, error))
-        db.session.commit()
 
-        if reraise: raise
+        self.state = "FAILED"
+        logger.error("f{self.task.name} - (FAILED) - ERROR: '{error}'")
+        db.session.commit()
 
     def revoke(self):
-        template = "{}  - (REVOKED [run_id: {}/cel_id: {}])"
-        self.logger.info(template.format(self.task.name, self.id, self.celery_id))
+        revoke_msg = f"REVOKED [run_id: {self.id}/cel_id: {self.celery_id}]"
+        logger.info(f"{self.task.name} - ({revoke_msg})")
         current_app.celery.control.revoke(self.celery_id)
 
     def retry(self, error):
+        db.session.rollback()
         self.state = "RETRYING"
-        countdown = (3 * self.retries + 1)
-        msg = "{} - (RETRYING - [{}/{}] - [COUNTDOWN: {}]) - ERROR: {}"
-        self.logger.error(
-            msg.format(self.task.name, (self.retries + 1), self.bind.max_retries, countdown, error)
+
+        countdown = self.get_countdown()
+        retry_msg = (
+            f"RETRYING - [{(self.retries + 1)}/{self.bind.max_retries}]"
+            f"[COUNTDOWN: {countdown}]"
         )
-        db.session.commit()
+        logger.error(f"{self.task.name} - ({retry_msg}) - ERROR: {error}")
 
         self.bind.request.kwargs.update({"task_run_id": self.id})
         self.bind.retry(countdown=countdown)
+        db.session.commit()
 
     def complete(self):
         if self.periodic:
             self.task.last_run = self.started_at
-        self.state = "COMPLETED"
-        self.logger.info("{} - (COMPLETED)".format(self.task.name))
+
+        self.state = "SUCCESSFUL"
         db.session.commit()
+
+    def get_countdown(self, exponent=3, maximum=None):
+        minimum = minimum or TaskRun.MAX_COUNTDOWN
+        current = (exponent ** (self.retries + 1))
+        return maximum if current > maximum else current
 
     def finish(self):
         self.finished_at = dt.now()
         self.started_at = self.started_at or self.finished_at
         self.execution_time = (self.finished_at - self.started_at).total_seconds()
-        template = "{} - (FINISHED/{} - [EXECUTION TIME: {}])"
-        self.logger.info(template.format(self.task.name, self.state.value, self.execution_time))
+        finish_msg = f"FINISHED/{self.state.value} - [EXECUTION TIME: {self.execution_time}]"
+        logger.info(f"{self.task.name} - ({finish_msg})")
 
-        db.session.rollback()
-        self.logger.commit()
+    def skip(self):
+        self.reject("[SKIPPING]")
+        return False
 
     def is_retrying(self):
         return self.state.value == "RETRYING"
 
-    def print(self):
-        for l in self.logs.all(): print(l)
+
+@event.listens_for(TaskRun, 'after_update')
+def receive_after_update(mapper, connection, target):
+    state = db.inspect(target)
+
+    changes = {}
+    for attr in state.attrs:
+        hist = attr.load_history()
+        if hist.has_changes():
+            changes[attr.key] = hist.added
+
+    if changes.get("state"):
+        logger.info(f"[TASK STATE UPDATED - {target.get_state()}]")
 
 
-
-class BaseLog(db.Model):
-    LEVELS = [
-        ('0', 'DEBUG'),
-        ('1', 'INFO'),
-        ('2', 'WARN'),
-        ('3', 'ERROR'),
-        ('4', 'FATAL')
-    ]
-
-    LEVEL_LOOKUP = LazyDict({v: k for k, v in dict(LEVELS).items()})
-
-    __abstract__ = True
-    level = db.Column(ChoiceType(LEVELS), nullable=False)
-    timestamp = db.Column(DateTime, default=sqlfunc.now())
-    module = db.Column(String)
-    worker = db.Column(String)
-    message = db.Column(String)
-
-    # manual work around for broken choice validation in sqlalchemy utils
-    @validates('level')
-    def validate_level_choice(self, key, level):
-        try:
-            level = BaseLog.LEVEL_LOOKUP[level]
-        except KeyError:
-            dict(BaseLog.LEVELS)[level]
-
-        return level
-
-    def __repr__(self):
-        template = '<id: {}, level: {}, timestamp: {}>'
-        return template.format(self.id, self.level, self.timestamp)
-
-    def __str__(self):
-        template = '{} {} [{}]: {}'
-        return template.format(self.timestamp, self.level.value, self.module, self.message)
-
-    @classmethod
-    def print(cls):
-        for l in cls.query.all(): print(l)
-
-    @classmethod
-    def clear(cls, before=datetime.datetime.now()):
-        logs = cls.query.filter(cls.timestamp < before).all()
-        for l in logs: db.session.delete(l)
-        db.session.commit()
-        print("logs cleared: {}".format(len(logs)))
-
-
-class TaskLog(BaseLog):
-    __tablename__ = 'task_log'
-    id = db.Column(Integer, primary_key=True)
-    task_id = db.Column(Integer, ForeignKey(Task.id), index=True, nullable=False)
-    task_run_id = db.Column(Integer, ForeignKey(TaskRun.id), index=True, nullable=False)
-    task = relationship(Task, back_populates="logs")
-    run = relationship(TaskRun, back_populates="logs")
-
-
-    def __repr__(self):
-        template = '<id: {}, level: {}, task: {}, timestamp: {}>'
-        return template.format(self.id, self.level, self.task.name, self.timestamp)
-
-    def __str__(self):
-        template = '{} {} [{}][{}]: {}'
-        return template.format(self.timestamp, self.level.value, self.module, self.task.name, self.message)
-
-class AppLog(BaseLog):
-    __tablename__ = 'app_log'
-    id = db.Column(Integer, primary_key=True)
-
-
-
-class Logger():
-
-    LEVELS = BaseLog.LEVEL_LOOKUP
-    MODELS = {'app': AppLog, 'task': TaskLog}
-
-    def __init__(self, model='', worker="FLASK", module=__name__, defer_commit=False, **kwargs):
-        self.Model =  Logger.MODELS.get(model, False)
-        self.defer_commit = defer_commit
-        self.kwargs = kwargs or {}
-        self.kwargs['worker'] = worker
-        self.kwargs['module'] = module
-        self.logs = []
-
-    def __getattr__(self, f_name):
-        def _missing(*args, **kwargs):
-            level = f_name.upper()
-            if level in Logger.LEVELS.keys():
-                return self.log(level=level, *args, **kwargs)
-        return _missing
-
-    def log(self, msg, level="INFO", save=True):
-        self.py_log(msg, level)
-        if save and self.Model: self.db_log(msg, level)
-
-    def py_log(self, msg, level="DEBUG"):
-        module, worker = self.kwargs['module'], self.kwargs['worker']
-        msg = "[{}] [{}] {} ".format(worker, module, msg)
-        logger = logging.getLogger(module)
-        getattr(logger, level.lower())(msg)
-
-    def db_log(self, msg, level="INFO"):
-        log = self.Model(message=msg, level=level, **self.kwargs)
-        if self.defer_commit:
-            self.logs.append(log)
-        else:
-            db.session.add(log)
-            db.session.commit()
-
-    def commit(self):
-        db.session.add_all(self.logs)
-        db.session.commit()
-
-    def func_log(self, name, level="INFO", **kwargs):
-        msg = "executing function: '{}', kwargs: {}".format(name, kwargs)
-        self.log(msg=msg, level=level)
+    # def func_log(self, name, level="INFO", **kwargs):
+    #     msg = "executing function: '{}', kwargs: {}".format(name, kwargs)
+    #     self.log(msg=msg, level=level)

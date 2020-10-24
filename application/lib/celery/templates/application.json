@@ -1,0 +1,21 @@
+[
+    {
+        "name": "test_task",
+        "key": "[test_task]-[base]",
+        "description": "test task - base task",
+        "enabled": true,
+        "module": "application",
+        "run": {
+            "startup": true,
+            "periodic": false,
+            "singleton": true
+        },
+        "kwargs": {
+            "greeting": "hello world - scheduled!"
+        },
+        "options": {
+
+        }
+    }
+]
+

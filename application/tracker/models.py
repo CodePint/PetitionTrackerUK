@@ -53,7 +53,6 @@ class Petition(db.Model):
     id = db.Column(Integer, primary_key=True, autoincrement=False)
     state = db.Column(ChoiceType(STATE_CHOICES), nullable=False)
     archived = db.Column(Boolean, default=False, nullable=False)
-    records = relationship(lambda: Record, lazy="dynamic", back_populates="petition", cascade="all,delete-orphan")
     action = db.Column(String(512), index=True, unique=True)
     url = db.Column(String(2048), index=True, unique=True)
     signatures = db.Column(Integer)
@@ -77,6 +76,9 @@ class Petition(db.Model):
     initial_data = db.Column(JSONType)
     latest_data = db.Column(JSONType)
     trend_pos = db.Column(Integer, default=0)
+    record_rel_attrs = {"lazy": "dynamic", "back_populates": "petition", "cascade": "all,delete-orphan"}
+    records = relationship(lambda: Record, **record_rel_attrs)
+
 
     # handles requests for remote operations
     remote = RemotePetition
@@ -103,7 +105,6 @@ class Petition(db.Model):
     @classmethod
     def log(cls, *args, **kwargs):
         logger.info("logging from petition: {}".format(kwargs.get("greeting")))
-        return True
 
     @classmethod
     def str_or_datetime(cls, time):
@@ -155,13 +156,13 @@ class Petition(db.Model):
     # signatures_by = True for full geo records, signatures_by = False for basic total records
     # if commit = False, poll will return the filtered responses with attached petition objs
     @classmethod
-    def poll(cls, logger, petitions=[], where="all", geo=True, commit=True, **kwargs):
-        petitions = petitions or cls.build_poll_query(logger=logger, where=where, **kwargs).all()
-        logger.info("Petitions returned from query: {}".format(len(petitions)))
+    def poll(cls, logger, petitions=[], contition="all", geo=True, commit=True, **kwargs):
+        petitions = petitions or cls.build_poll_query(logger=logger, contition=contition, **kwargs).all()
+        logger.info(f"Petitions returned from query: {len(petitions)}")
 
         if any(petitions):
             responses = cls.remote.async_poll(logger=logger, petitions=petitions, max_retries=3)
-            logger.info("Petitions returned from async poll: {}".format(len(responses["success"])))
+            logger.info(f"Petitions returned from async poll: {len(responses['success'])} ")
         else:
             return []
 
@@ -169,13 +170,12 @@ class Petition(db.Model):
             petitions = {"petitions": [r.petition for r in responses["success"]]}
             return cls.handle_poll(geographic=geo, logger=logger, **petitions) if commit else responses
         else:
-            raise RuntimeError("No poll responses, failures: {}".format(len(responses["failed"])))
-
+            raise RuntimeError(f"No poll responses, failures: {len(responses['failed'])}")
 
     @classmethod
     def handle_poll(cls, logger, petitions, geographic, populating=False):
         logger.info("saving base poll")
-        recorded = cls.save_base_data(logger=logger, petitions=petitions,)
+        recorded = cls.save_base_data(logger=logger, petitions=petitions)
 
         if geographic:
             logger.info("saving geo poll")
@@ -211,7 +211,11 @@ class Petition(db.Model):
         return recorded
 
     @classmethod
-    def save_geo_data(cls, logger, records):
+    def save_geo_data(cls, logger, records=[], petitions=[], min_increase=None):
+        records = records or [p.latest_record() for p in petitions]
+        if not any(records):
+            raise RuntimeError("Records empty and no Petitions with records")
+
         built = []
         for record in records:
             record.petition.geo_polled_at = record.petition.polled_at
@@ -229,20 +233,20 @@ class Petition(db.Model):
         return records
 
     @classmethod
-    def build_poll_query(cls, logger, where="all", **kwargs):
-        valid_wheres = ["trending", "signatures", "all"]
-        if not where in valid_wheres:
-            raise ValueError("Invalid arg: {'where': {}}. Valid values: {}".format(where, valid_wheres))
+    def build_poll_query(cls, logger, condition="any", **kwargs):
+        valid_conditions = ["trending", "signatures", "any"]
+        if not condition in valid_conditions:
+            raise ValueError(f"Invalid arg: {'where': {condition}}. Valid values: {valid_conditions}")
 
         query = cls.query.filter_by(state="O", archived=False)
         if kwargs.get("last_polled"):
             polled_attr = Petition.geo_polled_at if kwargs.get("geographic") else Petition.polled_at
             query = query.filter(polled_attr < kwargs["last_polled"])
-        if where == "trending":
-            threshold = kwargs.get("threshold") or Petition.get_setting("trending_threshold", type=int)
+        if condition == "trending":
+            threshold = kwargs.get("threshold", Petition.get_setting("trending_threshold", type=int))
             petitions = query.order_by(Petition.trend_pos.desc()).limit(threshold)
-        elif where == "signatures":
-            threshold = kwargs.get("threshold") or Petition.get_setting("signatures_threshold", type=int)
+        elif condition == "signatures":
+            threshold = kwargs.get("threshold", Petition.get_setting("signatures_threshold", type=int))
             if kwargs.get("lt"):
                 petitions = query.filter(Petition.signatures < threshold)
             else:
@@ -271,10 +275,10 @@ class Petition(db.Model):
     # update the trending pos for all petitions
     # optional before arg is the time of closest poll to compare
     @classmethod
-    def update_trending(cls, logger, before={"minutes": 60}, ts_range=2.5, **kwargs):
-        petitions = cls.find_recently_polled(logger=logger, before=before, ts_range=ts_range, **kwargs)
+    def update_trending(cls, before={"minutes": 60}, ts_range=2.5, task="poll_total_sigs_task"):
+        petitions = cls.find_recently_polled(before=before, ts_range=ts_range, task=task)
 
-        responses = cls.remote.async_poll(logger=logger, petitions=petitions["found"], max_retries=3)
+        responses = cls.remote.async_poll(lpetitions=petitions["found"], max_retries=3)
 
         logger.info("sorting successful responses and updating trend_pos for petitions")
         responses.sort(key=lambda r: cls.sort_growth(r))
@@ -394,17 +398,17 @@ class Petition(db.Model):
 
 class Record(db.Model):
     __tablename__ = "record"
-
     id = db.Column(Integer, primary_key=True)
     petition_id = db.Column(Integer, ForeignKey(Petition.id, ondelete="CASCADE"), index=True, nullable=False)
-    petition = relationship(Petition, back_populates="records")
-    signatures_by_country = relationship(lambda: SignaturesByCountry, lazy="dynamic", back_populates="record", cascade="all,delete-orphan")
-    signatures_by_region = relationship(lambda: SignaturesByRegion, lazy="dynamic", back_populates="record", cascade="all,delete-orphan")
-    signatures_by_constituency = relationship(lambda: SignaturesByConstituency, lazy="dynamic", back_populates="record", cascade="all,delete-orphan")
     timestamp = db.Column(DateTime, index=True, nullable=False)
     db_created_at = db.Column(DateTime, default=sqlfunc.now(), nullable=False)
     signatures = db.Column(Integer, nullable=False)
     geographic = db.Column(Boolean, default=False)
+    petition = relationship(Petition, back_populates="records")
+    sigs_rel_attrs = {"lazy": "dynamic", "back_populates": "record", "cascade": "all,delete-orphan"}
+    signatures_by_country = relationship(lambda: SignaturesByCountry, **sigs_rel_attrs)
+    signatures_by_region = relationship(lambda: SignaturesByRegion, **sigs_rel_attrs)
+    signatures_by_constituency = relationship(lambda: SignaturesByConstituency, **sigs_rel_attrs)
 
     def __repr__(self):
         template = "<record_id: {}, petition_id: {}, timestamp: {}, signatures: {}>"
@@ -511,7 +515,10 @@ class Record(db.Model):
 class SignaturesByCountry(db.Model):
     __tablename__ = "signatures_by_country"
     __table_args__ = (
-        db.UniqueConstraint("record_id", "iso_code", name="uniq_sig_country_for_record"),
+        db.UniqueConstraint(
+            "record_id", "iso_code",
+            name="uniq_sig_country_for_record"
+        ),
     )
 
     CODE_CHOICES = COUNTRIES
@@ -520,9 +527,10 @@ class SignaturesByCountry(db.Model):
 
     id = db.Column(Integer, primary_key=True)
     record_id = db.Column(Integer, ForeignKey(Record.id, ondelete="CASCADE"), index=True, nullable=False)
-    record = relationship(Record, back_populates="signatures_by_country")
     iso_code = db.Column(ChoiceType(CODE_CHOICES), index=True, nullable=False)
     count = db.Column(Integer, default=0)
+    record = relationship(Record, back_populates="signatures_by_country")
+
 
     @reconstructor
     def init_on_load(self):
@@ -544,7 +552,10 @@ class SignaturesByCountry(db.Model):
 class SignaturesByRegion(db.Model):
     __tablename__ = "signatures_by_region"
     __table_args__ = (
-        db.UniqueConstraint("record_id", "ons_code", name="uniq_sig_region_for_record"),
+        db.UniqueConstraint(
+            "record_id", "ons_code",
+            name="uniq_sig_region_for_record"
+        ),
     )
     CODE_CHOICES = REGIONS
     CODE_LOOKUP = LazyDict({v: k for k, v in dict(CODE_CHOICES).items()})
@@ -552,9 +563,10 @@ class SignaturesByRegion(db.Model):
 
     id = db.Column(Integer, primary_key=True)
     record_id = db.Column(Integer, ForeignKey(Record.id, ondelete="CASCADE"), index=True, nullable=False)
-    record = relationship(Record, back_populates="signatures_by_region")
     ons_code = db.Column(ChoiceType(CODE_CHOICES), index=True, nullable=False)
     count = db.Column(Integer, default=0)
+    record = relationship(Record, back_populates="signatures_by_region")
+
 
     @reconstructor
     def init_on_load(self):
@@ -576,7 +588,10 @@ class SignaturesByRegion(db.Model):
 class SignaturesByConstituency(db.Model):
     __tablename__ = "signatures_by_constituency"
     __table_args__ = (
-        db.UniqueConstraint("record_id", "ons_code", name="uniq_sig_constituency_for_record"),
+        db.UniqueConstraint(
+            "record_id", "ons_code",
+            name="uniq_sig_constituency_for_record"
+        ),
     )
     CODE_CHOICES = CONSTITUENCIES
     CODE_LOOKUP = LazyDict({v: k for k, v in dict(CODE_CHOICES).items()})
@@ -584,9 +599,10 @@ class SignaturesByConstituency(db.Model):
 
     id = db.Column(Integer, primary_key=True)
     record_id = db.Column(Integer, ForeignKey(Record.id, ondelete="CASCADE"), index=True, nullable=False)
-    record = relationship(Record, back_populates="signatures_by_constituency")
     ons_code = db.Column(ChoiceType(CODE_CHOICES), index=True,  nullable=False)
     count = db.Column(Integer, default=0)
+    record = relationship(Record, back_populates="signatures_by_constituency")
+
 
     @reconstructor
     def init_on_load(self):

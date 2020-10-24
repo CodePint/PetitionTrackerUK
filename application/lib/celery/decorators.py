@@ -1,38 +1,34 @@
 from flask import current_app
 from functools import wraps
 from datetime import datetime as dt
+from time import sleep
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def task_handler(*args, **kwargs):
+    from application.models import Task
     def wrapper(func):
         @wraps(func)
-        def handle(self, task_name, *args, **kwargs):
-            from application.models import Task
+        def handle(self, **kwargs):
+            import pdb
+            pdb.set_trace()
+            # sleep_time = kwargs.pop("sleep_time", 30)
+            # logger.info(f"sleeping task: {name}-{key}, for: {sleep_time}s")
+            # sleep(sleep_time)
+            # kwargs["queue"] = "application"
             self.request.kwargs.update(**kwargs)
+            # logger.info(f"handling task: {name}")
 
-            task = Task.get(task_name)
-            if task:
-                self.task_run = task.init_run(bind=self)
-            else:
-                raise RuntimeError("Task not found: {}".format(task_name))
+            # task = Task.get(name, key, will_raise=True)
+            # task_run = task.init_run(bind=self)
+            # return task_run.execute(func, *args, **kwargs)
 
-            if self.task_run.periodic:
-                if self.task_run.is_retrying() or self.task_run.is_overdue():
-                    return self.task_run.execute(func, *args, **kwargs)
-                else:
-                    return self.task_run.skip()
-            else:
-                return self.task_run.execute(func, *args, **kwargs)
-            return False
+            # if task_run.is_retrying() or task_run.will_run():
+            #     return task_run.execute(func, *args, **kwargs)
+            # else:
+            #     return task_run.skip()
+
         return handle
-    return wrapper
-
-
-def if_enabled(task_name):
-    def wrapper(func):
-        @wraps(func)
-        def get(*args, **kwargs):
-            from application.models import Task
-            task = Task.get(task_name)
-            return func(*args, task=task, **kwargs) if task and task.enabled else {}
-        return get
     return wrapper

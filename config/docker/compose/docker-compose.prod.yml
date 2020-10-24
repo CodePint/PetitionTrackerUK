@@ -5,7 +5,7 @@ volumes:
   pg_data:
 
 services:
-  react:
+  react_ui:
     container_name: react_ui
     build:
       context: ./frontend
@@ -16,7 +16,7 @@ services:
     env_file:
       - ./frontend/.env.production
 
-  flask:
+      flask_api:
     container_name: flask_api
     restart: always
     build:
@@ -26,7 +26,7 @@ services:
       - 5000
     volumes:
       - ./application:/usr/src/application
-  
+
   tracker_worker:
     container_name: tracker_worker
     build:
@@ -78,7 +78,7 @@ services:
       - pg_data:/var/lib/postgresql/data/
     env_file:
       .prod.env
-    
+
   redis:
     container_name: redis
     image: redis:latest

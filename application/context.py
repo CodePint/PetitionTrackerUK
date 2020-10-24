@@ -5,7 +5,7 @@ def register_context(app, db, celery):
     @app.shell_context_processor
     def context_processor():
         context = make_context()
-        app.config["DEBUG"] = True
+        app.config["DEBUG"] = False
         app.config["SQLALCHEMY_ECHO"] = True
 
         context["db"] = db
@@ -14,21 +14,17 @@ def register_context(app, db, celery):
 
         return context
 
-
-
 def make_context():
     context = {}
     context.update(import_models())
     context.update(import_schemas())
     context.update(import_utils())
-    context.update(import_logger())
 
     return context
 
 def import_models():
     models = {}
     models.update(import_tracker_models())
-    models.update(import_log_models())
     models.update(import_task_models())
     models.update(import_setting_model())
 
@@ -56,17 +52,9 @@ def import_task_models():
     from application.models import Task, TaskRun
     return {"Task": Task, "TaskRun": TaskRun}
 
-def import_log_models():
-    from application.models import BaseLog, AppLog, TaskLog
-    return {"AppLog": AppLog, "TaskLog": TaskLog}
-
 def import_setting_model():
     from application.models import Setting
     return {"Setting": Setting}
-
-def import_logger():
-    from application.models import Logger
-    return {"Logger": Logger}
 
 def import_schemas():
     from application.tracker.models import (
