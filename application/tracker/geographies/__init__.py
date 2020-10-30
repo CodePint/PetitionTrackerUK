@@ -1,19 +1,10 @@
-import json
-import os
+import os, json
 
-input_folder = 'json'
-output_folder = 'choices'
-geographies = [
-    'constituencies',
-    'countries',
-    'regions'
-]
-
-def deserialize():
+def deserialize(input_dir, output_dir, geographies):
     for geography in geographies:
         path = os.path.dirname(os.path.abspath(__file__))
-        input_file = os.path.join(path, input_folder, (geography + '.json'))
-        output_file = os.path.join(path, output_folder, (geography + '.py'))
+        input_file = os.path.join(path, input_dir, (geography + '.json'))
+        output_file = os.path.join(path, output_dir, (geography + '.py'))
         init_choice(geography, input_file, output_file)
 
 
@@ -27,6 +18,11 @@ def init_choice(geography, source, dest):
         for choice_tuple in choice_list:
             py_file.write("    {},\n".format(choice_tuple))
         py_file.write("]\n")
+
     return choice_list
 
-deserialize()
+deserialize(
+    input_dir='json',
+    output_dir='choices',
+    geographies=['constituencies', 'countries', 'regions']
+)
