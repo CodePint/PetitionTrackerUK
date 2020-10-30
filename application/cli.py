@@ -2,29 +2,29 @@ from flask import Flask
 import subprocess, click, os
 from application import context
 
-def register_cli(app, db, celery):
+def register(app, db, celery):
     cli = CliFunction(app, db, celery)
-    
+
     @app.cli.command("init-settings")
     def cli_init_settings():
         print("configuring default values for settings table")
         app.settings.configure(app.config["DEFAULT_SETTINGS"])
 
-    @app.cli.command("init-tasks")
-    def cli_init_tasks():
-        print("configuring values for periodic tasks")
-        app.models.Task.init_tasks(app.config["PERIODIC_TASK_SETTINGS"])
+    @app.cli.command("init-task-schedules")
+    def cli_init_task_schedule():
+        print("initializing task schedules")
+        app.celery_utils.init_db_schedule(overwrite=True)
 
-    @app.cli.command("re-init")
-    def cli_reinit():
-        print("initializing enviroment variables")
-        return True
+    @app.cli.command("init-task-templates")
+    def cli_init_task_schedule():
+        print("initializing task templates")
+        app.celery_utils.init_db_templates(overwrite=True)
 
     @app.cli.command("run-tracker-tasks")
     def cli_run_overdue_tasks():
         print("checking for overdue tracker tasks")
         app.celery_utils.run_tasks_for(queue="tracker")
-    
+
     @app.cli.command("react")
     def cli_run_yarn():
         print("starting react frontend")
@@ -34,7 +34,7 @@ def register_cli(app, db, celery):
     def cli_update_geography_data():
         print("updating geography application choices")
         from application.tracker import geographies
-        
+
     @app.cli.command("db-check")
     def cli_check_db():
         print("checking tables")
@@ -48,21 +48,20 @@ def register_cli(app, db, celery):
     @app.cli.command("db-drop")
     def cli_drop_db():
         cli.drop_tables()
-        cli.drop_alembic()
         print("database drop completed")
 
     @app.cli.command("db-drop-alembic")
     def cli_reset_alembic():
         cli.drop_alembic()
-    
+
     @app.cli.command("delete-records")
     def cli_delete_records():
         cli.delete_all_from("Record")
-        
+
     @app.cli.command("delete-petitions")
     def cli_delete_records():
         cli.delete_all_from("Petition")
-    
+
     @app.cli.command("delete-signatures")
     def cli_delete_records():
         cli.delete_all_from("SignaturesByCountry")
@@ -133,7 +132,7 @@ class CliFunction():
         model = context.import_models()[name]
         og_count = model.query.count()
         print("deleting all: {} ({})".format(name, og_count))
-        
+
         try:
             model.query.delete()
         except Exception as error:
