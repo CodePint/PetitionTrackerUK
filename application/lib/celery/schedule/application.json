@@ -1,0 +1,27 @@
+[
+
+    {
+        "name": "test_task",
+        "key": "[primary]-[scheduled]",
+        "description": "scheduled test task",
+        "module": "application",
+        "enabled": true,
+        "startup": true,
+        "periodic": true,
+        "kwargs": {
+            "greeting": "hello world! - scheduled"
+        },
+        "opts": {
+            "max_retries": 3,
+            "retry": true,
+            "once": {
+                "timeout": {"minutes": 10},
+                "graceful": true,
+            }
+        },
+        "schedule": {
+            "timedelta": {"seconds": 10}
+        }
+    }
+]
+

@@ -1,0 +1,153 @@
+
+[
+    {
+        "name": "base_poll_petitions_task",
+        "key": "[primary]-[scheduled]",
+        "description": "base poll, for all open petitions (5 min inteval)",
+        "module": "tracker",
+        "enabled": true,
+        "startup": false,
+        "periodic": true,
+        "kwargs": {
+            "condition": "any",
+            "lock_expiry": {"minutes": 10}
+        },
+        "opts": {
+            "retry": true,
+            "max_retries": 3,
+            "once": {
+                "timeout": {"minutes": 10},
+                "graceful": true,
+            }
+        },
+        "schedule": {
+            "timedelta": {"minutes": 5}
+        }
+
+    },
+
+    {
+        "name": "geo_poll_petitions_task",
+        "key": "[primary]-[scheduled]",
+        "description": "geographic poll, for top 50 trending (15 min interval)",
+        "module": "tracker",
+        "enabled": true,
+        "startup": false,
+        "periodic": true,
+        "kwargs": {
+            "condition": "trending",
+            "threshold": 50
+        },
+        "opts": {
+            "retry": true,
+            "max_retries": 3,
+            "once": {
+                "timeout": {"minutes": 10},
+                "graceful": true,
+            }
+        },
+        "schedule": {
+            "timedelta": {"minutes": 30}
+        }
+    },
+
+    {
+        "name": "geo_poll_petitions_task",
+        "key": "[signatures_gt_primary]-[scheduled]",
+        "description": "geographic poll, where signatures greater than 10,000 (1 hour interval)",
+        "module": "tracker",
+        "enabled": true,
+        "startup": false,
+        "periodic": true,
+        "kwargs": {
+            "condition": "signatures",
+            "threshold": 2500,
+            "gt": true
+        },
+        "opts": {
+            "retry": true,
+            "max_retries": 3,
+            "once": {
+                "timeout": {"minutes": 10},
+                "graceful": true,
+            }
+        },
+        "schedule": {
+            "timedelta": {"minutes": 60}
+        }
+    },
+
+    {
+        "name": "geo_poll_petitions_task",
+        "key": "[trending_top_primary]-[scheduled]",
+        "description": "geographic poll, for top 50 trending (15 min interval)",
+        "module": "tracker",
+        "enabled": true,
+        "startup": false,
+        "periodic": true,
+        "kwargs": {
+            "condition": "trending",
+            "threshold": 50
+        },
+        "opts": {
+            "retry": true,
+            "max_retries": 3,
+            "once": {
+                "timeout": {"minutes": 10},
+                "graceful": true,
+            }
+        },
+        "schedule": {
+            "timedelta": {"minutes": 15}
+        }
+    },
+
+    {
+        "name": "populate_petitions_task",
+        "key": "[primary]-[scheduled]",
+        "description": "populate petitions and create an initial geographic record (60 second interval)",
+        "module": "tracker",
+        "enabled": true,
+        "startup": false,
+        "periodic": true,
+        "kwargs": {
+            "state": "open"
+        },
+        "opts": {
+            "retry": true,
+            "max_retries": 3,
+            "once": {
+                "timeout": {"minutes": 10},
+                "graceful": true,
+            }
+        },
+        "schedule": {
+            "timedelta": {"seconds": 60}
+        }
+    },
+
+    {
+        "name": "update_trending_pos_task",
+        "key": "[primary]-[scheduled]",
+        "description": "updating the trending postition of all open petitions (10 min interval)",
+        "module": "tracker",
+        "enabled": true,
+        "startup": false,
+        "periodic": true,
+        "kwargs": {
+            "before": 60,
+            "ts_range": 2.5
+        },
+        "opts": {
+            "retry": true,
+            "max_retries": 3,
+            "once": {
+                "timeout": {"minutes": 10},
+                "graceful": true,
+            }
+        },
+        "schedule": {
+            "timedelta": {"minutes": 60}
+        }
+    }
+]
