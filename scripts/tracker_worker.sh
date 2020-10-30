@@ -1,6 +1,6 @@
 #!/bin/bash
 
 celery -A application.lib.celery.workers.tracker_worker.celery worker \
---loglevel=INFO \
+--loglevel=DEBUG \
 --pool=solo \
 --queue tracker

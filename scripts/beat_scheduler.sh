@@ -1,4 +1,5 @@
 #!/bin/bash
 
 celery -A application.lib.celery.workers.beat_scheduler.celery beat \
---loglevel=INFO
+-S redbeat.RedBeatScheduler \
+--loglevel=DEBUG
