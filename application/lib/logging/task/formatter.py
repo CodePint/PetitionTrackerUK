@@ -1,4 +1,4 @@
-from application.logger.formatter import EFKJsonFormatter
+from application.lib.logging.flask.formatter import EFKJsonFormatter
 from flask import Flask, request
 from flask import current_app as c_app
 import logging

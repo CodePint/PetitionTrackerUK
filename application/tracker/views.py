@@ -21,13 +21,14 @@ from flask import (
     redirect,
     url_for,
     jsonify,
-    current_app,
     request,
     abort
 )
-
+from flask import current_app as c_app
 from sqlalchemy import or_, and_, func, select
-import requests, json, os
+import requests, json, os, logging
+
+logger = logging.getLogger(__name__)
 
 # returns a petition with the given id
 # optionally returns a geographic/locale breakdown for a given time
@@ -63,11 +64,11 @@ def get_petitions():
     else:
         petitions = query.all()
         context["meta"]["items"] = {"total": len(petitions)}
-    
+
     if petitions:
             petitions_schema = PetitionSchema(many=True)
             context["petitions"] = petitions_schema.dump(petitions)
-    
+
     return context
 
 # returns timestamped list of total signatures for a petition
@@ -79,7 +80,7 @@ def get_petition_signatures(petition_id):
 
     context = {"petition": PetitionSchema().dump(petition), "signatures": []}
     query = ViewUtils.record_timestamp_query(petition, params["since"], params["between"])
-    
+
     context["meta"] = {"query": params}
     if params["items"]:
         blueprint = "tracker_bp.get_petition_signatures"
@@ -113,7 +114,7 @@ def get_petition_signatures_by_geography(petition_id, geography):
 
     context = {"petition": PetitionSchema().dump(petition)}
     query = ViewUtils.record_timestamp_query(petition, params["since"],  params["between"])
-    
+
     context["meta"] = {"query": params}
     if params["items"]:
         blueprint = "tracker_bp.get_petition_signatures_by_geography"
@@ -128,14 +129,14 @@ def get_petition_signatures_by_geography(petition_id, geography):
         records = query.all()
         context["meta"]["items"] = {"total": len(records)}
         latest_record = records[0] if any(records) else None
-    
+
     ViewUtils.abort_404_if_no_result(petition, records, query)
     sig_exclude = ["id", "record", "timestamp", geography]
     sig_schema = SignaturesBySchema.get_schema_for(geography)(many=True, exclude=sig_exclude)
     latest_data = ViewUtils.build_signatures_by_geography([latest_record], sig_schema, params)
     context["signatures"] = ViewUtils.build_signatures_by_geography(records, sig_schema, params)
     context["meta"]["latest_data"] = latest_data
-    
+
     return context
 
 # returns timestamped list of signatures for a petition, for a given geographical locale
@@ -217,7 +218,7 @@ def get_petition_signatures_comparison(petition_id):
         page = query.paginate(index, items_per_page, False)
         page.curr_num = index
         records = page.items
-        
+
         context["meta"]["items"] = ViewUtils.items_for(page)
         context["links"] = ViewUtils.build_pagination(
             page,

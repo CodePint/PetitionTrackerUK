@@ -1,4 +1,4 @@
-from flask import current_app
+from flask import current_app as c_app
 from application.models import Setting
 
 from requests.adapters import HTTPAdapter
@@ -9,12 +9,12 @@ from requests import Session as StandardSession
 from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse, parse_qs
-
-import requests
-import json
-import itertools
-import time, datetime
 from datetime import datetime as dt
+
+import requests, json, itertools, time, datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 class SessionMaker():
 
@@ -26,7 +26,7 @@ class SessionMaker():
             backoff_factor=backoff,
             method_whitelist=["HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE"]
         )
-        
+
         if future:
             executor = ThreadPoolExecutor(max_workers=max_workers)
             session = FuturesSession()
@@ -97,7 +97,7 @@ class RemotePetition():
 
     # fetch a remote petition by id optionally raise on 404
     @classmethod
-    def fetch(cls, logger, id, raise_404=False, **kwargs):
+    def fetch(cls, id, raise_404=False, **kwargs):
         url = cls.url_addr(id)
 
         logger.debug("fetching petition ID: {}".format(id))
@@ -119,7 +119,7 @@ class RemotePetition():
         results = {}
         results['failed'] = []
         results['success'] = []
-        
+
         for f in futures:
             response = f.result()
             if response.success:
@@ -130,52 +130,52 @@ class RemotePetition():
         return results
 
     @classmethod
-    def async_poll(cls, logger, petitions, max_retries=0, backoff=3, **kwargs):
+    def async_poll(cls, petitions, max_retries=0, backoff=3, **kwargs):
 
         futures = [
             cls.future_session.get(
                 url=cls.url_addr(p.id),
-                hooks={"response": cls.async_petition_callback(petition=p, id=p.id, logger=logger)})
+                hooks={"response": cls.async_petition_callback(petition=p, id=p.id)})
                 for p in petitions
             ]
 
         results = cls.handle_async_responses(futures)
         results["success"] = results["success"] + kwargs.get("successful", [])
         retries = kwargs.get("retries", 0)
-        
+
         if (retries > 0 and results['failed']):
             petitions = [r.petition for r in results['failed']]
             retry_kwargs = {"retries": retries + 1, "max_retries": max_retries, "backoff": backoff ** retries}
             logger.error("Retrying async poll for: '{}' petitions".format(len(petitions)))
             time.sleep(backoff)
-            cls.async_poll(logger=logger, petitions=petitions, successful=results["success"], **retry_kwargs)
-        
+            cls.async_poll(petitions=petitions, successful=results["success"], **retry_kwargs)
+
         success, fail = results["success"], results["failed"]
         logger.info("async poll completed. (Success: '{}', Fail: '{}')".format(len(success), len(fail)))
 
         return results
 
     @classmethod
-    def async_fetch(cls, logger, ids, max_retries=0, backoff=3, **kwargs):
+    def async_fetch(cls, ids, max_retries=0, backoff=3, **kwargs):
 
         futures = [
             cls.future_session.get(
                 url=cls.url_addr(id),
-                hooks={"response": cls.async_petition_callback(id=id, logger=logger)})
+                hooks={"response": cls.async_petition_callback(id=id)})
                 for id in ids
             ]
-        
+
         results = cls.handle_async_responses(futures)
         results["success"] = results["success"] + kwargs.get("successful", [])
         retries = kwargs.get("retries", 0)
-        
+
         if ((retries >= max_retries) and results["failed"]):
             ids = [r.petition_id for r in results['failed']]
             retry_kwargs = {"retries": retries + 1, "max_retries": max_retries, "backoff": backoff ** retries}
             logger.error("Retrying async fetch for ids: '{}'".format(ids))
             time.sleep(backoff)
-            cls.async_fetch(logger=logger, ids=ids, successful=results["success"], **retry_kwargs)
-        
+            cls.async_fetch(ids=ids, successful=results["success"], **retry_kwargs)
+
         success, fail = results["success"], results["failed"]
         logger.info("async fetch completed. (Success: '{}', Fail: '{}')".format(len(success), len(fail)))
 
@@ -203,10 +203,10 @@ class RemotePetition():
         return response_hook
 
     @classmethod
-    def async_query(cls, logger, indexes=[], state='all', max_retries=0, backoff=3, **kwargs):
+    def async_query(cls, indexes=[], state='all', max_retries=0, backoff=3, **kwargs):
         if not any(indexes):
             cls.validate_state(state)
-            kwargs.update(cls.setup_query(logger=logger, state=state))
+            kwargs.update(cls.setup_query(state=state))
             template_url, indexes = kwargs["template_url"], kwargs["indexes"]
 
         logger.info("executing async query for indexes: {}".format(indexes))
@@ -227,17 +227,17 @@ class RemotePetition():
             retry_kwargs = {"retries": retries + 1, "max_retries": max_retries, "backoff": backoff ** retries}
             logger.error("Retrying async query (%(retries)s}/%(max_retries)s). Failed: %(indexes)s" % kwargs)
             time.sleep(backoff)
-            cls.async_query(logger=logger,  successful=results["success"], **retry_kwargs, **kwargs)
-        
+            cls.async_query(successful=results["success"], **retry_kwargs, **kwargs)
+
         if any(results["success"]):
             results["success"] = [item for page in results["success"] for item in page.data]
-        
+
         success, failed = len(results["success"]), len(results["failed"])
         logger.info("async query completed, pages failed: '{}', items returned: {}".format(success, failed))
 
         return results
 
-    
+
     @classmethod
     def async_query_callback(cls, **fkwargs):
         def response_hook(response, *args, **kwargs):
@@ -250,21 +250,21 @@ class RemotePetition():
                 response.success = False
                 error_template = "HTTP error {}, when async fetching page: {}"
                 print(error_template.format(response.status_code, response.index))
-            
+
         return response_hook
 
     @classmethod
-    def setup_query(cls, logger, state):
+    def setup_query(cls, state):
         template_url = cls.page_url_template(state)
-        indexes = cls.get_page_range(logger=logger, template_url=template_url)
+        indexes = cls.get_page_range(template_url=template_url)
         return {"template_url": template_url, "indexes": indexes, "state": state}
-    
+
     @classmethod
-    def get_page_range(cls, logger, template_url, **kwargs):
+    def get_page_range(cls, template_url, **kwargs):
         logger.info("fetching page indexes")
         response = cls.standard_session.get(template_url % {"page": 1} )
         response.raise_for_status()
-        
+
         first_page = response.json()
         if first_page['links']['next']:
             page_ints = cls.page_ints(first_page["links"])

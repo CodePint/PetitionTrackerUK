@@ -5,11 +5,11 @@ from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_compress import Compress
 from psycopg2cffi import compat
-
-from celery import Celery
 from types import SimpleNamespace
 from dotenv import load_dotenv
 from pythonjsonlogger import jsonlogger
+from celery import Celery
+import redis
 
 from application import context as Context
 from application import cli as Cli
@@ -46,9 +46,7 @@ def make_celery():
     return CeleryUtils.make(Config, __name__)
 
 def make_redis():
-    import redis
-    redis_db = redis.Redis(host='localhost', port=6379, db=0)
-    return redis_db
+    return redis.Redis(host='localhost', port=6379, db=0)
 
 def load_tasks():
     from application import tasks
@@ -59,11 +57,10 @@ def load_models():
     from application.tracker import models
 
 def init_logging(**kwargs):
-    from application.logger.logger import setup_handlers
+    from application.lib.logging import initialize
     root_logger = logging.getLogger()
-    root_level = logging.getLevelName(Config.LOG_LEVEL)
-    root_logger.setLevel(root_level)
-    setup_handlers(root_logger, **kwargs)
+    root_logger.setLevel(logging.getLevelName(Config.LOG_LEVEL))
+    initialize(root_logger, **kwargs)
 
 # init config
 Config.init()

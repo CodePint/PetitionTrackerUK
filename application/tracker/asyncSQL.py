@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 import concurrent
-from flask import current_app
+from flask import current_app as c_app
 
 class AsyncSQL():
 
@@ -12,7 +12,7 @@ class AsyncSQL():
     def async_query(cls, function, iterable, workers=6, **kwargs):
         print("running async query")
 
-        session = current_app.db.create_scoped_session()
+        session = c_app.db.create_scoped_session()
 
         with ThreadPoolExecutor(max_workers=1) as executor:
             futures = {
@@ -25,7 +25,7 @@ class AsyncSQL():
         for f in concurrent.futures.as_completed(futures):
             result = f.result()
             results.append(result)
-        
+
         return results
 
     @classmethod
@@ -34,14 +34,14 @@ class AsyncSQL():
             app.db.session = session
             app.db.session.add(record)
             print("generating comparison for".format(record.id))
-            
+
             comparison = record_schema.dump(record)
             for geo in sig_attrs.keys():
                 name, schema = [sig_attrs[geo]['name'], sig_attrs[geo]['schema']]
                 model, relation = record.get_sig_model_relation(geo)
                 filtered = relation.filter(model.code.in_(sig_attrs[geo]['locales'])).all()
                 comparison[name] = [schema.dump(sig) for sig in filtered]
-            
+
             app.db.session.remove(record)
         return comparison
 
