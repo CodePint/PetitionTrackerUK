@@ -1,8 +1,9 @@
-from application import celery, create_app, init_beat
+from application import celery, create_app
 from application.lib.celery.utils import CeleryUtils
 from celery.utils.log import get_task_logger
-logger = get_task_logger(__name__)
 
-app = create_app()
+app = create_app(worker=__name__)
+app.app_context().push()
+from application.lib.celery.signals import *
 
-init_beat(app)
+CeleryUtils.init_beat(app)
