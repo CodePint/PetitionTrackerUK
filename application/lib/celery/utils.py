@@ -1,71 +1,131 @@
-from .templates import template_tasks
-from .schedule import TaskSchedule
-from celery import Celery
-from flask import current_app
-import os, time, datetime
+from celery import Celery, signature
+from celery import task as CeleryTask
+from celery_once import QueueOnce
+from datetime import timedelta
+from itertools import chain
+from celery.contrib import rdb
+from celery.schedules import crontab
+from .loader import TaskLoader
+from .tasks import context_tasks
+from flask import current_app as c_app
+import os, time, datetime, uuid, logging
+
+logger = logging.getLogger(__name__)
 
 class CeleryUtils():
 
-    # initializes celery base config
     @classmethod
-    def init_celery(cls, celery, app):
-        celery.conf.update(app.config)
-        celery.conf["DEFAULT_QUEUE"] = "default"
-        celery.conf["TIMEZONE"] = "Europe/London"
-        celery.conf["CELERY_ENABLE_UTC"] = False
+    def make(cls, config, name=__name__,):
+        return Celery(name, broker=config.REDIS_BROKER)
 
-        class ContextTask(celery.Task):
-            def __call__(self, *args, **kwargs):
-                with app.app_context():
-                    kwargs['queue'] =  self.request.delivery_info['routing_key']
-                    return self.run(*args, **kwargs)
-
-        celery.Task = ContextTask
+    @classmethod
+    def init_base(cls, app, celery):
+        celery.conf.update(app.config["CELERY_CONFIG"].BASE)
+        celery.conf["task_publish_retry_policy"] = cls.retry_policy()
+        celery.Task = context_tasks(app, celery, name="ContextTask")
         return celery
 
-    # initializes celery beat schedule
     @classmethod
-    def init_beat(cls, app, celery):
-        with app.app_context():
-            schedule = TaskSchedule()
-            app.task_schedule = schedule
-            celery.conf.beat_schedule = schedule.tasks
-            return schedule
+    def init_once(cls, app, celery):
+        celery.conf.ONCE = app.config["CELERY_CONFIG"].ONCE
+        celery.QueueOnce = context_tasks(app, celery, name="ContextQueueOnce")
+        return celery
 
-    # run a task template with optional periodic and async celery arguments
-    # func_kwargs overrides the actual predefined task arguments
-    # can be executed from corresponding Task object via Task.Run
     @classmethod
-    def run_task(cls, name, app=None, periodic=False, func_kwargs={}, async_kwargs={}):
-        app = app or current_app
-        with app.app_context():
-            task = template_tasks()[name]
-            task['func_kwargs'].update(func_kwargs)
-            task['async_kwargs'].update(async_kwargs)
-            task['func_kwargs']['periodic'] = periodic
-            task['function'].s(**task['func_kwargs']).apply_async(**task['async_kwargs'])
+    def init_beat(cls, app):
+        app.celery.conf.update(app.config["CELERY_CONFIG"].REDBEAT)
+        with c_app.app_context():
+            Task = c_app.models.Task
+            schedule = Task.query.filter_by(periodic=True, enabled=True).all()
+            return [cls.add_periodic_task(task) for task in schedule]
 
-    # runs tasks by queue type, optional startup param (will check if task is a startup task)
-    # tasks must still be enabled or the handler will reject them
     @classmethod
-    def run_tasks_for(cls, app=None, queue="default", periodic=True, startup=False):
-        app = app or current_app
+    def add_periodic_task(cls, task):
+        with c_app.app_context():
+            function = TaskLoader.get_func(task.name, task.module)
+            schedule = cls.parse_arg(task.schedule)
+            return c_app.celery.add_periodic_task(
+                sig=function.s(**task.kwargs),
+                schedule=schedule,
+                opts=task.opts
+            )
 
-        def will_run(task, queue, startup):
-            found = task and task_queue == queue
-            run_on_startup = not startup and task.run_on_startup
-            return found and run_on_startup
+    # initializes predefined template tasks with posgtres Task model
+    @classmethod
+    def init_templates(cls, overwrite=False):
+        with c_app.app_context():
+            Task = c_app.models.Task
+            templates = TaskLoader().tasks["templates"]
+            templates = list(chain.from_iterable(templates.values()))
+            init_func = Task.create_or_update if overwrite else Task.get_or_create
+            tasks = [init_func(**task) for task in templates]
+            c_app.db.session.add_all(tasks)
+            c_app.db.session.commit()
 
-        with app.app_context():
-            tasks = template_tasks()
-            for task_name, params in template_tasks().items():
-                task = current_app.models.Task.get(task_name)
-                task_queue = params['async_kwargs']['queue']
-                params['func_kwargs']['periodic'] = periodic
-                # if task not found or task disabled or queue does not match: next
-                if not task or not task.enabled or (task_queue != queue):
-                    next
-                # if not startup param or if startup param and task.run_on_startup 
-                if not startup or task.run_on_startup:
-                    print("running: {}".format(task.name))
-                    params['function'].s(**params['func_kwargs']).apply_async(**params['async_kwargs'])
+            return tasks
+
+    # initializes predefined scheduled tasks with posgtres Task model
+    # adds the newly created tasks to the celery beat schedule
+    @classmethod
+    def init_schedule(cls, overwrite=False):
+        with c_app.app_context():
+            Task = c_app.models.Task
+            schedule = TaskLoader().tasks["schedule"]
+            init_func = Task.create_or_update if overwrite else Task.get_or_create
+            tasks = [init_func(**task) for task in schedule]
+            c_app.db.session.add_all(tasks)
+            c_app.db.session.commit()
+
+            return tasks
+
+    @classmethod
+    def send_startup_tasks(cls, module, disable=False):
+        if disable: return
+        with c_app.app_context():
+            Task = c_app.models.Task
+            startup_query = Task.query.filter_by(enabled=True, startup=True, module=module)
+            return cls.send_from_query(query=startup_query, kwargs={"startup": True})
+
+    @classmethod
+    def send_from_query(cls, query, kwargs={}, opts={}):
+        with c_app.app_context():
+            tasks = query.all()
+            return [cls.send_task(task=t, kwargs=kwargs, opts=opts) for t in tasks]
+
+    @classmethod
+    def send_task(cls, name=None, key=None, task=None, unique=False, kwargs={}, opts={}):
+        with c_app.app_context():
+            if not task:
+                Task = c_app.models.Task
+                task = Task.get(name, key, will_raise=True)
+            if unique:
+                kwargs.update({"unique": True, "uuid":  uuid.uuid1()})
+
+            function = TaskLoader.get_func(task.name, task.module)
+            return function.s(**{**task.kwargs, **kwargs}).apply_async(**{**task.opts, **opts})
+
+    @classmethod
+    def retry_policy(cls):
+        return {
+            "max_retries": 3,
+            "interval_start": 10,
+            "interval_step": 15,
+            "interval_max": 60,
+        }
+
+    @classmethod
+    def contains_any_keys(cls, *keys, **kwargs):
+        for k in keys:
+            if k in kwargs.values():
+                return True
+
+    @classmethod
+    def parse_arg(cls, schedule):
+        if schedule.get("timedelta"):
+            return timedelta(**schedule["timedelta"])
+        if schedule.get("crontab"):
+            return crontab(**schedule["crontab"])
+        if schedule.get("integer"):
+            return int(schedule["integer"])
+
+

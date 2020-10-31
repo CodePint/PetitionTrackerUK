@@ -111,7 +111,7 @@ class CeleryConfig(object):
             "task_default_queue": cls.CELERY_DEFAULT_QUEUE,
         }
 
-        cls.CELERY_ONCE = {
+        cls.ONCE = {
             "backend": "celery_once.backends.Redis",
             "settings": {
                 "url": cls.REDIS_BROKER,
@@ -119,7 +119,7 @@ class CeleryConfig(object):
             }
         }
 
-        cls.CELERY_REDBEAT = {
+        cls.REDBEAT = {
             "redbeat_redis_url": cls.REDIS_BROKER,
             "redbeat_lock_key": None
         }

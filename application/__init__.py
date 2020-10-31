@@ -38,7 +38,8 @@ def init_views(app):
 def init_celery(app, celery):
     from application.lib.celery.utils import CeleryUtils
     app.celery_utils = CeleryUtils
-    app.celery = CeleryUtils.init(app=app, celery=celery)
+    app.celery = CeleryUtils.init_base(app=app, celery=celery)
+    app.celery = CeleryUtils.init_once(app=app, celery=celery)
     return celery
 
 def make_celery():

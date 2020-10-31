@@ -13,12 +13,12 @@ def register(app, db, celery):
     @app.cli.command("init-task-schedules")
     def cli_init_task_schedule():
         print("initializing task schedules")
-        app.celery_utils.init_db_schedule(overwrite=True)
+        app.celery_utils.init_schedule(overwrite=True)
 
     @app.cli.command("init-task-templates")
     def cli_init_task_schedule():
         print("initializing task templates")
-        app.celery_utils.init_db_templates(overwrite=True)
+        app.celery_utils.init_templates(overwrite=True)
 
     @app.cli.command("run-tracker-tasks")
     def cli_run_overdue_tasks():
