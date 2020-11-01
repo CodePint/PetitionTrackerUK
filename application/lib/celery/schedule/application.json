@@ -16,7 +16,7 @@
             "retry": true,
             "once": {
                 "timeout": {"minutes": 10},
-                "graceful": true,
+                "graceful": true
             }
         },
         "schedule": {

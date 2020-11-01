@@ -5,13 +5,13 @@ RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 COPY package.json /usr/src/app
 
-RUN npm install
+RUN yarn install
 COPY . /usr/src/app
-RUN npm run build
+RUN yarn run build
 
 FROM xqdocker/ubuntu-nginx
 COPY --from=build /usr/src/app/build /usr/share/nginx/html
-RUN rm /etc/nginx/conf.d/default.conf 
+RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx
 
 EXPOSE 80

@@ -18,12 +18,12 @@
 .env.test.local
 .env.production.local
 .docker-ignore
-
+.dockerignore
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# project 
+# project
 !/config/**/**
 Dockerfile
 nginx.conf
