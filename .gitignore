@@ -13,13 +13,12 @@ docker-compose.yml
 **__pycache__
 celerybeat-schedule
 
-debug/*
-logs/*
-logs/app/*
-logs/celery/*
-logs/celery/schedule/*
-logs/celery/schedule/workers/*
+scripts
+compose
+compose/**/**/
+debug/**/**/
+logs/**/**/
 application/profile.py
 application/lib/celery/schedule/schedule.json
 
-!config/**/**/**/**
+!deploy/***/***/**/**

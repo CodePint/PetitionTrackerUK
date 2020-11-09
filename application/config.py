@@ -46,6 +46,7 @@ class Config(object):
             "signatures_threshold": ENV.get("SIGNATURES_THRESHOLD"),
             "trending_threshold": ENV.get("TRENDING_THRESHOLD")
         }
+        cls.PROJ_SCRIPTS_DIR = ENV.get("PROJ_SCRIPTS_DIR", fallback="./scripts")
 
         # postgres config
         cls.POSTGRES_TEMPLATE = "postgresql://%(user)s:%(pw)s@%(host)s:%(port)s/%(db)s"
@@ -79,7 +80,7 @@ class Config(object):
 
         # view and response settings
         cls.JSONIFY_PRETTYPRINT_REGULAR = True
-        cls.CORS_ORIGINS = ENV.get("CORS_ORIGINS", fallback='', type=ENV.to_list)
+        cls.CORS_ORIGINS = ENV.get("CORS_ORIGINS", fallback='*', type=ENV.to_list)
 
         # log files and settings
         cls.LOG_FILE = ENV.get("LOG_FILE")

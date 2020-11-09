@@ -87,9 +87,11 @@ def create_app(**kwargs):
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(Config)
     app.context = Context
-    cors = CORS(app, resources={r"*": {"origins": "*"}})
-
     init_logging(**kwargs)
+
+    # configure cross origin resources
+    origins = {"origins": app.config["CORS_ORIGINS"]}
+    cors = CORS(app, resources={r"*": origins})
 
     with app.app_context():
         # configure database

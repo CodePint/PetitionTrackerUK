@@ -34,3 +34,6 @@ celery-redbeat = "*"
 
 [requires]
 python_version = "3.6"
+
+[scripts]
+celery_worker = "flask exec celery worker --name $1"
