@@ -28,8 +28,7 @@ from datetime import datetime as dt
 from requests.structures import CaseInsensitiveDict as LazyDict
 
 from application import db
-from application.models import Setting
-from application.models import Task, TaskRun
+from application.models import Setting, Task, TaskRun
 from .remote import RemotePetition
 
 from .geographies.choices.regions import REGIONS
