@@ -1,0 +1,46 @@
+version: "3.8"
+
+networks:
+  docker_primary_network:
+    name: docker_primary_network
+
+volumes:
+  pg_data:
+  es_data:
+
+services:
+  postgres:
+    container_name: postgres
+    restart: always
+    image: postgres:latest
+    ports:
+      - 5432:5432
+    volumes:
+      - pg_data:/var/lib/postgresql/data/
+    env_file: "${POSTGRES_ENV_FILE}"
+    networks:
+      - docker_primary_network
+
+  redis:
+    container_name: redis
+    restart: always
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - docker_primary_network
+
+  elasticsearch:
+    container_name: elasticsearch
+    restart: always
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.0
+    environment:
+      - "discovery.type=single-node"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    expose:
+      - "9200"
+    ports:
+      - "9200:9200"
+    networks:
+      - docker_primary_network

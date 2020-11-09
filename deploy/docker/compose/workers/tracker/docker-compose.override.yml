@@ -1,0 +1,19 @@
+version: "3.8"
+
+networks:
+  docker_primary_network:
+    name: docker_primary_network
+
+services:
+  tracker_worker:
+    restart: always
+    image: "${FLASK_GUNICORN_IMAGE}"
+    networks:
+      - docker_primary_network
+    command: flask exec celery worker --name tracker
+    logging:
+      driver: "fluentd-async"
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async-connect: 'true'
+        tag: celery.worker.tracker

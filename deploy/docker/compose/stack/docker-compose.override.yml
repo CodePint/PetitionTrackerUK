@@ -1,0 +1,39 @@
+version: "3.8"
+
+networks:
+  docker_primary_network:
+    name: docker_primary_network
+
+services:
+  flask_api:
+    container_name: flask_api
+    restart: always
+    image: "${FLASK_GUNICORN_IMAGE}"
+    expose:
+      - 5000
+    networks:
+      - docker_primary_network
+    command: flask exec gunicorn
+    logging:
+      driver: "fluentd-async"
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async-connect: 'true'
+        tag: flask.wsgi.api
+
+  react_ui:
+    container_name: react_ui
+    restart: always
+    image: "${REACT_NGINX_IMAGE}"
+    ports:
+      - 80:80
+      - 443:443
+    env_file: "${REACT_ENV_FILE}"
+    networks:
+      - docker_primary_network
+    logging:
+      driver: "fluentd-async"
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async-connect: 'true'
+        tag: react.nginx.frontend

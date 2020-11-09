@@ -1,0 +1,151 @@
+version: "3.8"
+
+networks:
+  docker_primary_network:
+    name: docker_primary_network
+
+volumes:
+  pg_data:
+  es_data:
+
+services:
+  flask_api:
+    container_name: flask_api
+    restart: always
+    image: "${FLASK_GUNICORN_IMAGE}"
+    expose:
+      - 5000
+    networks:
+      - docker_primary_network
+    command: flask exec gunicorn
+    logging:
+      driver: "fluentd-async"
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async-connect: 'true'
+        tag: flask.wsgi.api
+
+  react_ui:
+    container_name: react_ui
+    restart: always
+    image: "${REACT_NGINX_IMAGE}"
+    ports:
+      - 80:80
+      - 443:443
+    env_file: "${REACT_ENV_FILE}"
+    networks:
+      - docker_primary_network
+    logging:
+      driver: "fluentd-async"
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async-connect: 'true'
+        tag: react.nginx.frontend
+
+  tracker_worker:
+    container_name: tracker_worker
+    restart: always
+    image: "${FLASK_GUNICORN_IMAGE}"
+    networks:
+      - docker_primary_network
+    command: flask exec celery worker --name tracker
+    logging:
+      driver: "fluentd-async"
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async-connect: 'true'
+        tag: celery.worker.tracker
+
+  app_worker:
+    container_name: app_worker
+    restart: always
+    image: "${FLASK_GUNICORN_IMAGE}"
+    networks:
+      - docker_primary_network
+    command: flask exec celery worker --name tracker
+    logging:
+      driver: "fluentd-async"
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async-connect: 'true'
+        tag: celery.worker.app
+
+  beat_scheduler:
+    container_name: beat_scheduler
+    restart: always
+    image: "${FLASK_GUNICORN_IMAGE}"
+    networks:
+      - docker_primary_network
+    command: flask exec celery beat
+    logging:
+      driver: "fluentd-async"
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async-connect: 'true'
+        tag: celery.beat
+
+  flower_monitor:
+    container_name: flower_monitor
+    restart: always
+    image: "${FLASK_GUNICORN_IMAGE}"
+    ports:
+      - 5555:5555
+    networks:
+      - docker_primary_network
+    command: flask exec celery flower
+
+  postgres:
+    container_name: postgres
+    restart: always
+    image: postgres:latest
+    ports:
+      - 5432:5432
+    volumes:
+      - pg_data:/var/lib/postgresql/data/
+    env_file: "${POSTGRES_ENV_FILE}"
+    networks:
+      - docker_primary_network
+
+  redis:
+    container_name: redis
+    restart: always
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - docker_primary_network
+
+  elasticsearch:
+    container_name: elasticsearch
+    restart: always
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.0
+    environment:
+      - "discovery.type=single-node"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    expose:
+      - "9200"
+    ports:
+      - "9200:9200"
+    networks:
+      - docker_primary_network
+
+  fluentbit:
+    container_name: fluentbit
+    restart: always
+    image: "${FLUENTBIT_IMAGE}"
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    networks:
+      - docker_primary_network
+
+  kibana:
+    image: kibana:7.9.0
+    restart: always
+    links:
+      - "elasticsearch"
+    ports:
+      - "5601:5601"
+    networks:
+      - docker_primary_network

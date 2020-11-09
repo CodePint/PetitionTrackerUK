@@ -1,0 +1,58 @@
+version: "3.8"
+
+networks:
+  docker_primary_network:
+    name: docker_primary_network
+
+services:
+  tracker_worker:
+    container_name: tracker_worker
+    restart: always
+    image: "${FLASK_GUNICORN_IMAGE}"
+    networks:
+      - docker_primary_network
+    command: flask exec celery worker --name tracker
+    logging:
+      driver: "fluentd-async"
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async-connect: 'true'
+        tag: celery.worker.tracker
+
+  app_worker:
+    container_name: app_worker
+    restart: always
+    image: "${FLASK_GUNICORN_IMAGE}"
+    networks:
+      - docker_primary_network
+    command: flask exec celery worker --name tracker
+    logging:
+      driver: "fluentd-async"
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async-connect: 'true'
+        tag: celery.worker.app
+
+  beat_scheduler:
+    container_name: beat_scheduler
+    restart: always
+    image: "${FLASK_GUNICORN_IMAGE}"
+    networks:
+      - docker_primary_network
+    command: flask exec celery beat
+    logging:
+      driver: "fluentd-async"
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async-connect: 'true'
+        tag: celery.beat
+
+  flower_monitor:
+    container_name: flower_monitor
+    restart: always
+    image: "${FLASK_GUNICORN_IMAGE}"
+    ports:
+      - 5555:5555
+    networks:
+      - docker_primary_network
+    command: flask exec celery flower

@@ -1,0 +1,78 @@
+#############################################
+###   DOCKER BETA RELEASE INSTALLATION    ###
+###     VERSION: 20.10.0-beta-ac365d7     ###
+#############################################
+
+
+### NOTES ###
+# recommend (not essential) using a beta docker release
+# allows docker logs to function alongside third party log drivers
+# useful QoL improvement during development and debugging
+# for further details see:
+# github issue: https://github.com/moby/moby/issues/30887
+# github pull request: https://github.com/moby/moby/pull/40543
+
+### PRE INSTALLATION CHECKS ###
+# check if docker v20 has been released officially:
+# https://docs.docker.com/engine/release-notes/
+# check if there is a later beta release
+# https://download.docker.com/linux/static/test/x86_64/
+# check if there are any active bug reports for beta releases
+# https://github.com/moby/moby/issues?q=is%3Aissue+is%3Aopen+beta
+
+
+### INSTALLATION ###
+# fetch the beta binaries
+wget https://download.docker.com/linux/static/test/x86_64/docker-20.10.0-beta1.tgz
+
+# untar beta binaries
+tar xzvf docker-20.10.0-beta1.tgz
+
+# stop docker daemon
+systemctl stop docker
+
+# backup beta binaries
+sudo cp -r docker usr/usr/docker_beta
+
+# backup official binaries
+sudo mkdir /usr/bin/docker_official
+sudo cp \
+/usr/bin/containerd \
+/usr/bin/containerd-shim \
+/usr/bin/containerd-shim-runc-v1 \
+/usr/bin/containerd-shim-runc-v2 \
+/usr/bin/ctr \
+/usr/bin/docker \
+/usr/bin/dockerd \
+/usr/bin/docker-init \
+/usr/bin/docker-proxy \
+/usr/bin/runc \
+/usr/bin/docker_official
+
+# replace official docker binaries with beta binaries
+sudo cp -r docker . /usr/bin/
+
+# if cp results in text file busy
+sudo rm -f /usr/bin/{$BUSY_FILE}
+sudo cp -r docker . /usr/bin/
+
+# restart docker daemon
+systemctl start docker
+
+# verify docker beta version has been installed
+docker -v # --> 20.10.0-beta1, build ac365d7
+
+# verify docker is working correctly
+docker run hello-world # --> launches container
+docker ps -a  # --> shows exited container
+
+# if permissions denied
+sudo groupadd docker
+sudo usermod -aG docker $USER
+newgrp docker
+
+# set docker to start on boot
+$ sudo systemctl enable docker
+
+# install should now be completed, for issues see:
+https://docs.docker.com/engine/install/linux-postinstall/
