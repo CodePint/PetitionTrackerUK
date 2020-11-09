@@ -116,10 +116,14 @@ class Task(db.Model):
         return self
 
     @classmethod
-    def get(cls, name, key, will_raise=False):
+    def get(cls, name, key, enabled=None, will_raise=False):
         task = cls.query.filter_by(name=name.lower(), key=key).first()
         if not task and will_raise:
             raise TaskNotFound(name, key)
+
+        if task and enabled and task.enabled is not enabled:
+            logger.info(f"Task disabled {name}/{key}")
+            return None
 
         return task
 

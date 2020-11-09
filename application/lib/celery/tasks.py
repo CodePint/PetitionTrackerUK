@@ -31,27 +31,28 @@ def context_tasks(app, celery, name):
                 # always get the redis lock key
                 lock_key = self.get_key(args, kwargs)
                 if not options.get('retries'):
-                    # get database task if not retrying
-                    db_task = DBTask.get(self.name, kwargs["key"], will_raise=True)
-                    try:
-                        # raise if pending or locked else init lock and handler
-                        self.raise_if_pending(db_task)
-                        self.once_backend.raise_or_lock(lock_key, timeout=timeout)
-                        kwargs["id"] = self.init_handler(db_task, lock_key).id
-                    # handle the exception if graceful option == True, else reraise
-                    except AlreadyPending as e:
-                        if  graceful_pending:
-                            return self.reject_eager(lock_key, e)
-                        raise e
-                    except AlreadyQueued as e:
-                        if graceful_lock:
-                            return self.reject_eager(lock_key, e)
-                        raise e
+                    # get database task if not retrying and check if enabled
+                    db_task = DBTask.get(self.name, kwargs["key"], enabled=True, will_raise=True)
+                    if db_task.enabled:
+                        try:
+                            # raise if pending or locked else init lock and handler
+                            self.raise_if_pending(db_task)
+                            self.once_backend.raise_or_lock(lock_key, timeout=timeout)
+                            kwargs["id"] = self.init_handler(db_task, lock_key).id
+                        # handle the exception if graceful option == True, else reraise
+                        except AlreadyPending as e:
+                            if graceful_pending:
+                                return self.reject_eager(lock_key, e)
+                            raise e
+                        except AlreadyQueued as e:
+                            if graceful_lock:
+                                return self.reject_eager(lock_key, e)
+                            raise e
 
-                async_result = super(QueueOnce, self).apply_async(args, kwargs, **options)
-                async_result.lock_key = lock_key
+                    async_result = super(QueueOnce, self).apply_async(args, kwargs, **options)
+                    async_result.lock_key = lock_key
 
-                return async_result
+                    return async_result
 
         def raise_if_pending(self, db_task):
             pending = db_task.where("PENDING")

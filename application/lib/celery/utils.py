@@ -53,6 +53,7 @@ class CeleryUtils():
     # initializes predefined template tasks with posgtres Task model
     @classmethod
     def init_templates(cls, overwrite=False):
+        logger.info("initializing task templates")
         with c_app.app_context():
             Task = c_app.models.Task
             templates = TaskLoader().tasks["templates"]
@@ -68,6 +69,7 @@ class CeleryUtils():
     # adds the newly created tasks to the celery beat schedule
     @classmethod
     def init_schedule(cls, overwrite=False):
+        logger.info("initializing task schedule")
         with c_app.app_context():
             Task = c_app.models.Task
             schedule = TaskLoader().tasks["schedule"]
@@ -81,10 +83,11 @@ class CeleryUtils():
     @classmethod
     def send_startup_tasks(cls, module, disable=False):
         if disable: return
+        logger.info(f"sending startup tasks for: {module}")
         with c_app.app_context():
             Task = c_app.models.Task
             startup_query = Task.query.filter_by(enabled=True, startup=True, module=module)
-            return cls.send_from_query(query=startup_query, kwargs={"startup": True})
+            return cls.send_from_query(query=startup_query)
 
     @classmethod
     def send_from_query(cls, query, kwargs={}, opts={}):
@@ -102,6 +105,7 @@ class CeleryUtils():
                 kwargs.update({"unique": True, "uuid":  uuid.uuid1()})
 
             function = TaskLoader.get_func(task.name, task.module)
+            logger.info(f"sending task {name}/{key}")
             return function.s(**{**task.kwargs, **kwargs}).apply_async(**{**task.opts, **opts})
 
     @classmethod

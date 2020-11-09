@@ -1,6 +1,5 @@
 from application import celery
 from application.models import TaskRun as Run
-
 from datetime import datetime as dt
 import logging, time, os
 from time import sleep
