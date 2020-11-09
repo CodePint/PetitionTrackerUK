@@ -1,0 +1,125 @@
+#!/usr/bin/env python
+
+import subprocess, click, os
+
+worker_names = ["app", "tracker"]
+
+@click.group()
+def compose():
+    pass
+
+@click.option("--services", "-s", multiple=True)
+@click.option("--group", type=str)
+@click.option("--name", type=str)
+@compose.command()
+def up(name, services, group):
+    click.echo("compose up!")
+    opts = {"name": name, "group": group, "services": services}
+    Compose(up=True, opts=opts)
+
+@click.option("--services", "-s", multiple=True)
+@click.option("--group", type=str)
+@click.option("--name", type=str)
+@click.option("--rm/--no-rm", default=False)
+@click.option("--kill/--no-kill", default=False)
+@click.option("--stop/--no-stop", default=False)
+@compose.command()
+def down(name, services, group, rm, kill, stop):
+    click.echo("compose down!")
+    opts = {"name": name, "group": group, "services": services}
+    opts.update({"rm": rm, "kill": kill, "stop": stop})
+    Compose(down=True, opts=opts)
+
+@click.option("--worker/--no-worker", default=False)
+@click.option("--count", type=int, default=1)
+@click.option("--name")
+@compose.command()
+def scale(worker, name, count):
+    if worker and name in worker_names:
+        click.echo("compose scaling workers!")
+        opts = {"name": name, "count": count}
+        Compose(scale=True, opts=opts)
+    else:
+        click.echo("only predefined workers can be scaled for this project")
+
+
+
+class Compose():
+    base_dir = os.getenv("COMPOSE_DIRECTORY") or ""
+    base_file = "docker-compose.yml"
+    override_file = "docker-compose.override.yml"
+
+    def __init__(self, up=False, down=False, scale=False, opts={}):
+        if up:
+            self.up(**opts)
+        elif down:
+            self.down(**opts)
+        elif scale:
+            self.scale(**opts)
+        else:
+            valid_args = ["up", "down", "scale"]
+            raise ValueError(f"compose arg null or invalid, must be: {valid_args}")
+
+    def up(self, services=None, group=None, name=None, **opts):
+        container_arguments = ' '.join(list(services))
+        cmd = lambda f: subprocess.run(["docker-compose","-f", f, "up", "-d"] + list(services))
+        if services:
+            cmd(Compose.base_file)
+        elif group:
+            file_path = os.path.join(Compose.base_dir, group, Compose.override_file)
+            cmd(file_path)
+        else:
+            file_path = os.path.join(Compose.base_dir, Compose.base_file)
+            cmd(file_path)
+
+    def down(self, services=None, group=None, name=None, **opts):
+        if services:
+            cmd = lambda opt: subprocess.run(["docker", opt] + list(services))
+            if opts.get("stop"):
+                click.echo(f"stopping containers: {services}")
+                cmd("stop")
+            elif opts.get("kill"):
+                click.echo(f"killing containers: {services}")
+                cmd("kill")
+            if opts.get("rm"):
+                click.echo(f"removing containers: {services}")
+                cmd("rm")
+        elif group:
+            click.echo(f"removing compose group: {group}")
+            file_path = os.path.join(Compose.base_dir, group, Compose.override_file)
+            subprocess.run(["docker-compose", "-f", file_path, "stop"])
+        else:
+            if not opts.get("kill") and not opts.get("rm"):
+                return False and click.echo("no option selection for compose down")
+            if opts.get("kill"):
+                running_ids = self.get_container_ids(flags="-q")
+                if any(running_ids):
+                    click.echo(f"killing running containers: {running_ids}")
+                    subprocess.run(["docker", "kill"] + running_ids)
+            if opts.get("rm"):
+                stopped_ids = self.get_container_ids(flags="-aq")
+                if any(stopped_ids):
+                    click.echo(f"killing stopped containers: {stopped_ids}")
+                    subprocess.run(["docker", "rm"] + stopped_ids)
+
+
+    def get_container_ids(self, flags):
+        output = subprocess.check_output(f"docker ps {flags}", shell=True)
+        output = str(output).split("\\n")[0:-1]
+        if output:
+            ids = output[0:-1]
+            ids[0] = ids[0][2:]
+        else:
+            ids = []
+
+        return ids
+
+    def scale(self, name, count, **opts):
+        file_path = os.path.join(Compose.base_dir, "workers", name, Compose.override_file)
+        name_count = f"{name}_worker={count}"
+        subprocess.run(["docker-compose", "-f", file_path, "up", "-d", "--scale", name_count])
+
+
+
+if __name__ == '__main__':
+    compose()
