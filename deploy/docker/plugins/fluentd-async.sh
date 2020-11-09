@@ -1,8 +1,8 @@
 #!/bin/bash
-# pre-release plguin for fluentd async, fixes hanging container bug
+# pre-release plugin for fluentd async - fixes hanging container bug
 # See issue: https://github.com/moby/moby/issues/40063
 
-echo installing docker plugin: async-fluentd-logger (pre-relase)
+echo "installing docker plugin: async-fluentd-logger (pre-release)"
 docker plugin install \
     --alias fluentd-async \
-    aakerouanton/fluentd-async-logger:v0.3
+    akerouanton/fluentd-async-logger:v0.3
