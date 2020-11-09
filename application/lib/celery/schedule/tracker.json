@@ -1,7 +1,7 @@
 
 [
     {
-        "name": "base_poll_petitions_task",
+        "name": "base_poll_task",
         "key": "[primary]-[scheduled]",
         "description": "base poll, for all open petitions (5 min inteval)",
         "module": "tracker",
@@ -9,25 +9,23 @@
         "startup": false,
         "periodic": true,
         "kwargs": {
-            "condition": "any",
-            "lock_expiry": {"minutes": 10}
+            "condition": "any"
         },
         "opts": {
             "retry": true,
             "max_retries": 3,
             "once": {
                 "timeout": {"minutes": 10},
-                "graceful": true,
+                "graceful": true
             }
         },
         "schedule": {
             "timedelta": {"minutes": 5}
         }
-
     },
 
     {
-        "name": "geo_poll_petitions_task",
+        "name": "geo_poll_task",
         "key": "[primary]-[scheduled]",
         "description": "geographic poll, for top 50 trending (15 min interval)",
         "module": "tracker",
@@ -43,7 +41,7 @@
             "max_retries": 3,
             "once": {
                 "timeout": {"minutes": 10},
-                "graceful": true,
+                "graceful": true
             }
         },
         "schedule": {
@@ -52,7 +50,7 @@
     },
 
     {
-        "name": "geo_poll_petitions_task",
+        "name": "geo_poll_task",
         "key": "[signatures_gt_primary]-[scheduled]",
         "description": "geographic poll, where signatures greater than 10,000 (1 hour interval)",
         "module": "tracker",
@@ -69,7 +67,7 @@
             "max_retries": 3,
             "once": {
                 "timeout": {"minutes": 10},
-                "graceful": true,
+                "graceful": true
             }
         },
         "schedule": {
@@ -78,7 +76,7 @@
     },
 
     {
-        "name": "geo_poll_petitions_task",
+        "name": "geo_poll_task",
         "key": "[trending_top_primary]-[scheduled]",
         "description": "geographic poll, for top 50 trending (15 min interval)",
         "module": "tracker",
@@ -94,7 +92,7 @@
             "max_retries": 3,
             "once": {
                 "timeout": {"minutes": 10},
-                "graceful": true,
+                "graceful": true
             }
         },
         "schedule": {
@@ -103,7 +101,7 @@
     },
 
     {
-        "name": "populate_petitions_task",
+        "name": "populate_task",
         "key": "[primary]-[scheduled]",
         "description": "populate petitions and create an initial geographic record (60 second interval)",
         "module": "tracker",
@@ -118,7 +116,7 @@
             "max_retries": 3,
             "once": {
                 "timeout": {"minutes": 10},
-                "graceful": true,
+                "graceful": true
             }
         },
         "schedule": {
@@ -143,7 +141,7 @@
             "max_retries": 3,
             "once": {
                 "timeout": {"minutes": 10},
-                "graceful": true,
+                "graceful": true
             }
         },
         "schedule": {

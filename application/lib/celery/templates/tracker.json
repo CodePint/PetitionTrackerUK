@@ -1,7 +1,7 @@
 
 [
     {
-        "name": "base_poll_petitions_task",
+        "name": "base_poll_task",
         "key": "[base_pol]-[base]",
         "description": "base poll petitions - base task",
         "module": "tracker",
@@ -18,7 +18,7 @@
     },
 
     {
-        "name": "geo_poll_petitions_task",
+        "name": "geo_poll_task",
         "key": "[geo_poll]-[base]",
         "description": "geo poll petitions - base task",
         "module": "tracker",
@@ -38,7 +38,7 @@
     },
 
     {
-        "name": "populate_petitions_task",
+        "name": "populate_task",
         "key": "[populate_task]-[base]",
         "description": "populate petitions - base task",
         "module": "tracker",
