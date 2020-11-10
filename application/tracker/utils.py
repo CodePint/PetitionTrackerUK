@@ -161,7 +161,7 @@ class ViewUtils():
     @classmethod
     def get_record_for_petition(cls, petition, time_arg):
         if time_arg:
-            record = petition.get_closest_record_to(time_arg)
+            record = petition.get_closest_record(time_arg)
         else:
             record = petition.latest_record()
 
