@@ -25,20 +25,17 @@ def import_models():
     models = {}
     models.update(import_tracker_models())
     models.update(import_task_models())
-    models.update(import_setting_model())
+    models.update(import_application_models())
 
     return models
 
 def import_tracker_models():
+    from application.tracker.models import Petition, Record
     from application.tracker.models import (
-        Petition,
-        Record,
-        SignaturesBySchema,
         SignaturesByCountry,
         SignaturesByRegion,
         SignaturesByConstituency,
     )
-
     return {
         "Petition": Petition,
         "Record": Record,
@@ -51,16 +48,16 @@ def import_task_models():
     from application.models import Task, TaskRun
     return {"Task": Task, "TaskRun": TaskRun}
 
-def import_setting_model():
-    from application.models import Setting
-    return {"Setting": Setting}
+def import_application_models():
+    from application.models import Setting, Event
+    return {"Setting": Setting, "Event": Event}
 
 def import_schemas():
     from application.tracker.models import (
         PetitionSchema,
+        RecordSchema,
         PetitionNestedSchema,
         RecordNestedSchema,
-        RecordSchema,
         SignaturesBySchema,
         SignaturesByCountrySchema,
         SignaturesByRegionSchema,
@@ -69,8 +66,8 @@ def import_schemas():
 
     return {
         "PetitionSchema": PetitionSchema,
-        "PetitionNestedSchema": PetitionNestedSchema,
         "RecordSchema": RecordSchema,
+        "PetitionNestedSchema": PetitionNestedSchema,
         "RecordNestedSchema": RecordNestedSchema,
         "SignaturesBySchema": SignaturesBySchema,
         "SignaturesByCountrySchema": SignaturesByCountrySchema,

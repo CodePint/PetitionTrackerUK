@@ -24,7 +24,7 @@ from celery_once import helpers as CeleryOnceUtils
 from datetime import datetime as dt
 from datetime import timedelta
 from time import sleep
-import datetime, time, json, logging
+import datetime, math, time, json, logging
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,49 @@ class Setting(db.Model):
 
 
 
+class Event(db.Model):
+    id = db.Column(Integer, primary_key=True)
+    name = db.Column(String, index=True, nullable=False)
+    msg = db.Column(String, default="N/A")
+    ts = db.Column(DateTime, index=True, nullable=False, default=sqlfunc.now())
+
+    def __repr__(self):
+        return f"name: {self.name}, msg: {self.msg}, ts: {self.ts}"
+
+    @classmethod
+    def called(cls, name, order="desc"):
+        return Event.query.filter_by(name=name).order_by(getattr(Event.ts, order)())
+
+    @classmethod
+    def first(cls, name):
+        return Event.called(name=name, order="asc").first()
+
+    @classmethod
+    def last(cls, name):
+        return Event.called(name=name, order="desc").first()
+
+    # max range expects timedelta
+    @classmethod
+    def closest(cls, name, ts, max_range=None):
+        query = Event.query.filter_by(name=name)
+        gt_event = query.filter(Event.ts > ts).order_by(Event.ts.asc()).first()
+        lt_event = query.filter(Event.ts < ts).order_by(Event.ts.desc()).first()
+        if not gt_event and not lt_event:
+            logger.info(f"no events exist with name '{name}'")
+            return None
+
+        gt_diff = (gt_event.ts - ts).total_seconds() if gt_event else math.inf
+        lt_diff  = (ts - lt_event.ts).total_seconds() if lt_event else math.inf
+        max_range = timedelta(**max_range).total_seconds() if max_range else None
+        out_of_range = max_range and (gt_diff > max_range) and (lt_diff > max_range)
+
+        if out_of_range:
+            logger.info(f"no events with: '{name}', within range")
+        else:
+            return gt_event if gt_diff < lt_diff else lt_event
+
+
+
 class TaskNotFound(NameError):
     def __init__(self, name, key):
         self.message = f"No task found with name: {name}, key: {key}"
@@ -108,12 +151,6 @@ class Task(db.Model):
 
     def __repr__(self):
         return f"<id: {self.id}, name: {self.name}, key: {self.key}, enabled: {self.enabled}>"
-
-    def update(self, **kwargs):
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-        return self
 
     @classmethod
     def get(cls, name, key, enabled=None, will_raise=False):
@@ -195,6 +232,12 @@ class Task(db.Model):
         query = self.runs.filter(TaskRun.state.in_(states))
         query = query.filter_by(unique=False)
         return query.all()
+
+    def update(self, **kwargs):
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+        return self
 
 
 
@@ -378,18 +421,18 @@ class TaskRun(db.Model):
     def get_state(self):
         return dict(TaskRun.STATE_CHOICES)[self.state]
 
-    def update(self, **kwargs):
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-        return self
-
     def unlock(self):
         if self.lock_key:
             logger.info(f"releasing lock for run: {self}")
             c_app.redis.delete(self.lock_key)
         else:
             logger.warn(f"no lock key saved for run: {self}")
+        return self
+
+    def update(self, **kwargs):
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
         return self
 
 
