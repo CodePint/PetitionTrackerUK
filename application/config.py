@@ -11,11 +11,12 @@ class Config(object):
     }
 
     @classmethod
-    def init(cls):
+    def load(cls):
         Config.init_env()
         Config.override_env()
-        CeleryConfig.init_env()
+        CeleryConfig.import_env()
         Config.import_env()
+        return cls
 
     @classmethod
     def init_env(cls):
@@ -32,10 +33,10 @@ class Config(object):
 
     @classmethod
     def override_env(cls):
-        cls.ENV_OVERRIDES = ENV.get("OVERRIDES", type=ENV.to_list)
+        cls.ENV_OVERRIDES = ENV.get("OVERRIDES", type=ENV.to_list, fallback=[])
         print("ENV_OVERRIDES: {}".format(cls.ENV_OVERRIDES))
-
-        [load_dotenv(dotenv_path=env, override=True ) for env in cls.ENV_OVERRIDES]
+        # if cls.ENV_OVERRIDES:
+        [load_dotenv(dotenv_path=env, override=True) for env in cls.ENV_OVERRIDES]
 
     @classmethod
     def import_env(cls):
@@ -57,7 +58,6 @@ class Config(object):
             "host": ENV.get("POSTGRES_HOST", else_raise=True),
             "port": ENV.get("POSTGRES_PORT", else_raise=True)
         }
-
         cls.SQLALCHEMY_DATABASE_URI = cls.POSTGRES_TEMPLATE % cls.POSTGRES_CONFIG
         cls.SQLALCHEMY_TRACK_MODIFICATIONS = False
         cls.SQLALCHEMY_ECHO = cls.DEBUG
@@ -97,7 +97,7 @@ class Config(object):
 class CeleryConfig(object):
 
     @classmethod
-    def init_env(cls):
+    def import_env(cls):
         cls.REDIS_HOST = ENV.get("REDIS_HOST", else_raise=True)
         cls.REDIS_PORT = ENV.get("REDIS_PORT", else_raise=True)
         cls.REDIS_BROKER = f"redis://{cls.REDIS_HOST}:{cls.REDIS_PORT}/0"
@@ -126,13 +126,17 @@ class CeleryConfig(object):
         }
 
 
+class EnvVarNotFound(ValueError):
+    def __init__(self, key):
+        self.message = key
+
 
 # Enviroment loader helper
 class ENV():
 
     @classmethod
-    def raiser(cls, ex, msg):
-        raise ex(msg)
+    def raiser(cls, ex, msg, **kwargs):
+        raise ex(msg, **kwargs)
 
     @classmethod
     def to_bool(cls, var):
@@ -143,7 +147,8 @@ class ENV():
         return var.strip("[]").replace(", ", ",") .split(",")
 
     @classmethod
-    def get(cls, key, fallback=None, type=str, else_raise=False, ex=RuntimeError, msg="NOT FOUND"):
-        handle = lambda: cls.raiser(ex, "{}: {}".format(key, msg)) if else_raise else fallback
+    def get(cls, key, fallback=None, type=str, else_raise=False, msg="NOT FOUND"):
+        handle = lambda: cls.raiser(EnvVarNotFound, key) if else_raise else fallback
         value = os.getenv(key)
         return type(value) if value else handle()
+

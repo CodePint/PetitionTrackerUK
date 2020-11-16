@@ -11,9 +11,9 @@ from pythonjsonlogger import jsonlogger
 from celery import Celery
 import redis
 
+from application.config import Config
 from application import context as Context
 from application import cli as Cli
-from application.config import Config
 from application.lib.celery.utils import CeleryUtils
 
 import logging, subprocess, os, click
@@ -63,8 +63,12 @@ def init_logging(**kwargs):
     root_logger.setLevel(logging.getLevelName(Config.LOG_LEVEL))
     initialize(root_logger, **kwargs)
 
-# init config
-Config.init()
+def init_config(config=None, **settings):
+    if not config:
+        from application.config import Config
+    return Config.load()
+
+Config.load()
 
 # init database/adapter
 compat.register()
@@ -81,10 +85,10 @@ celery = make_celery()
 # init compress object
 compress = Compress()
 
-def create_app(**kwargs):
+def create_app(name=__name__, **kwargs):
 
     # create app and load configuration variables
-    app = Flask(__name__, instance_relative_config=False)
+    app = Flask(name, instance_relative_config=False)
     app.config.from_object(Config)
     app.context = Context
     init_logging(**kwargs)

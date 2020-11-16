@@ -19,22 +19,21 @@ logger = logging.getLogger(__name__)
 class SessionMaker():
 
     @classmethod
-    def make(cls, future=False, retries=3, backoff=3, timeout=5, max_workers=24):
+    def make(cls, future=False, retries=3, backoff=3, timeout=5, max_workers=10):
         retry_conf = Retry(
             total=retries,
-            status_forcelist=[412, 413, 429, 500, 502, 503, 504],
             backoff_factor=backoff,
-            method_whitelist=["HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE"]
+            status_forcelist=[412, 413, 429, 500, 502, 503, 504],
+            allowed_methods=["HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE"]
         )
 
         if future:
             executor = ThreadPoolExecutor(max_workers=max_workers)
-            session = FuturesSession()
+            session = FuturesSession(executor=executor)
         else:
             session = StandardSession()
 
         adapter = TimeoutHTTPAdapter(timeout=timeout)
-
         session.mount(prefix="http://", adapter=adapter)
         session.mount(prefix="https://", adapter=adapter)
 
@@ -55,13 +54,12 @@ class TimeoutHTTPAdapter(HTTPAdapter):
 
 class RemotePetition():
 
-
     base_url = "https://petition.parliament.uk/petitions"
     base_archive_url = "https://petition.parliament.uk/archived/petitions"
     future_session = SessionMaker.make(future=True, retries=1, backoff=1, timeout=1)
     standard_session = SessionMaker.make(future=False, retries=5, backoff=2, timeout=3)
 
-    list_states = [
+    query_states = [
         'rejected',
         'closed',
         'open',
@@ -85,9 +83,9 @@ class RemotePetition():
 
     @classmethod
     def validate_state(cls, state):
-        if not state in cls.list_states:
+        if not state in cls.query_states:
             error_template = "Invalid state param: '{}', valid states: {}"
-            raise ValueError(error_template.format(state, cls.list_states))
+            raise ValueError(error_template.format(state, cls.query_states))
 
     @classmethod
     def page_ints(cls, links):
@@ -99,9 +97,8 @@ class RemotePetition():
     @classmethod
     def fetch(cls, id, raise_404=False, **kwargs):
         url = cls.url_addr(id)
-
         logger.debug("fetching petition ID: {}".format(id))
-        response = standard_session.get(url)
+        response = cls.standard_session.get(url)
         response.timestamp = dt.now().isoformat()
 
         if (response.status_code == 200):
@@ -131,7 +128,6 @@ class RemotePetition():
 
     @classmethod
     def async_poll(cls, petitions, max_retries=0, backoff=3, **kwargs):
-
         futures = [
             cls.future_session.get(
                 url=cls.url_addr(p.id),
@@ -157,7 +153,6 @@ class RemotePetition():
 
     @classmethod
     def async_fetch(cls, ids, max_retries=0, backoff=3, **kwargs):
-
         futures = [
             cls.future_session.get(
                 url=cls.url_addr(id),
@@ -202,12 +197,15 @@ class RemotePetition():
 
         return response_hook
 
+    # query the petitions pages on the remote
+    # optional index format is a range converted to a list: range(1,2) --> [1]
     @classmethod
-    def async_query(cls, indexes=[], state='all', max_retries=0, backoff=3, **kwargs):
-        if not any(indexes):
-            cls.validate_state(state)
-            kwargs.update(cls.setup_query(state=state))
-            template_url, indexes = kwargs["template_url"], kwargs["indexes"]
+    def async_query(cls, state='open', indexes=None, max_retries=0, backoff=3, **kwargs):
+        cls.validate_state(state)
+
+        kwargs.update(cls.setup_query(state))
+        template_url = cls.page_url_template(state)
+        indexes = indexes or cls.get_page_range(template_url=template_url)
 
         logger.info("executing async query for indexes: {}".format(indexes))
         futures = [
@@ -229,7 +227,7 @@ class RemotePetition():
             time.sleep(backoff)
             cls.async_query(successful=results["success"], **retry_kwargs, **kwargs)
 
-        if any(results["success"]):
+        if results["success"]:
             results["success"] = [item for page in results["success"] for item in page.data]
 
         success, failed = len(results["success"]), len(results["failed"])

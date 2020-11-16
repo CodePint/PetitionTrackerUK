@@ -31,6 +31,9 @@ gunicorn = "*"
 python-json-logger = "*"
 celery-once = "*"
 celery-redbeat = "*"
+pytest = "*"
+pytest-mock = "*"
+freezegun = "*"
 
 [requires]
 python_version = "3.6"

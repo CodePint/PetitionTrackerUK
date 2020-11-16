@@ -441,6 +441,10 @@ class SettingSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = Setting
 
+class EventSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Event
+
 class TaskSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = Task

@@ -1,5 +1,15 @@
-from . import bp
-from .utils  import ViewUtils
+from flask import current_app as c_app
+from flask import (
+    render_template,
+    redirect,
+    url_for,
+    jsonify,
+    request,
+    abort
+)
+from sqlalchemy import or_, and_, func, select
+import requests, json, os, logging
+
 from .models import (
     Petition,
     PetitionSchema,
@@ -15,18 +25,8 @@ from .models import (
     SignaturesByConstituency,
     SignaturesByConstituencySchema,
 )
-
-from flask import (
-    render_template,
-    redirect,
-    url_for,
-    jsonify,
-    request,
-    abort
-)
-from flask import current_app as c_app
-from sqlalchemy import or_, and_, func, select
-import requests, json, os, logging
+from .utils import ViewUtils
+from . import bp
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # optionally returns a geographic/locale breakdown for a given time
 @bp.route("/petition/<petition_id>", methods=["GET"])
 def get_petition(petition_id):
-    time_arg = request.args.get("time")
+    time_arg = request.args.get("time", None)
     get_with_signatures = request.args.get("signatures", type=json.loads)
     petition = ViewUtils.get_petition_or_404(petition_id)
 
@@ -46,7 +46,7 @@ def get_petition(petition_id):
 
 # returns a list of petitions
 @bp.route("/petitions", methods=["GET"])
-def get_petitions():
+def get_petitions_list():
     params = ViewUtils.build_get_petitions_params(request)
     context = {"state": params["state"], "petitions":[]}
     query = ViewUtils.build_get_petitions_query(params)
@@ -57,7 +57,6 @@ def get_petitions():
         index = request.args.get('index', 1, type=int)
         page = query.paginate(index, params["items"], False)
         page.curr_num = index
-        total_items = page.total
         petitions = page.items
         context["meta"]["items"] = ViewUtils.items_for(page)
         context["meta"]["pages"] = ViewUtils.build_pagination(page, blueprint, **params)

@@ -35,10 +35,6 @@ class ViewUtils():
         abort(make_response(jsonify(message=message), status_code))
 
     @classmethod
-    def get_app(cls):
-        return c_app._get_current_object()
-
-    @classmethod
     def abort_404_if_no_result(cls, petition, result, query):
         if not result:
             template = "No signatures found for petition id: '{}', using query: '{}'"
