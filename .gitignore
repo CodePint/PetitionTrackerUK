@@ -1,24 +1,18 @@
-.*.env
-.env
+*.env
 .vscode/*
-
-wsgi.sh
-docker-compose.override.yml
-docker-compose.dev.yml
-docker-compose.prod.yml
-Dockerfile
-docker-compose.yml
-.dockerignore
-
-**__pycache__
+**/__pycache__
 celerybeat-schedule
 
-scripts
+.test.py
+docker-compose.*
+Dockerfile
+.dockerignore
 compose
-compose/**/**/
-debug/**/**/
-logs/**/**/
-application/profile.py
+scripts
+wsgi.sh
+
 application/lib/celery/schedule/schedule.json
 
-!deploy/***/***/**/**
+!deploy/**/**/**/**/
+!application/tests/docker-compose.pytest.yml
+!application/tests/*.env
