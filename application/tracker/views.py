@@ -94,7 +94,7 @@ def get_petition_signatures(petition_id):
     else:
         records = query.all()
         context["meta"]["items"] = {"total": len(records)}
-        latest_record = records[0] if any(records) else None
+        latest_record = records[0] if records else None
 
     ViewUtils.abort_404_if_no_result(petition, records, params)
     signatures = ViewUtils.get_total_signatures_and_latest_data(records, latest_record)
@@ -138,7 +138,7 @@ def get_petition_signatures_by_geography(petition_id, geography):
 
     return context
 
-# returns timestamped list of signatures for a petition, for a given geographical locale
+# returns timestamped list of signatures for a given petition/locale
 @bp.route("/petition/<petition_id>/signatures_by/<geography>/<locale>", methods=["GET"])
 def get_petition_signatures_by_locale(petition_id, geography, locale):
     ViewUtils.abort_400_if_invalid_geography(geography)
@@ -178,7 +178,7 @@ def get_petition_signatures_by_locale(petition_id, geography, locale):
 
     return context
 
-# compares multiple geographies/locales (slow to execute)
+# compares multiple geographies/locales (very slow to execute)
 # better to use #get_petition_signatures_by_locale with async requests
 @bp.route("/petition/<petition_id>/signatures_by/compare", methods=["POST"])
 def get_petition_signatures_comparison(petition_id):

@@ -1,29 +1,29 @@
-import subprocess, os, json, logging
+import os, json, logging
 from application.tracker.remote import RemotePetition as Remote
 
 logger = logging.getLogger(__name__)
 logger.setLevel("INFO")
 
-class CreateSeeds():
+class CreateLiveCache():
     def __init__(self, state="open", pages=1):
         self.state = state
         self.indexes = range(1, pages + 1)
         self.configure_paths()
 
-        logger.info(f"fetching petition seeds for state: {self.state}")
+        logger.info(f"fetching remote petition cache for state: {self.state}")
         self.query_response = self.fetch_query()
         self.petition_ids = self.ids_from_query()
         self.petition_responses =  self.fetch_petitions()
 
         self.write_query()
         self.write_petitions()
-        logger.info("seed data fetch completed")
-        logger.info(f"petition seed files: {self.petition_files}")
+        logger.info("remote data fetch completed")
+        logger.info(f"cached petition files: {self.petition_files}")
 
     @classmethod
     def execute(cls, *states, pages):
-        logger.info(f"fetching {pages} pages of petition seeds, for states: {states}")
-        return [CreateSeeds(s, pages) for s in states]
+        logger.info(f"fetching {pages} pages of petitions, in states: {states}")
+        return [CreateLiveCache(s, pages) for s in states]
 
     def fetch_query(self):
         logger.info(f"querying remote for state: {self.state}")
@@ -32,7 +32,7 @@ class CreateSeeds():
     def fetch_petitions(self):
         logger.info(f"fetching remote petitions: {self.petition_ids}")
         return Remote.async_fetch(self.petition_ids)
-        logger.info("petition seed fetch completed")
+        logger.info("petition remote fetch completed")
 
     def ids_from_query(self):
         return [r["id"] for r in self.query_response["success"]]
@@ -60,4 +60,4 @@ class CreateSeeds():
             with open(filename, "w") as petition_file:
                 json.dump(response.data, petition_file, indent=4)
 
-CreateSeeds.execute("open", "closed", pages=1)
+CreateLiveCache.execute("open", "closed", pages=1)

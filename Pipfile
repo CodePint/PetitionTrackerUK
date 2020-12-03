@@ -34,6 +34,10 @@ celery-redbeat = "*"
 pytest = "*"
 pytest-mock = "*"
 freezegun = "*"
+numpy = "*"
+faker = "*"
+factory-boy = "*"
+munch = "*"
 
 [requires]
 python_version = "3.6"

@@ -3,6 +3,7 @@
 **/__pycache__
 celerybeat-schedule
 
+.test.py
 docker-compose.*
 Dockerfile
 .dockerignore
@@ -13,5 +14,5 @@ wsgi.sh
 application/lib/celery/schedule/schedule.json
 
 !deploy/**/**/**/**/
-!application/tests/docker-compose.yml
+!application/tests/docker-compose.pytest.yml
 !application/tests/*.env

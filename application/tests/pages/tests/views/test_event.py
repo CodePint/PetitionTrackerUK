@@ -6,7 +6,7 @@ from datetime import timedelta
 import logging
 
 from application.models import Event, EventSchema
-from .. import FROZEN_DATETIME, FROZEN_TIME_STR
+from application.tests import FROZEN_DATETIME, FROZEN_TIME_STR
 
 logger = logging.getLogger(__name__)
 

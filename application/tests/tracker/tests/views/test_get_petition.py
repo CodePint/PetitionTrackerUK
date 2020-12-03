@@ -5,8 +5,8 @@ from pytest_mock import mocker
 
 class TestGetPetition():
 
-    def without_signatures(self):
+    def test_get_without_signatures(self):
         pass
 
-    def with_signatures(self):
+    def test_get_with_signatures(self):
         pass

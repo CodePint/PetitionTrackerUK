@@ -2,7 +2,7 @@ from flask import current_app
 from freezegun import freeze_time
 from datetime import datetime as dt
 import datetime, pytest, logging, json
-from .. import FROZEN_TIME_STR
+from application.tests import FROZEN_DATETIME, FROZEN_TIME_STR
 
 logger = logging.getLogger(__name__)
 
