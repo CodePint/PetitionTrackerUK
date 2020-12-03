@@ -24,9 +24,9 @@ from requests.structures import CaseInsensitiveDict as LazyDict
 from application import db
 from application.models import Setting, Event, Task, TaskRun
 from .remote import RemotePetition
-from .geographies.choices.regions import REGIONS
-from .geographies.choices.constituencies import CONSTITUENCIES
-from .geographies.choices.countries import COUNTRIES
+from application.tracker.geographies.choices.regions import REGIONS
+from application.tracker.geographies.choices.countries import COUNTRIES
+from application.tracker.geographies.choices.constituencies import CONSTITUENCIES
 
 import sys
 import requests
@@ -120,14 +120,18 @@ class Petition(db.Model):
             raise RuntimeError(f"Failed to fetch detailed data for petitions: {fetched}")
 
         logger.info("initializing petition objects")
-        petitions = [Petition(id=r.id, initial_data=r.data, latest_data=r.data) for r in responses]
-        db.session.add_all(petitions)
+        populated = []
+        for r in responses:
+            petition = Petition(id=r.id, initial_data=r.data, latest_data=r.data)
+            petition.sync_column_data()
+            populated.append(petition)
 
-        logger.info("creating petitions and handling initial poll")
-        petitions = Petition.handle_poll(logger=logger, petitions=petitions, geographic=True, populating=True)
+        petition_ids = [p.id for p in populated]
+        logger.info("bulk saving petitions")
+        db.session.bulk_save_objects(populated)
 
-        logger.info("petitions created, petitions onboards:".format(len(petitions)))
-        return petitions
+        logger.info(f"petitions saved successfully, populated IDs: {petition_ids}")
+        return petition_ids
 
     @classmethod
     def find_new(cls, state):
@@ -164,7 +168,7 @@ class Petition(db.Model):
             raise RuntimeError(f"No poll responses, failures: {len(responses['failed'])}")
 
     @classmethod
-    def handle_poll(cls, petitions, geographic, populating=False):
+    def handle_poll(cls, petitions, geographic):
         logger.info("saving base poll")
         recorded = cls.save_base_data(petitions)
 
@@ -176,10 +180,10 @@ class Petition(db.Model):
         db.session.commit()
         logger.info("completed poll!")
 
-        return [r.petition for r in recorded] if populating else recorded
+        return recorded
 
     @classmethod
-    def save_base_data(cls, logger, petitions):
+    def save_base_data(cls, petitions):
         records = []
         for petition in petitions:
             logger.debug("handling base data for ID: {}".format(petition.id))
@@ -201,11 +205,7 @@ class Petition(db.Model):
         return recorded
 
     @classmethod
-    def save_geo_data(cls, records=[], petitions=[], min_increase=None):
-        records = records or [p.latest_record() for p in petitions]
-        if not any(records):
-            raise RuntimeError("No records found")
-
+    def save_geo_data(cls, records, min_increase=None):
         built = []
         for record in records:
             logger.debug("handling geo datas for ID: {}".format(record.petition.id))
