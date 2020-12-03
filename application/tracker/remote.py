@@ -54,32 +54,36 @@ class TimeoutHTTPAdapter(HTTPAdapter):
 
 class RemotePetition():
 
-    base_url = "https://petition.parliament.uk/petitions"
-    base_archive_url = "https://petition.parliament.uk/archived/petitions"
+    base_url = "https://petition.parliament.uk"
     future_session = SessionMaker.make(future=True, retries=1, backoff=1, timeout=1)
     standard_session = SessionMaker.make(future=False, retries=5, backoff=2, timeout=3)
 
     query_states = [
-        'rejected',
-        'closed',
-        'open',
-        'debated',
-        'not_debated',
-        'awaiting_response',
-        'with_response',
-        'awaiting_debate',
-        'all'
+        "rejected",
+        "closed",
+        "open",
+        "debated",
+        "not_debated",
+        "awaiting_response",
+        "with_response",
+        "awaiting_debate",
+        "all"
     ]
 
     petition_states = ["closed", "rejected", "open"]
 
     @classmethod
-    def url_addr(cls, id):
-        return cls.base_url + '/' + str(id) + '.json'
+    def get_base_url(cls, archived=False):
+        return cls.base_url + "/archived/petitions" if archived else "/petitions"
 
     @classmethod
-    def page_url_template(cls, state):
-        return cls.base_url + ".json?" + '&'.join(["page=%(page)s", "state={}".format(state)])
+    def url_addr(cls, id, archived=False):
+        return f"{cls.get_base_url(archived)}/{id}.json"
+
+    @classmethod
+    def page_url_template(cls, state, archived=False):
+        params = '&'.join(['page=%(page)s', 'state={}'.format(state)])
+        return f"{cls.get_base_url(archived)}.json?{params}"
 
     @classmethod
     def validate_state(cls, state):
@@ -89,9 +93,8 @@ class RemotePetition():
 
     @classmethod
     def page_ints(cls, links):
-        get_val = lambda url, key: parse_qs(urlparse(url).query).get(key)
-        parse_link = lambda url: int(get_val(url, 'page')[0]) if (url and 'page' in url) else None
-        return {k: parse_link(v) for k, v in links.items()}
+        get_val = lambda url, key: (parse_qs(urlparse(url).query).get(key) or [None])[0]
+        return {k: get_val(v, "page") for k, v in links.items()}
 
     # fetch a remote petition by id optionally raise on 404
     @classmethod
@@ -114,15 +117,15 @@ class RemotePetition():
     @classmethod
     def handle_async_responses(cls, futures):
         results = {}
-        results['failed'] = []
-        results['success'] = []
+        results["failed"] = []
+        results["success"] = []
 
         for f in futures:
             response = f.result()
             if response.success:
-                results['success'].append(response)
+                results["success"].append(response)
             else:
-                results['failed'].append(response)
+                results["failed"].append(response)
 
         return results
 
@@ -139,8 +142,8 @@ class RemotePetition():
         results["success"] = results["success"] + kwargs.get("successful", [])
         retries = kwargs.get("retries", 0)
 
-        if (retries > 0 and results['failed']):
-            petitions = [r.petition for r in results['failed']]
+        if (retries > 0 and results["failed"]):
+            petitions = [r.petition for r in results["failed"]]
             retry_kwargs = {"retries": retries + 1, "max_retries": max_retries, "backoff": backoff ** retries}
             logger.error("Retrying async poll for: '{}' petitions".format(len(petitions)))
             time.sleep(backoff)
@@ -165,7 +168,7 @@ class RemotePetition():
         retries = kwargs.get("retries", 0)
 
         if ((retries >= max_retries) and results["failed"]):
-            ids = [r.petition_id for r in results['failed']]
+            ids = [r.petition_id for r in results["failed"]]
             retry_kwargs = {"retries": retries + 1, "max_retries": max_retries, "backoff": backoff ** retries}
             logger.error("Retrying async fetch for ids: '{}'".format(ids))
             time.sleep(backoff)
@@ -184,7 +187,7 @@ class RemotePetition():
 
             if response.status_code == 200:
                 response.data = response.json()
-                response.data["archived"] = (response.data['data']['type'] == 'archived-petition')
+                response.data["archived"] = (response.data["data"]["type"] == "archived-petition")
                 response.data["timestamp"] = dt.now().isoformat()
                 if response.petition:
                     response.petition.latest_data = response.data
@@ -200,7 +203,7 @@ class RemotePetition():
     # query the petitions pages on the remote
     # optional index format is a range converted to a list: range(1,2) --> [1]
     @classmethod
-    def async_query(cls, state='open', indexes=None, max_retries=0, backoff=3, **kwargs):
+    def async_query(cls, state="open", indexes=None, max_retries=0, backoff=3, **kwargs):
         cls.validate_state(state)
 
         kwargs.update(cls.setup_query(state))
@@ -264,8 +267,8 @@ class RemotePetition():
         response.raise_for_status()
 
         first_page = response.json()
-        if first_page['links']['next']:
+        if first_page["links"]["next"]:
             page_ints = cls.page_ints(first_page["links"])
-            return list(range(page_ints['next'], page_ints['last'] + 1))
+            return list(range(page_ints["next"], page_ints["last"] + 1))
         else:
             return [1]
