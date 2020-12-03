@@ -1,27 +1,45 @@
-import os
 import pytest
 import sqlalchemy as sa
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from alembic.command import upgrade
 from alembic.config import Config
+from faker import Faker
+from faker.providers import lorem
+from functools import wraps
+import os, logging, json
 
-from . import Compose
+from application.tests.utils import Compose
 from application import create_app
 from application import db as _db
 from application import Config
 
+logger = logging.getLogger(__name__)
+
 Config.load()
+
 TEST_DB_URI = Config.SQLALCHEMY_DATABASE_URI
 ALEMBIC_CONFIG = "../../migrations/alembic.ini"
+
+def get_kwargs(request):
+    return getattr(request, "param", {})
+
+def init_faker():
+    faker = Faker()
+    faker.add_provider(lorem)
+    return faker
 
 def apply_migrations():
     """Applies all alembic migrations."""
     config = Config(ALEMBIC_CONFIG)
     upgrade(config, 'head')
 
+@pytest.fixture(scope="session", autouse=True)
+def before_test_run():
+    Compose.up()
+
 @pytest.fixture(scope='function')
-def dummy_fixture():
+def dummy_fixture(request):
     print("creating dummy fixture!")
     class DummyFixture():
         pass
@@ -75,3 +93,4 @@ def session(db, request):
 
     request.addfinalizer(teardown)
     return session
+
