@@ -5,6 +5,7 @@ from copy import deepcopy
 from datetime import timedelta
 from datetime import datetime as dt
 
+from application.tests.conftest import get_kwargs
 from application.tests.tracker.factories.signatures import SignaturesByFactory
 from application.tests.tracker.conftest import (
     geography_names,
@@ -101,14 +102,15 @@ class TestSignaturesByFactory():
 
         return build_config
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(scope="function")
     def predef_locales(self, request):
+        kwargs = get_kwargs(request)
         self.predef_locales = {}
         for geo in geography_names():
-            templates = self.make_templates(geo, self.predef_templates)
+            templates = self.make_templates(geo, self.predef_templates, **kwargs)
             self.predef_locales[geo] = templates
 
-    def test_init_success(self, geo_src_dict):
+    def test_init_success(self, geo_src_dict, predef_locales):
         for geo, predef in self.predef_locales.items():
             logger.info(f"testing for: {geo}")
 
@@ -127,10 +129,9 @@ class TestSignaturesByFactory():
             assert len(result) == expected_num_locales
             assert sum(list_of_counts(result)) == sigs
 
-    def test_init_fails_if_predef_count_greater_than_total(self):
+    def test_init_fails_if_predef_count_greater_than_total(self, predef_locales):
         for geo, predef in self.predef_locales.items():
             logger.info(f"testing for: {geo}")
-
             sigs = randint(1, 50)
             config = self.init_config(geo, sigs, predef, rand_percent_locales(geo))
 
@@ -140,7 +141,7 @@ class TestSignaturesByFactory():
 
             assert str(e.value) == expected_error_msg
 
-    def test_init_fails_if_predef_locale_not_found(self):
+    def test_init_fails_if_predef_locale_not_found(self, predef_locales):
         for geo, predef in self.predef_locales.items():
             logger.info(f"testing for: {geo}")
 
@@ -154,10 +155,10 @@ class TestSignaturesByFactory():
 
             assert str(e.value) == expected_error_msg
 
-    def test_build_successful_with_uk_present(self):
+    @pytest.mark.parametrize('predef_locales', [{"exclude_uk": True}], indirect=True)
+    def test_build_successful_with_uk_present(self, predef_locales):
         total_count = 100_000
         national_count = 65_000
-
         build_config = self.build_config(self.predef_locales)
         UK = dict(**uk_locale(), count=national_count)
         build_config["country"]["locales"]["predef"].append(UK)
@@ -179,15 +180,15 @@ class TestSignaturesByFactory():
             verified = self.verify_counts(geo, result[get_geo_key(geo)], predef)
             assert verified == len(predef)
 
-    def test_build_fails_without_uk_present(self):
+    def test_build_fails_without_uk_present(self, predef_locales):
         total_count = 100_000
         build_config = self.build_config(self.predef_locales)
 
-        expected_error_msg = "UK not in predefined countries"
+        expected_msg = "UK not in predefined countries"
         with pytest.raises(ValueError) as e:
             result = SignaturesByFactory.build(**deepcopy(build_config), signatures=total_count)
 
-        assert str(e.value) == expected_error_msg
+        assert str(e.value) == expected_msg
 
 
 

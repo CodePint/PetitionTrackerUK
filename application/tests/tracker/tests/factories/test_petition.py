@@ -19,11 +19,9 @@ from application.tests.tracker.conftest import (
     geography_names,
     geography_keys
 )
-
-petition_factory_path = "application.tests.tracker.factories.petition"
 from application.tests.tracker.factories.petition import PetitionFactory
 
-
+petition_factory_path = "application.tests.tracker.factories.petition"
 logger = logging.getLogger(__name__)
 
 class TestPetitionFactory():
@@ -34,8 +32,7 @@ class TestPetitionFactory():
 
     @pytest.fixture(autouse=True, scope="function")
     def context(self):
-        self.patches = ObjDict()
-        self.mocks = ObjDict()
+        self.patches, self.mocks = ObjDict(), ObjDict()
         self.patch_petition_fake()
         self.patch_signatures_build()
 

@@ -24,7 +24,6 @@ from application.tests.tracker.factories.petition import PetitionFactory
 
 query_factory_path = "application.tests.tracker.factories.query"
 petition_factory_path = "application.tests.tracker.factories.petition"
-
 logger = logging.getLogger(__name__)
 
 
