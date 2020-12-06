@@ -99,6 +99,24 @@ class RemotePetition():
         get_val = lambda url, key: (parse_qs(urlparse(url).query).get(key) or [None])[0]
         return {k: get_val(v, "page") for k, v in links.items()}
 
+    # fetch a remote petition by id optionally raise on 404
+    @classmethod
+    def fetch(cls, id, raise_404=False, **kwargs):
+        url = cls.url_addr(id)
+        logger.debug("fetching petition ID: {}".format(id))
+        response = cls.standard_session.get(url)
+
+        if (response.status_code == 200):
+            response.timestamp = dt.now().isoformat()
+            response.data = response.json()
+            return response
+        elif (response.status_code == 404):
+            if not raise_404:
+                logger.error("could not find petition ID: {}".format(id))
+                return None
+
+        response.raise_for_status()
+
     @classmethod
     def handle_async_responses(cls, futures, **kwargs):
         results = {"success": [], "failed": [], "processed": {}}
@@ -166,8 +184,6 @@ class RemotePetition():
         logger.info(f"async get complete, {results['processed']}")
         return results
 
-# Petition.populate()
-
     # query pages of petitions by state
     @classmethod
     def async_query(cls, indexes=range(0), state="open", max_retries=0, backoff=3, retries=0, **kwargs):
@@ -211,21 +227,3 @@ class RemotePetition():
 
         page_nums = cls.find_page_nums(first_page["links"])
         return list(range(int(page_nums["next"]), int(page_nums["last"]) + 1))
-
-    # fetch a remote petition by id optionally raise on 404
-    @classmethod
-    def fetch(cls, id, raise_404=False, **kwargs):
-        url = cls.url_addr(id)
-        logger.debug("fetching petition ID: {}".format(id))
-        response = cls.standard_session.get(url)
-
-        if (response.status_code == 200):
-            response.timestamp = dt.now().isoformat()
-            response.data = response.json()
-            return response
-        elif (response.status_code == 404):
-            if not raise_404:
-                logger.error("could not find petition ID: {}".format(id))
-                return None
-
-        response.raise_for_status()
