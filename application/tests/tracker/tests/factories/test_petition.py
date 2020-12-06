@@ -32,7 +32,8 @@ class TestPetitionFactory():
 
     @pytest.fixture(autouse=True, scope="function")
     def context(self):
-        self.patches, self.mocks = ObjDict(), ObjDict()
+        self.patches = ObjDict()
+        self.mocks = ObjDict()
         self.patch_petition_fake()
         self.patch_signatures_build()
 
