@@ -12,7 +12,7 @@ from copy import deepcopy
 import os, json, logging, random
 
 from application.tests import FROZEN_DATETIME, FROZEN_TIME_STR
-from application.tests.conftest import get_kwargs
+from application.tests.conftest import rkwargs
 from application.tests.tracker.conftest import (
     fetch_locales_for,
     rand_percent_locales,
@@ -67,7 +67,7 @@ class TestPetitionFactory():
 
     @pytest.fixture(scope="function")
     def petition_kwargs(self, request):
-        kwargs = get_kwargs(request)
+        kwargs = rkwargs(request)
         self.kwargs = ObjDict({
             "petition_id": kwargs.get("petition_id", 999_999),
             "signature_count": kwargs.get("count") or self.total_signatures_fallback(),

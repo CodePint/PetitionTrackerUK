@@ -3,7 +3,7 @@ from copy import deepcopy
 from random import randint, randrange
 import os, logging, random
 
-from application.tests.conftest import get_kwargs
+from application.tests.conftest import rkwargs
 from application.tracker.geographies.dictionaries.regions import REGIONS as REGIONS_LIST_DICT
 from application.tracker.geographies.dictionaries.countries import COUNTRIES as COUNTRIES_LIST_DICT
 from application.tracker.geographies.dictionaries.constituencies import CONSTITUENCIES as CONSTITUENCIES_LIST_DICT
@@ -101,15 +101,15 @@ def geo_src_dict(request):
 
 @pytest.fixture(scope="function")
 def region_src(request):
-    return fetch_locales_for("region", **get_kwargs(request))
+    return fetch_locales_for("region", **rkwargs(request))
 
 @pytest.fixture(scope="function")
 def country_src(request):
-    return fetch_locales_for("country", **get_kwargs(request))
+    return fetch_locales_for("country", **rkwargs(request))
 
 @pytest.fixture(scope="function")
 def constituency_src(request):
-    return fetch_locales_for("constituency", **get_kwargs(request))
+    return fetch_locales_for("constituency", **rkwargs(request))
 
 @pytest.fixture(scope="function")
 def petition():

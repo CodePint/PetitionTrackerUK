@@ -21,7 +21,7 @@ Config.load()
 TEST_DB_URI = Config.SQLALCHEMY_DATABASE_URI
 ALEMBIC_CONFIG = "../../migrations/alembic.ini"
 
-def get_kwargs(request):
+def rkwargs(request):
     return getattr(request, "param", {})
 
 def init_faker():

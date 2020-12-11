@@ -5,7 +5,7 @@ from copy import deepcopy
 from datetime import timedelta
 from datetime import datetime as dt
 
-from application.tests.conftest import get_kwargs
+from application.tests.conftest import rkwargs
 from application.tests.tracker.factories.signatures import SignaturesByFactory
 from application.tests.tracker.conftest import (
     geography_names,
@@ -104,7 +104,7 @@ class TestSignaturesByFactory():
 
     @pytest.fixture(scope="function")
     def predef_locales(self, request):
-        kwargs = get_kwargs(request)
+        kwargs = rkwargs(request)
         self.predef_locales = {}
         for geo in geography_names():
             templates = self.make_templates(geo, self.predef_templates, **kwargs)
@@ -138,8 +138,7 @@ class TestSignaturesByFactory():
             expected_error_msg = f"total signatures ({sigs}) less than predef counts"
             with pytest.raises(ValueError) as e:
                 result = SignaturesByFactory(**config).__dict__
-
-            assert str(e.value) == expected_error_msg
+                assert str(e.value) == expected_error_msg
 
     def test_init_fails_if_predef_locale_not_found(self, predef_locales):
         for geo, predef in self.predef_locales.items():
@@ -152,8 +151,7 @@ class TestSignaturesByFactory():
             expected_error_msg = f"invalid locales(s): {[invalid_locale]}"
             with pytest.raises(ValueError) as e:
                 result = SignaturesByFactory(**config).__dict__
-
-            assert str(e.value) == expected_error_msg
+                assert str(e.value) == expected_error_msg
 
     @pytest.mark.parametrize('predef_locales', [{"exclude_uk": True}], indirect=True)
     def test_build_successful_with_uk_present(self, predef_locales):
@@ -187,8 +185,7 @@ class TestSignaturesByFactory():
         expected_msg = "UK not in predefined countries"
         with pytest.raises(ValueError) as e:
             result = SignaturesByFactory.build(**deepcopy(build_config), signatures=total_count)
-
-        assert str(e.value) == expected_msg
+            assert str(e.value) == expected_msg
 
 
 

@@ -12,7 +12,7 @@ from copy import deepcopy
 import os, json, logging, random
 
 from application.tests import FROZEN_DATETIME, FROZEN_TIME_STR
-from application.tests.conftest import get_kwargs
+from application.tests.conftest import rkwargs
 from application.tests.tracker.conftest import (
     fetch_locales_for,
     rand_percent_locales,
