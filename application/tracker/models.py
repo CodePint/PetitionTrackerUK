@@ -108,11 +108,11 @@ class Petition(db.Model):
     @classmethod
     def discover(cls, state):
         query = cls.remote.async_query(state=state, max_retries=3)
-        logger.info(f"petitions returned from query: '{len(query['success'])}'")
         if not any(query["success"]):
             raise RuntimeError(f"query response empty, failures: '{len(query['failed'])}'")
 
         logger.info("filtering query result against existing petition IDs")
+        query = cls.remote.unpack_query(query)
         queried = {item["id"] for item in query["success"]}
         existing = {p[0] for p in Petition.query.with_entities(Petition.id).all()}
         discovered = (queried - existing)
@@ -164,7 +164,7 @@ class Petition(db.Model):
 
         polled = [r.petition.sync(r.data, r.timestamp) for r in responses["success"]]
         db.session.flush()
-        import pdb; pdb.set_trace()
+
         return cls.save_poll(polled, geographic, **filters)
 
     @classmethod

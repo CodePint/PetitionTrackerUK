@@ -27,7 +27,8 @@ class CreateLiveCache():
 
     def fetch_query(self):
         logger.info(f"querying remote for state: {self.state}")
-        return Remote.async_query(state=self.state, indexes=self.indexes)
+        responses = Remote.async_query(state=self.state, indexes=self.indexes)
+        return Remote.unpack_query(responses)
 
     def fetch_petitions(self):
         logger.info(f"fetching remote petitions: {self.petition_ids}")
