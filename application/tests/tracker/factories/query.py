@@ -2,11 +2,11 @@ import faker, factory
 from munch import Munch as ObjDict
 from datetime import datetime as dt
 from datetime import timedelta
-from random import randint
 from copy import deepcopy
-import os, json, datetime, logging, random, math
+from unittest.mock import MagicMock, PropertyMock, create_autospec
+import json, datetime, logging, requests
 from application.tests.conftest import init_faker
-from application.tests import FROZEN_DATETIME
+from application.tests import FROZEN_DATETIME, FROZEN_TIME_STR
 from urllib.parse import urlparse, parse_qs
 
 from application.tests.tracker.conftest import geography_keys
@@ -22,7 +22,7 @@ from application.tests.tracker.conftest import (
 )
 
 logger = logging.getLogger(__name__)
-logger.setLevel("INFO")
+
 
 
 class QueryFactory():
@@ -31,8 +31,8 @@ class QueryFactory():
     petition_factory = PetitionFactory
 
     @property
-    def __dict__(self):
-        return self.pages
+    def __list__(self):
+        return getattr(self, "pages", [])
 
     def __init__(self, state="open", num_pages=1, items_per_page=50, archived=False, imports=[], **kwargs):
         self.state = state
@@ -48,6 +48,7 @@ class QueryFactory():
         self.preload_check()
         self.paginated = list(self.yield_pages(self.imports, self.items_per_page))
         self.page_range = range(len(self.paginated))
+        self.num_pages = len(self.page_range)
         self.base_links = self.init_links()
         return [{"data": page} for page in self.paginated]
 
@@ -65,6 +66,7 @@ class QueryFactory():
 
     def init_query(self, num_pages, archived=False, starting_id=0, **kwargs):
         self.page_range = range(num_pages)
+        self.num_pages = len(self.page_range)
         self.base_links = self.init_links()
         self.sig_range = kwargs.get("signature_range", range(100, 500_000))
         self.current_id = kwargs.get("starting_id", 0)
@@ -103,7 +105,7 @@ class QueryFactory():
     def make_links(self, index=None, url=None):
         links = self.base_links.copy()
         links["self"] = url or self.link_template % {"page": index}
-        final_page, is_first_page = len(self.pages), (index in [0, 1])
+        final_page, is_first_page = self.num_pages, (index in [0, 1])
 
         if not is_first_page:
             links["prev"] = self.link_template % {"page": index - 1}
@@ -115,23 +117,27 @@ class QueryFactory():
 
         return links
 
-    def get(self, index=None, url=None):
-        if index is None and url is None:
-            raise ValueError("Index and Url empty")
+    def make_response(self, data, url, status=200):
+        response = requests.Response()
+        response.status = 200
+        response.url = url
+        response.json = MagicMock(return_value=deepcopy(data))
+        response.result = MagicMock(return_value=response)
+        return response
+
+    def get(self, url, status=200):
+        return self.make_response(data=self.get_page(url), url=url)
+
+    # indexes 0 and 1 return first page
+    def get_page(self, url=None, index=None):
         if url:
+            as_response = True
             index = self.parse_index(url)
 
-        # indexes less than zero are set to zero
-        if index < 0:
-            index = 0
-
-        # indexes greater than num pages return an empty page
-        elif index > len(self.pages):
-            return {"data": [], "links": self.make_links(index, url)}
+        if index < 0 or index > self.num_pages:
+            raise ValueError(f"index out of bounds: ({index})/{self.num_pages}")
 
         pages = deepcopy(self.pages)
-
-        # indexes 0 and 1 return first page
         pages.insert(0, pages[0])
         page = pages[index]
         page["data"] = [item.__query__ for item in page["data"]]

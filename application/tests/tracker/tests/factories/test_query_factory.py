@@ -38,11 +38,10 @@ class TestQueryFactory():
         petitions = PetitionFactory.build(**petition_kwargs)
 
         self.query = QueryFactory(imports=petitions)
-        self.query.get(index=0)
+        self.query.get_page(index=0)
 
     def test_init_query(self):
         num_pages = 3
         self.query = QueryFactory(num_pages=3)
-        self.query.get(index=0)
-
+        self.query.get_page(index=0)
 

@@ -1,5 +1,4 @@
 import pytest
-from faker import Faker, providers
 from munch import Munch as ObjDict
 from unittest.mock import MagicMock, PropertyMock, create_autospec
 from application.tests import FROZEN_DATETIME, FROZEN_TIME_STR
