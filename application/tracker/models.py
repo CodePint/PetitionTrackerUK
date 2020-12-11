@@ -74,7 +74,7 @@ class Petition(db.Model):
     db_updated_at = db.Column(DateTime, default=sqlfunc.now(), onupdate=sqlfunc.now())
     initial_data = db.Column(JSONType)
     latest_data = db.Column(JSONType)
-    trend_position = db.Column(Integer, default=None)
+    trend_index = db.Column(Integer, default=None)
     growth_rate = db.Column(Float, default=0)
     record_rel_attrs = {"lazy": "dynamic", "back_populates": "petition", "cascade": "all,delete-orphan"}
     records = relationship(lambda: Record, **record_rel_attrs)
@@ -104,22 +104,6 @@ class Petition(db.Model):
     def str_or_datetime(cls, time):
         return dt.strptime(time, "%d-%m-%YT%H:%M:%S") if isinstance(time, str) else time
 
-    # find remote petitions that have yet to be onboarded
-    @classmethod
-    def discover(cls, state):
-        query = cls.remote.async_query(state=state, max_retries=3)
-        if not any(query["success"]):
-            raise RuntimeError(f"query response empty, failures: '{len(query['failed'])}'")
-
-        logger.info("filtering query result against existing petition IDs")
-        query = cls.remote.unpack_query(query)
-        queried = {item["id"] for item in query["success"]}
-        existing = {p[0] for p in Petition.query.with_entities(Petition.id).all()}
-        discovered = (queried - existing)
-
-        logger.info(f"{len(discovered)} petitions discovered")
-        return discovered
-
     # onboard multiple remote petitions from the result of a query
     @classmethod
     def populate(cls, ids=[], state="open"):
@@ -148,6 +132,23 @@ class Petition(db.Model):
 
         return petition_ids
 
+    # find remote petitions that have yet to be onboarded
+    @classmethod
+    def discover(cls, state):
+        query = cls.remote.async_query(state=state, max_retries=3)
+        if not any(query["success"]):
+            raise RuntimeError(f"query response empty, failures: '{len(query['failed'])}'")
+
+        logger.info("filtering query result against existing petition IDs")
+        query = cls.remote.unpack_query(query)
+        queried = {item["id"] for item in query["success"]}
+        existing = {p[0] for p in Petition.query.with_entities(Petition.id).all()}
+        discovered = (queried - existing)
+
+        logger.info(f"{len(discovered)} petitions discovered")
+        return discovered
+
+
     # poll all petitions which match where param and kwargs opts (or provide list)
     # signatures_by = True for full geo records, signatures_by = False for basic total records
     @classmethod
@@ -166,6 +167,25 @@ class Petition(db.Model):
         db.session.flush()
 
         return cls.save_poll(polled, geographic, **filters)
+
+    # create a list of petitions to poll based on query params
+    @classmethod
+    def build_poll_query(cls, condition="any", **kwargs):
+        valid_conditions = ["trending", "signatures", "any"]
+        if not condition in valid_conditions:
+            raise ValueError(f"Invalid condition value: '{condition}', allowed: '{valid_conditions}'")
+
+        query = cls.query.filter_by(state="O", archived=False)
+        if condition == "trending":
+            threshold = kwargs.get("threshold", Setting.get("trending_threshold", type=int))
+            petitions = query.order_by(Petition.trend_index.asc()).limit(threshold)
+        elif condition == "signatures":
+            threshold = kwargs.get("threshold", Setting.get("signatures_threshold", type=int))
+            if kwargs.get("lt"):
+                petitions = query.filter(Petition.signatures < threshold)
+            else:
+                petitions = query.filter(Petition.signatures > threshold)
+        return query
 
     @classmethod
     def save_poll(cls, petitions, geographic, **filters):
@@ -223,28 +243,9 @@ class Petition(db.Model):
 
         return records
 
-    # create a list of petitions to poll based on query params
+    # reindex trending petitions from a poll event
     @classmethod
-    def build_poll_query(cls, condition="any", **kwargs):
-        valid_conditions = ["trending", "signatures", "any"]
-        if not condition in valid_conditions:
-            raise ValueError(f"Invalid condition value: '{condition}', allowed: '{valid_conditions}'")
-
-        query = cls.query.filter_by(state="O", archived=False)
-        if condition == "trending":
-            threshold = kwargs.get("threshold", Setting.get("trending_threshold", type=int))
-            petitions = query.order_by(Petition.trend_pos.asc()).limit(threshold)
-        elif condition == "signatures":
-            threshold = kwargs.get("threshold", Setting.get("signatures_threshold", type=int))
-            if kwargs.get("lt"):
-                petitions = query.filter(Petition.signatures < threshold)
-            else:
-                petitions = query.filter(Petition.signatures > threshold)
-        return query
-
-    # update trending positions for petitions
-    @classmethod
-    def update_trending(cls, period={"minutes": 60}, max_range={"minutes": 30}, event="global_poll"):
+    def reindex_trending(cls, period={"minutes": 60}, max_range={"minutes": 30}, event="global_poll"):
         event_query = {"ts": (dt.now - timedelta(**period)), "max_range": timedelta(**max_range)}
         event = Event.closest(name=event, **event_query)
         logger.info(f"using {event.name}, which ran at: {event.ts}")
@@ -264,13 +265,13 @@ class Petition(db.Model):
         logger.info("updating trend pos")
         trending = comparison.sort(key=lambda p: p.growth_rate)
         for index, petition in enumerate(trending):
-            petition.trend_pos = index + 1
+            petition.trend_index = index + 1
 
         missing = Petition.query.filter(Petition.id.notin_([p.id for p in trending]))
         logger.info(f"petitons missing poll data: {len(missing)}, setting defaults")
         for petition in missing:
             petition.growth_rate = 0
-            petition.trend_pos = None
+            petition.trend_index = None
 
         logger.info("trending updating - commiting result")
         db.session.add_all(trending + missing)
