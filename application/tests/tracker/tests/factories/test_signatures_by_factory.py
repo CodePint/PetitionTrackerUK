@@ -178,6 +178,7 @@ class TestSignaturesByFactory():
             verified = self.verify_counts(geo, result[get_geo_key(geo)], predef)
             assert verified == len(predef)
 
+    @pytest.mark.parametrize('predef_locales', [{"exclude_uk": True}], indirect=True)
     def test_build_fails_without_uk_present(self, predef_locales):
         total_count = 100_000
         build_config = self.build_config(self.predef_locales)
