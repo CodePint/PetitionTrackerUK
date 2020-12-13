@@ -134,14 +134,14 @@ class Petition(db.Model):
 
     # find remote petitions that have yet to be onboarded
     @classmethod
-    def discover(cls, state):
+    def discover(cls, state="open"):
         query = cls.remote.async_query(state=state, max_retries=3)
         if not any(query["success"]):
             raise RuntimeError(f"query response empty, failures: '{len(query['failed'])}'")
 
         logger.info("filtering query result against existing petition IDs")
         query = cls.remote.unpack_query(query)
-        queried = {item["id"] for item in query["success"]}
+        queried = {item["id"] for item in query}
         existing = {p[0] for p in Petition.query.with_entities(Petition.id).all()}
         discovered = (queried - existing)
 
