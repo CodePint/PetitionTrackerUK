@@ -38,13 +38,6 @@ def apply_migrations():
 def before_test_run():
     Compose.up()
 
-@pytest.fixture(scope='function')
-def dummy_fixture(request):
-    print("creating dummy fixture!")
-    class DummyFixture():
-        pass
-    return DummyFixture
-
 @pytest.fixture(scope='session')
 def app(request):
     """Session-wide test `Flask` application."""
@@ -75,12 +68,10 @@ def db(app, request):
     return _db
 
 
-@pytest.fixture(scope='function')
-def session(db, request):
+def _session(db, request):
     """Creates a new database session for a test."""
     connection = db.engine.connect()
     transaction = connection.begin()
-
     options = dict(bind=connection, binds={})
     session = db.create_scoped_session(options=options)
 
@@ -94,3 +85,17 @@ def session(db, request):
     request.addfinalizer(teardown)
     return session
 
+@pytest.fixture(scope="function")
+def session(db, request):
+    kwargs = rkwargs(request)
+    func = kwargs.get("func")
+    session = _session(db, request)
+    if func: func(session, **kwargs)
+    return session
+
+@pytest.fixture(scope="class")
+def class_session(db, request):
+    kwargs = rkwargs(request)
+    func = kwargs.get("func")
+    request.cls.session = _session(db, request)
+    if func: func(request.cls, **kwargs)
