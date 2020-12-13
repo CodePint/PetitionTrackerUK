@@ -117,15 +117,15 @@ class QueryFactory():
 
         return links
 
-    def make_response(self, data, url, status=200):
+    def make_response(self, data, url):
         response = requests.Response()
-        response.status = 200
+        response.status_code = 200
         response.url = url
         response.json = MagicMock(return_value=deepcopy(data))
         response.result = MagicMock(return_value=response)
         return response
 
-    def get(self, url, status=200):
+    def get(self, url, **kwargs):
         return self.make_response(data=self.get_page(url), url=url)
 
     # indexes 0 and 1 return first page
