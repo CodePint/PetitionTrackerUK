@@ -4,7 +4,7 @@ from datetime import datetime as dt
 from datetime import timedelta
 from random import randint
 from copy import deepcopy
-import os, json, datetime, logging, random
+import os, json, datetime, logging, random, datetime
 from application.tests.conftest import init_faker
 from application.tests import FROZEN_DATETIME
 
@@ -103,6 +103,7 @@ class PetitionFactory(ObjDict):
             if geographies == "auto":
                 geographies = self.auto_signatures_by()
             if any(geographies):
+                signatures = self.data.attributes.signature_count
                 built = self.signatures_by_factory.build(signatures=signatures, **geographies)
             else:
                 built = {k: [] for k in geography_keys()}
@@ -144,10 +145,14 @@ class PetitionFactory(ObjDict):
         attrs.debate_theshold_reached_at = debate_theshold
         attrs.scheduled_debate_date = self.get_time_if(debate_theshold, "days", [30, 60], scheduled_debate)
         attrs.debate_outcome_at = self.get_time_if(attrs.scheduled_debate_date, "days", [1, 7], have_debated)
+        attrs.updated_at = self.find_updated_at(attrs)
 
         iso_if_dt = lambda t: t.isoformat() if t and type(t) == dt else t
         attrs = {k: iso_if_dt(v) for k, v in dict(**attrs, **datetimes).items()}
         self.data.attributes.update(attrs)
+
+    def find_updated_at(self, attrs):
+        return sorted(list(filter(lambda item: type(item) is datetime.datetime, attrs.values())))[-1]
 
     def get_time_if(self, prev_event, delta_unit, rand_range, condition):
         rand_time = timedelta(**{delta_unit: randint(*rand_range)})
