@@ -150,7 +150,7 @@ def get_petition_signatures_by_locale(petition_id, geography, locale):
     params.update({"petition_id": petition_id, "geography": geography, "locale": locale})
 
     index = request.args.get('index', 1, type=int)
-    sig_attrs = Record.signature_attributes(geography)
+    sig_attrs = Record.map_atrributes(geography)
     sig_exclude = ["id", "record", "timestamp", geography]
     sig_schema = sig_attrs[geography]["schema_class"](exclude=sig_exclude)
     query = ViewUtils.build_signatures_by_locale_query(petition, sig_attrs, locale, params)
@@ -171,7 +171,7 @@ def get_petition_signatures_by_locale(petition_id, geography, locale):
         latest_record = records[0] if any(records) else None
 
     ViewUtils.abort_404_if_no_result(petition, records, params)
-    latest_data = latest_record.signatures_by(geography, locale["code"])
+    latest_data = latest_record.signatures_for(geography, locale["code"])
     latest_data_schema = sig_attrs[geography]["schema_class"](exclude=[geography])
     context["signatures"] = ViewUtils.build_signatures_by_locale(records, sig_schema, sig_attrs, params)
     context["meta"]["latest_data"] = latest_data_schema.dump(latest_data)
@@ -196,13 +196,13 @@ def get_petition_signatures_comparison(petition_id):
 
     geographies = params["signatures_by"].keys()
     sig_exclude = ["id", "record", "timestamp"]
-    sig_attrs = Record.signature_attributes(geographies)
+    sig_attrs = Record.map_atrributes(geographies)
 
     selects = []
     for geo in geographies:
         sig_attrs[geo]["schema"] = sig_attrs[geo]["schema_class"](exclude=sig_exclude + [geo])
         sig_attrs[geo]["locales"] = [
-            Record.get_sig_choice(geo, l)["code"]
+            Record.locale_choice(geo, l)["code"]
             for l in params["signatures_by"][geo]
         ]
         selects.append(

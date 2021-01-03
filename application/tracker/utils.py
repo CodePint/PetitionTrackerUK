@@ -65,7 +65,7 @@ class ViewUtils():
     @classmethod
     def abort_404_or_get_locale_choice(cls, geography, locale):
         try:
-            return c_app.models.Record.get_sig_choice(geography, locale)
+            return c_app.models.Record.locale_choice(geography, locale)
         except KeyError:
             template = "Invalid locale: '{}', for: '{}'"
             cls.json_abort(400, template.format(locale, geography))
@@ -143,7 +143,7 @@ class ViewUtils():
         query = Petition.query
         if not params["state"] == "all":
             state = cls.abort_400_or_get_state(params["state"])
-            query = Petition.query.filter_by(state=state)
+            query = Petition.query.filter_by(state=state, archived=False)
         if params["action"]:
             match_filter = Petition.action.match(params["action"], postgresql_regconfig="english")
             query = query.filter(match_filter)
@@ -183,7 +183,7 @@ class ViewUtils():
         signatures = []
         for rec in records:
             record_dump = record_schema.dump(rec)
-            sig_by = rec.signatures_by(geography, locale)
+            sig_by = rec.signatures_for(geography, locale)
             record_dump[sig_attrs[geography]["name"]] = sig_schema.dump(sig_by)
             signatures.append(record_dump)
 
