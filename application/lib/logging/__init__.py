@@ -2,7 +2,8 @@ from application.lib.logging.flask.formatter import EFKJsonFormatter
 from application.lib.logging.task.formatter import TaskLogFormatter
 import logging
 
-def initialize(logger, template={},**kwargs):
+def initialize(logger, template=None,**kwargs):
+    template = template or {}
     template["context"] = ["%(levelname)s", "%(name)s", "%(message)s"]
     template["timestamp"] = ["%(asctime)s, %(msecs)s"]
     if kwargs.get("worker"):

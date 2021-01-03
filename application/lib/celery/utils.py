@@ -90,13 +90,15 @@ class CeleryUtils():
             return cls.send_from_query(query=startup_query)
 
     @classmethod
-    def send_from_query(cls, query, kwargs={}, opts={}):
+    def send_from_query(cls, query, kwargs=None, opts=None):
+        kwargs, opts = kwargs or {}, opts or {}
         with c_app.app_context():
             tasks = query.all()
             return [cls.send_task(task=t, kwargs=kwargs, opts=opts) for t in tasks]
 
     @classmethod
-    def send_task(cls, name=None, key=None, task=None, unique=False, kwargs={}, opts={}):
+    def send_task(cls, name=None, key=None, task=None, unique=False, kwargs=None, opts=None):
+        kwargs, opts = kwargs or {}, opts or {}
         with c_app.app_context():
             if not task:
                 Task = c_app.models.Task
