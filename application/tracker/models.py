@@ -23,22 +23,21 @@ from requests.structures import CaseInsensitiveDict as LazyDict
 
 from application import db
 from application.models import Setting, Event, Task, TaskRun
-from .remote import RemotePetition
+from application.tracker.remote import RemotePetition
 from application.tracker.geographies.choices.regions import REGIONS
 from application.tracker.geographies.choices.countries import COUNTRIES
 from application.tracker.geographies.choices.constituencies import CONSTITUENCIES
+from application.tracker.exceptions import PetitionsNotFound, RecordsNotFound
 
-import sys
-import requests
-import json
-import datetime
 from math import ceil, floor
 from datetime import datetime as dt
 from datetime import timedelta
-
-import logging
+import operator as operators
+import datetime, operator, json, sys, logging
 
 logger = logging.getLogger(__name__)
+
+
 
 class Petition(db.Model):
     __tablename__ = "petition"
@@ -53,9 +52,9 @@ class Petition(db.Model):
     id = db.Column(Integer, primary_key=True, autoincrement=False)
     state = db.Column(ChoiceType(STATE_CHOICES), nullable=False)
     archived = db.Column(Boolean, default=False, nullable=False)
-    action = db.Column(String(512), index=True, unique=True)
+    action = db.Column(String(512), index=True, nullable=False)
+    signatures = db.Column(Integer, nullable=False)
     url = db.Column(String(2048), index=True, unique=True)
-    signatures = db.Column(Integer)
     background = db.Column(String)
     creator_name = db.Column(String)
     additional_details = db.Column(String)
@@ -86,76 +85,80 @@ class Petition(db.Model):
         template = "<id: {}, signatures: {}, created_at: {}>"
         return template.format(self.id, self.signatures, self.db_created_at)
 
-    def __str__(self):
-        template = "id: {}, action: {}"
-        return template.format(self.id, self.action)
-
     # work around for broken choice validation in sqlalchemy utils
     # also allows case agnostic value/key of the state tuple
     @validates("state")
     def validate_state_choice(self, key, state):
         try:
-            state = Petition.STATE_LOOKUP[state]
+            state = self.STATE_LOOKUP[state]
         except KeyError:
-            dict(Petition.STATE_CHOICES)[state]
+            dict(self.STATE_CHOICES)[state]
         return state
 
     @classmethod
     def str_or_datetime(cls, time):
-        return dt.strptime(time, "%d-%m-%YT%H:%M:%S") if isinstance(time, str) else time
+        return dt.strptime(time, "%d-%m-%YT%H:%M:%S") if type(time) is str else time
+
+    @classmethod
+    def get_ids(cls, petitions):
+        return [p.id for p in petitions]
 
     # onboard multiple remote petitions from the result of a query
     @classmethod
-    def populate(cls, ids=[], state="open"):
+    def populate(cls, state="open", ids=None):
+        logger.info("executing petition populate")
         discovered = ids or cls.discover(state=state)
-        if not any(discovered):
-            logger.info("no new petitions discovered")
+        if not discovered:
             return discovered
 
-        logger.info(f"fetching detailed remote data for new petitions: {discovered}")
-        responses = cls.remote.async_get(petitions=discovered, max_retries=3).get("success")
-        if not any(responses):
-            raise RuntimeError(f"failed to fetch detailed data for petitions: {discovered}")
+        logger.info("fetching remote petitions")
+        responses = cls.remote.async_get(petitions=discovered, max_retries=3)
+        if not responses["success"]:
+            raise RuntimeError(f"failed to fetch detailed remote data for IDs: {discovered}")
 
-        logger.info("initializing petition objects")
-        populated = []
-        for r in responses:
-            petition = Petition(id=r.data["data"]["id"], initial_data=r.data)
+        populated, populated_ids = [], []
+        logger.info("initializing local petitions")
+        trend_index = cls.query.count() + len(responses["success"]) + 1
+        for r in responses["success"]:
+            petition = cls(id=r.data["data"]["id"], initial_data=r.data)
+            petition.trend_index = trend_index
             petition.sync(r.data, r.timestamp)
             populated.append(petition)
+            populated_ids.append(petition.id)
 
-        petition_ids = [p.id for p in populated]
-        logger.info("bulk saving petitions")
+        logger.info("saving local petitions")
         db.session.bulk_save_objects(populated)
         db.session.commit()
-        logger.info(f"bulk save completed, populated IDs: {petition_ids}")
 
-        return petition_ids
+        populated = cls.query.filter(cls.id.in_(populated_ids)).all()
+        logger.info(f"populate completed, IDs: {populated_ids}")
+        return populated
 
     # find remote petitions that have yet to be onboarded
     @classmethod
     def discover(cls, state="open"):
+        logger.info("executing petition discovery")
         query = cls.remote.async_query(state=state, max_retries=3)
         if not any(query["success"]):
-            raise RuntimeError(f"query response empty, failures: '{len(query['failed'])}'")
+            raise RuntimeError(f"query response empty, failed indexes: '{len(query['failed'])}'")
 
-        logger.info("filtering query result against existing petition IDs")
+        logger.info("comparing queried IDs against existing IDs")
         query = cls.remote.unpack_query(query)
         queried = {item["id"] for item in query}
-        existing = {p[0] for p in Petition.query.with_entities(Petition.id).all()}
+        existing = {p[0] for p in cls.query.with_entities(Petition.id).all()}
         discovered = (queried - existing)
 
-        logger.info(f"{len(discovered)} petitions discovered")
+        logger.info(f"{len(discovered)} petitions discovered, IDs: {discovered}")
         return discovered
-
 
     # poll all petitions which match where param and kwargs opts (or provide list)
     # signatures_by = True for full geo records, signatures_by = False for basic total records
     @classmethod
-    def poll(cls, petitions=[], contition="all", geographic=False, **filters):
-        petitions = petitions or cls.build_poll_query(contition=contition, **filters).all()
+    def poll(cls, petitions=None, query=None, geographic=False, min_growth=0, **filters):
+        logger.info("executing petition poll")
+        petitions = petitions or cls.query_expr(query=query, **filters).all()
         logger.info(f"Petitions returned from query: {len(petitions)}")
-        if not any(petitions):
+        if not petitions:
             return []
 
         responses = cls.remote.async_get(petitions=petitions, max_retries=3)
@@ -165,118 +168,112 @@ class Petition(db.Model):
 
         polled = [r.petition.sync(r.data, r.timestamp) for r in responses["success"]]
         db.session.flush()
+        return cls.save_poll_data(polled, geographic, min_growth)
 
-        return cls.save_poll(polled, geographic, **filters)
-
-    # create a list of petitions to poll based on query params
+    # expressions: {"signatures": {"gt": 10_000}, "trend_index": {"le": 10} }
     @classmethod
-    def build_poll_query(cls, condition="any", **kwargs):
-        valid_conditions = ["trending", "signatures", "any"]
-        if not condition in valid_conditions:
-            raise ValueError(f"Invalid condition value: '{condition}', allowed: '{valid_conditions}'")
-
-        query = cls.query.filter_by(state="O", archived=False)
-        if condition == "trending":
-            threshold = kwargs.get("threshold", Setting.get("trending_threshold", type=int))
-            petitions = query.order_by(Petition.trend_index.asc()).limit(threshold)
-        elif condition == "signatures":
-            threshold = kwargs.get("threshold", Setting.get("signatures_threshold", type=int))
-            if kwargs.get("lt"):
-                petitions = query.filter(Petition.signatures < threshold)
-            else:
-                petitions = query.filter(Petition.signatures > threshold)
+    def query_expr(cls, state="open", archived=False, query=None, **expressions):
+        query = query or cls.query.filter_by(state=cls.STATE_LOOKUP[state], archived=archived)
+        compare = lambda col, opr, opd: getattr(operators, opr)(getattr(cls, col), opd)
+        for column, expr in expressions.items():
+            operator, operand = list(expr.items())[0]
+            query = query.filter(compare(column, operator, operand))
         return query
 
     @classmethod
-    def save_poll(cls, petitions, geographic, **filters):
-        logger.info("saving base poll")
-
+    def save_poll_data(cls, petitions, geographic, min_growth):
+        logger.info("executing save poll data")
         recorded = cls.save_base_data(petitions)
         if geographic:
-            logger.info("saving geo poll")
-            recorded = cls.save_geo_data(recorded, **filters)
+            recorded = cls.save_geo_data(recorded, min_growth)
 
         logger.info("commiting poll!")
         db.session.commit()
         logger.info("completed poll!")
-
         return recorded
 
     # save basic record without detailed geographic signatures
     @classmethod
     def save_base_data(cls, petitions):
-        records = []
-        for petition in petitions:
-            logger.debug("handling base data for ID: {}".format(petition.id))
-            records.append(Record.init_dict(petition))
+        logger.info("executing save base data")
+        record_values = [Record.get_insert_map(p) for p in petitions]
 
-        logger.info("bulk inserting base records! ({})".format(len(records)))
-        insert_stmt = postgresql.insert(Record).values(records).returning(Record.id)
-        inserted = db.session.execute(insert_stmt).fetchall()
-        inserted_ids = [id[0] for id in inserted]
-
-        logger.info("record insertion complete - flushing and fetching result")
-        db.session.flush()
-        recorded = Record.query.filter(Record.id.in_(inserted_ids)).all()
-        logger.info("base records saved: {}".format(len(recorded)))
-
-        return recorded
-
-    # upgrade basic record to detailed geographic signatures record
-    # can specify a minimum growth filter to determine if record shoudld be upgraded
-    @classmethod
-    def save_geo_data(cls, records, min_growth=0, **filters):
-        if min_growth:
-            # Integration/Testing needed
-            pass
-
-        signatures_by = []
-        for r in records:
-            logger.debug("building geo data for ID: {}".format(r.petition.id))
-            attributes = r.petition.latest_data["data"]["attributes"]
-            signatures_by += r.build(attributes)
-
-        logger.info("bulk saving geo record")
-        db.session.bulk_save_objects(signatures_by)
-        logger.info("bulk save completed - flushing db")
+        logger.info("bulk saving base records!")
+        statement = postgresql.insert(Record).values(record_values).returning(Record.id)
+        inserted = db.session.execute(statement).fetchall()
         db.session.flush()
 
+        records = Record.query.filter(Record.id.in_([id[0] for id in inserted])).all()
+        logger.info(f"base records saved: {len(records)}")
         return records
 
-    # reindex trending petitions from a poll event
+    # upgrade basic record to detailed geographic signatures record
     @classmethod
-    def reindex_trending(cls, period={"minutes": 60}, max_range={"minutes": 30}, event="global_poll"):
-        event_query = {"ts": (dt.now - timedelta(**period)), "max_range": timedelta(**max_range)}
-        event = Event.closest(name=event, **event_query)
-        logger.info(f"using {event.name}, which ran at: {event.ts}")
+    def save_geo_data(cls, records, min_growth=0):
+        logger.info("executing save geo data")
+        signatures_by = []
+        for r in records:
+            signatures_by += r.build(r.petition.latest_data["data"]["attributes"])
 
-        prev_records = Record.closest_distinct(event.ts, order_by="DESC")
-        logger.info(f"previous distinct records found: {len(prev_records)}")
+        logger.info("bulk saving geo records")
+        db.session.bulk_save_objects(signatures_by)
+        db.session.flush()
 
-        comparison = []
-        logger.info("finding growth rates")
-        for record in prev_records:
-            petition = record.petition
-            sig_diff = petition.signatures - record.signatures
-            time_diff = round((petition.polled_at - record.timestamp).total_seconds())
-            petition.growth_rate = (sig_diff / (time_diff / 60))
-            comparison.append(petition)
+        logger.info(f"geo records saved {len(records)}")
+        return records
 
-        logger.info("updating trend pos")
-        trending = comparison.sort(key=lambda p: p.growth_rate)
-        for index, petition in enumerate(trending):
+    @classmethod
+    def update_trend_indexes(cls, since={"hours": 1}, margin={"minutes": 5}, handle_missing="reindex"):
+        logger.info("updating petition trend indexes")
+        found_petitions = cls.update_growth_rates(since, margin)
+        found_ids = cls.get_ids(found_petitions)
+
+        missing_filters = [cls.state == "O", cls.archived == False, cls.id.notin_(found_ids)]
+        missing_petitions = cls.query.filter(*missing_filters).order_by(Petition.growth_rate.desc()).all()
+        missing_ids = cls.get_ids(missing_petitions)
+
+        petitions = cls.handle_trending_query(found_petitions, missing_petitions, handle_missing)
+        logger.info("updating trend index")
+        for index, petition in enumerate(petitions):
             petition.trend_index = index + 1
 
-        missing = Petition.query.filter(Petition.id.notin_([p.id for p in trending]))
-        logger.info(f"petitons missing poll data: {len(missing)}, setting defaults")
-        for petition in missing:
-            petition.growth_rate = 0
-            petition.trend_index = None
-
-        logger.info("trending updating - commiting result")
-        db.session.add_all(trending + missing)
         db.session.commit()
-        return {"trending": trending, "missing": missing}
+        logger.info("succesfully updated trend indexes")
+        return {"found": found_petitions, "missing": missing_petitions}
+
+    @classmethod
+    def handle_trending_query(cls, found, missing, action):
+        sort_growth = lambda items: sorted(items, key=lambda p: p.growth_rate, reverse=True)
+        if not missing:
+            return sort_growth(found)
+
+        if action is "concat":
+            return sort_growth(found) + sort_growth(missing)
+        if action is "reindex":
+            return sort_growth(found + missing)
+        else:
+            raise PetitionsNotFound("trend index update", missing=missing, found=found)
+
+    @classmethod
+    def update_growth_rates(cls, since, margin):
+        logger.info(f"updating petition growth rates since: {since}, margin: {margin}")
+
+        since = dt.now() - timedelta(**since)
+        margin = timedelta(**margin)
+        timestamp = {"lt": since + margin, "gt": since - margin}
+        distinct_opts = {"state": "open", "archived": False, "geographic": False}
+        distinct_records = Record.distinct_on(timestamp=timestamp, opts=distinct_opts, order_by="DESC")
+        if not distinct_records:
+            raise RecordsNotFound("growth rate update", found=[])
+
+        petitions = []
+        logger.info("comparing petition growth rates")
+        for record in distinct_records:
+            record.petition.growth_rate = record.avg_growth_since()
+            petitions.append(record.petition)
+
+        db.session.commit()
+        return petitions
 
     # sync remote petition data with petition columns and updated latest_data
     def sync(self, data, timestamp):
@@ -284,55 +281,53 @@ class Petition(db.Model):
         self.polled_at = timestamp
         self.url = data["links"]["self"]
         self.archived = data["data"]["type"] == "archived-petition"
+        self.pt_created_at = attributes["created_at"]
         self.pt_closed_at = attributes["closed_at"]
         self.pt_updated_at = attributes["updated_at"]
         self.pt_rejected_at = attributes["rejected_at"]
         self.signatures = attributes["signature_count"]
         self.state = attributes["state"]
-        self.update(**attributes)
         self.latest_data = data
-
+        self.update(**attributes)
         return self
 
     def populate_self(self):
-        return Petition.populate(ids=[self.id])
+        return self.populate(ids=[self.id])
 
     def poll_self(self, commit=True, geo=True):
-        return Petition.poll(petitions=[self.id], commit=commit, geo=geo)
+        return self.poll(petitions=[self.id], commit=commit, geo=geo)
 
     def fetch_self(self, raise_404=True):
-        return Petition.remote.get(id=self.id, raise_404=raise_404)
+        return self.remote.get(id=self.id, raise_404=raise_404)
 
+    # To Do: merge closest, between, since and ordered
     def get_closest_record(self, to, geographic=True):
         query = self.records.filter_by(geographic=geographic)
-        query = query.filter(Record.timestamp < Petition.str_or_datetime(to))
+        query = query.filter(Record.timestamp < self.str_or_datetime(to))
         return query.order_by(Record.timestamp.desc()).first()
 
-    # need to call .all() on returned value
+    # returns a query objects for all records between timedelta
     def query_records_between(self, lt, gt, geographic=True):
-        lt, gt = Petition.str_or_datetime(lt), Petition.str_or_datetime(gt)
+        lt, gt = self.str_or_datetime(lt), self.str_or_datetime(gt)
         query = self.records.filter_by(geographic=geographic)
         query = query.filter(Record.timestamp > gt).filter(and_(Record.timestamp < lt))
         return query.order_by(Record.timestamp.desc())
 
-    # since ex: {'hours': 12}, {'days': 7}, {'month': 1}
-    # need to call .all() on returned value
+    # returns a query objects for all records since timedelta
     def query_records_since(self, since, now=None, geographic=True):
-        now = Petition.str_or_datetime(now) if now else dt.now()
+        now = self.str_or_datetime(now) if now else dt.now()
         query = self.records.filter(Record.timestamp > (now - timedelta(**since)))
         query = query.filter_by(geographic=geographic)
         return query.order_by(Record.timestamp.desc())
 
     # returns a query object for the petitions records
     def ordered_records(self, order="DESC", geographic=None):
-        if order == "DESC":
-            records = self.records.order_by(Record.timestamp.desc())
-        if order == "ASC":
-            records = self.records.order_by(Record.timestamp.asc())
-
+        ordering = getattr(Record.timestamp, order.lower())
+        query = self.records.order_by(ordering())
         if geographic is not None:
-            records = records.filter_by(geographic=geographic)
-        raise ValueError("Invalid order param, Must be 'DESC' or 'ASC'")
+            query = query.filter_by(geographic=geographic)
+
+        return query
 
     # return the petitions latest record (geographic or basic)
     def latest_record(self, geographic=True):
@@ -366,48 +361,8 @@ class Record(db.Model):
         template = "<record_id: {}, petition_id: {}, timestamp: {}, signatures: {}>"
         return template.format(self.id, self.petition_id, self.timestamp, self.signatures)
 
-    def __str__(self):
-        template = "Total signatures for petition ID: {}, at {}: {}"
-        return template.format(self.petition_id, self.timestamp, self.signatures)
-
-    def get_sig_relation(self, geo):
+    def signatures_by(self, geo):
         return getattr(self, "signatures_by_" + geo)
-
-    @classmethod
-    def code_key(cls, geo):
-        return "code" if geo == "country" else "ons_code"
-
-    @classmethod
-    def get_sig_model(cls, geography):
-        return getattr(sys.modules[__name__], ("SignaturesBy" + geography.capitalize()))
-
-    @classmethod
-    def get_sig_table(cls, geography):
-        return cls.get_sig_model().__table__
-
-    @classmethod
-    def signature_attributes(cls, *geographies):
-        attrs = {}
-        for geo in geographies:
-            attrs[geo] = {}
-            attrs[geo]["model"] = cls.get_sig_model(geo)
-            attrs[geo]["table"] = attrs[geo]["model"].__table__
-            attrs[geo]["name"] = attrs[geo]["model"].__tablename__
-            attrs[geo]["relationship"] = getattr(cls, attrs[geo]["name"])
-            attrs[geo]["schema_class"] = SignaturesBySchema.schema_for(geo)
-        return attrs
-
-    @classmethod
-    def get_sig_choice(cls, geography, key_or_value):
-        model = cls.get_sig_model(geography)
-        choices = dict(model.CODE_CHOICES)
-        try:
-            choices[key_or_value.upper()]
-            code = key_or_value.upper()
-        except KeyError:
-            code = model.CODE_LOOKUP[key_or_value]
-
-        return {"code": code, "value": choices[code]}
 
     @classmethod
     def validate_locale_choice(cls, inst, key, value):
@@ -418,56 +373,46 @@ class Record(db.Model):
         return value
 
     @classmethod
-    def closest_distinct(cls, timestamp, petitions=[], geographic=None, order_by="DESC", lazy=False):
-        query = Record.query.distinct(Record.petition_id)
-        if petitions:
-            query = query.filter(Record.petition_id.in_([p.id for p in petitions]))
-        if geographic is not None:
-            query = query.filter_by(geographic=geographic)
-
-        ordering = getattr(Record.timestamp, order_by.lower())()
-        query = query.filter(Record.timestamp < timestamp)
-        query = query.from_self().order_by(ordering())
-        return query if lazy else query.all()
+    def code_for(cls, geo):
+        return "code" if geo == "country" else "ons_code"
 
     @classmethod
-    def filter_min_growth(cls, records, diff, geographic=True):
-        petitions = [r.petition for r in records]
-        distinct_kwargs = {"petitions": petitions, "geographic": geographic, "lazy": True}
-        distinct_query = Record.closest_distinct(dt.now(), **distinct_kwargs)
-        prev_records = distinct_query.order_by(Record.petition_id).desc().all()
-        curr_records = sorted(records, key=lambda r: r.petition_id)
-
-        filtered = []
-        for prev, curr in zip(prev_records, curr_records):
-                if curr.signatures - prev.signatures > diff:
-                    filtered.append(curr)
-
-        return filtered
-
-    # create a new record for the petition
-    def build(self, attrs):
-        make_conf = lambda d, p: {k.replace(p, ""): v for k, v in d.items() if k.startswith(p)}
-        config = make_conf(attrs, "signatures_by_")
-
-        built = []
-        for geo in list(config.keys()):
-            model = Record.get_sig_model(geo)
-            code_key, count_key = self.code_key(geo), "signature_count"
-            for locale in config[geo]:
-                locale = model(
-                    record_id=self.id,
-                    code=locale[code_key],
-                    count=locale["signature_count"]
-                )
-                built.append(locale)
-
-        self.petition.geo_saved_at = self.timestamp
-        self.geographic = True
-        return built
+    def model_for(cls, geo):
+        return getattr(sys.modules[__name__], ("SignaturesBy" + geo.capitalize()))
 
     @classmethod
-    def init_dict(cls, petition):
+    def table_for(cls, geo):
+        return cls.model_for(geo).__table__
+
+    @classmethod
+    def atrributes_for(cls, geo):
+        model = cls.model_for(geo)
+        return {
+            "model": model,
+            "table": model.__table__,
+            "name": model.__tablename__,
+            "relationship": getattr(cls,  model.__tablename__),
+            "schema_class": SignaturesBySchema.schema_for(geo)
+        }
+
+    @classmethod
+    def locale_choice(cls, geography, key_or_value):
+        model = cls.model_for(geography)
+        choices = dict(model.CODE_CHOICES)
+        try:
+            choices[key_or_value.upper()]
+            code = key_or_value.upper()
+        except KeyError:
+            code = model.CODE_LOOKUP[key_or_value]
+
+        return {"code": code, "value": choices[code]}
+
+    @classmethod
+    def attributes_map(cls, *geographies):
+        return {geo: cls.atrributes_for(geo) for geo in geographies}
+
+    @classmethod
+    def get_insert_map(cls, petition):
         return {
             "petition_id": petition.id,
             "signatures": petition.signatures,
@@ -475,27 +420,85 @@ class Record(db.Model):
             "db_created_at": sqlfunc.now()
         }
 
+    # query for a single (distinct) record for each petition
+    @classmethod
+    def distinct_on(cls, timestamp=None, petitions=None, filters=None, opts=None, order_by="DESC"):
+        timestamp, filters, opts = timestamp or {}, filters or [], opts or {}
 
-    # short hand query helper query for signature geography + code or name
-    def signatures_by(self, geo, locale):
-        model = Record.get_git_model(geo)
-        choice = Record.get_sig_choice(geo, locale)
+        filters.append(Petition.archived == opts.get("archived", False))
+        if opts.get("geographic") is not None:
+            filters.append(Record.geographic == opts["geographic"])
+        if opts.get("state"):
+            filters.append(Petition.state == Petition.STATE_LOOKUP[opts["state"]])
+        if petitions:
+            petition_ids = [p.id if type(p) is Petition else p for p in petitions]
+            filters.append(Record.petition_id.in_(petition_ids))
+        if timestamp.get("lt"):
+            filters.append(Record.timestamp < timestamp["lt"])
+        if timestamp.get("gt"):
+            filters.append(Record.timestamp > timestamp["gt"])
+
+        distinct_on, order_on = Record.petition_id, Record.timestamp
+        ordering = [distinct_on, getattr(order_on, order_by.lower())()]
+
+        query = Record.query.join(Petition)
+        query = query.filter(*filters)
+        query = query.order_by(*ordering)
+        query = query.distinct(distinct_on)
+        return query.all()
+
+    # @classmethod
+    # def filter_min_growth(cls, records, threshold, geographic=True):
+    #     petitions = [r.petition_id for r in records]
+    #     query = Record.distinct_on(petitions=petitions, geographic=geographic)
+    #     previous = query.order_by(Record.petition_id.desc())
+    #     current = sorted(records, key=lambda r: r.petition_id)
+
+    #     filter_growth = lambda prev, curr: (curr.signatures - prev.signatures) >= threshold
+    #     return [curr for prev, curr in zip(previous, current) if filter_growth(prev, curr)]
+
+    def build(self, attributes):
+        filter_attrs = lambda d, p: {k.replace(p, ""): v for k, v in d.items() if k.startswith(p)}
+        geographies = filter_attrs(attributes, "signatures_by_")
+
+        if not geographies:
+            raise ValueError(f"no geography keys found for attributes: {attributes}")
+
+        built = []
+        for geo, locations in list(geographies.items()):
+            model, code_key = Record.model_for(geo), self.code_for(geo)
+            params = lambda x: {"code": x[code_key], "count": x["signature_count"]}
+            built += [model(record_id=self.id, **params(locale)) for locale in locations]
+
+        self.geographic = True
+        return built
+
+    def avg_growth_since(self):
+        growth = (self.petition.signatures - self.signatures)
+        period = (self.petition.polled_at - self.timestamp).total_seconds()
+        return round(growth / (period / 60.0), 3)
+
+    # helper query for signature geography + code or name
+    def signatures_for(self, geo, locale):
+        model = Record.model_for(geo)
+        choice = Record.locale_choice(geo, locale)
+        query = self.signatures_by(geo).filter(model.code == choice["code"])
         try:
-            return self.get_sig_relation(geo).filter(model.code == choice["code"]).one()
+            return query.one()
         except sqlalchemy.orm.exc.NoResultFound:
             return None
 
     def signatures_comparison(self, record_schema, attrs):
         comparison = record_schema.dump(self)
         for geo in attrs.keys():
-            relation = self.get_sig_relation(geo)
+            relation = self.signatures_by(geo)
             model, locales = attrs[geo]["model"], attrs[geo]["locales"]
             filtered = relation.filter(model.code.in_(locales))
-
             geo_name, geo_schema = attrs[geo]["name"], attrs[geo]["schema"]
             comparison[geo_name] = [geo_schema.dump(sig) for sig in filtered.all()]
 
         return comparison
+
 
 
 class SignaturesByCountry(db.Model):
@@ -525,12 +528,9 @@ class SignaturesByCountry(db.Model):
     def validate_code_choice(self, key, value):
         return Record.validate_locale_choice(self, key, value)
 
-    def __str__(self):
-        return "{} - {}".format(self.code.value, self.count)
-
     def __repr__(self):
         template = "<id: {}, code: {}, count: {}>"
-        return template.format(self.id, self.code, self.count)
+        return template.format(self.id, self.code.code, self.count)
 
 
 
@@ -560,12 +560,9 @@ class SignaturesByRegion(db.Model):
     def validate_code_choice(self, key, value):
         return Record.validate_locale_choice(self, key, value)
 
-    def __str__(self):
-        return "{} - {}".format(self.code.value, self.count)
-
     def __repr__(self):
         template = "<id: {}, code: {}, count: {}>"
-        return template.format(self.id, self.code, self.count)
+        return template.format(self.id, self.code.code, self.count)
 
 
 
@@ -595,12 +592,9 @@ class SignaturesByConstituency(db.Model):
     def validate_code_choice(self, key, value):
         return Record.validate_locale_choice(self, key, value)
 
-    def __str__(self):
-        return "{} - {}".format(self.code.value, self.count)
-
     def __repr__(self):
         template = "<id: {}, code: {}, count: {}>"
-        return template.format(self.id, self.code, self.count)
+        return template.format(self.id, self.code.code, self.count)
 
 
 
