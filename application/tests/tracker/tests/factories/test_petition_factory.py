@@ -90,15 +90,10 @@ class TestPetitionFactory():
 
     def validate(self):
         self.attrs = self.petition.data.attributes
-        assert self.validate_dict()
         assert self.validate_input()
         assert self.validate_archived()
         assert self.validate_links()
         assert self.validate_fakes()
-        return True
-
-    def validate_dict(self):
-        assert self.petition.__dict__ == self.petition
         return True
 
     def validate_fakes(self):
@@ -148,18 +143,11 @@ class TestPetitionFactoryData(TestPetitionFactory):
         assert self.validate()
 
     @pytest.mark.parametrize('petition_kwargs', [{"count": 1000, "signatures_by": {}}], indirect=True)
-    def test_when_state_signatures_by_is_empty(self, petition_kwargs):
+    def test_when_signatures_by_is_empty(self, petition_kwargs):
         self.petition = PetitionFactory(**self.kwargs)
         assert self.validate()
         for key in geography_keys():
-            assert self.petition.__dict__["data"]["attributes"][key] == []
-
-    @pytest.mark.parametrize('petition_kwargs', [{"count": 1000, "signatures_by": False}], indirect=True)
-    def test_when_signatures_by_is_False(self, petition_kwargs):
-        self.petition = PetitionFactory(**self.kwargs)
-        assert self.validate()
-        for key in geography_keys():
-            assert key not in self.petition.__dict__["data"]["attributes"]
+            assert self.petition.as_dict["data"]["attributes"][key] == []
 
     @pytest.mark.parametrize('petition_kwargs', [{"count": 1000}], indirect=True)
     def test_when_signatures_by_is_provided(self, petition_kwargs, signatures_by_kwargs):
@@ -170,6 +158,6 @@ class TestPetitionFactoryData(TestPetitionFactory):
         self.mocks.signature_build.assert_called_once_with(**expected_call_kwargs)
         for key in geography_keys():
             expected = self.signature_build_return()[key]
-            actual = self.petition.__dict__["data"]["attributes"][key]
+            actual = self.petition.as_dict["data"]["attributes"][key]
             assert actual == expected
 
