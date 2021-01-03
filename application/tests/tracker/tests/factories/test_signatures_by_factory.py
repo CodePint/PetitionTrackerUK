@@ -29,12 +29,12 @@ logger = logging.getLogger(__name__)
 class TestSignaturesByFactory():
 
     predef_templates = [
-        {"code": False, "name": True,  "count": range(50, 500)},
-        {"code": True, "name": False, "count": range(50, 500)},
-        {"code": True, "name": True, "count": 1000},
-        {"code": True, "name": True, "count": False},
-        {"code": False, "name": True, "count": False},
-        {"code": True, "name": False, "count": False},
+        {"code": False, "name": True,  "signature_count": range(50, 500)},
+        {"code": True, "name": False, "signature_count": range(50, 500)},
+        {"code": True, "name": True, "signature_count": 1000},
+        {"code": True, "name": True, "signature_count": False},
+        {"code": False, "name": True, "signature_count": False},
+        {"code": True, "name": False, "signature_count": False},
     ]
 
     @classmethod
@@ -53,8 +53,8 @@ class TestSignaturesByFactory():
         if not template.get("code"):
             code_key = get_code_key(geo)
             locale.pop(code_key)
-        if template.get("count"):
-            locale["count"] = rand_range_or_int(template["count"])
+        if template.get("signature_count"):
+            locale["signature_count"] = rand_range_or_int(template["signature_count"])
 
         return locale
 
@@ -76,7 +76,7 @@ class TestSignaturesByFactory():
             code, name = locale[code_key], locale["name"]
             predef_count = predef.get(code) or predef.get(name)
             if predef_count:
-                assert predef_count == locale["count"]
+                assert predef_count == locale["signature_count"]
                 matches += 1
 
         return matches
@@ -136,9 +136,10 @@ class TestSignaturesByFactory():
             config = self.init_config(geo, sigs, predef, rand_percent_locales(geo))
 
             expected_error_msg = f"total signatures ({sigs}) less than predef counts"
-            with pytest.raises(ValueError) as e:
+            error = None
+            with pytest.raises(ValueError) as error:
                 result = SignaturesByFactory(**config).__dict__
-                assert str(e.value) == expected_error_msg
+            assert str(error.value) == expected_error_msg
 
     def test_init_fails_if_predef_locale_not_found(self, predef_locales):
         for geo, predef in self.predef_locales.items():
@@ -149,16 +150,17 @@ class TestSignaturesByFactory():
             config = self.init_config(geo, randint(5_000, 100_000), predef, rand_percent_locales(geo))
 
             expected_error_msg = f"invalid locales(s): {[invalid_locale]}"
-            with pytest.raises(ValueError) as e:
+            error = None
+            with pytest.raises(ValueError) as error:
                 result = SignaturesByFactory(**config).__dict__
-                assert str(e.value) == expected_error_msg
+            assert str(error.value) == expected_error_msg
 
     @pytest.mark.parametrize('predef_locales', [{"exclude_uk": True}], indirect=True)
     def test_build_successful_with_uk_present(self, predef_locales):
         total_count = 100_000
         national_count = 65_000
         build_config = self.build_config(self.predef_locales)
-        UK = dict(**uk_locale(), count=national_count)
+        UK = dict(**uk_locale(), signature_count=national_count)
         build_config["country"]["locales"]["predef"].append(UK)
         expected_predef_counts = {g: dict_of_counts(g, c["locales"]["predef"]) for g, c in build_config.items()}
 
@@ -184,9 +186,10 @@ class TestSignaturesByFactory():
         build_config = self.build_config(self.predef_locales)
 
         expected_msg = "UK not in predefined countries"
-        with pytest.raises(ValueError) as e:
+        error = None
+        with pytest.raises(ValueError) as error:
             result = SignaturesByFactory.build(**deepcopy(build_config), signatures=total_count)
-            assert str(e.value) == expected_msg
+        assert str(error.value) == expected_msg
 
 
 

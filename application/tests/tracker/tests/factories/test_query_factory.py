@@ -32,9 +32,9 @@ logger = logging.getLogger(__name__)
 class TestQueryFactory():
 
     def test_load_query(self):
-        custom_petitions = [{"signature_count": 110_000, "petition_id": 999, "signatures_by": "auto", "state": "open"}]
-        default_values = {"state": "open", "signature_count": range(500, 100_000)}
-        petition_kwargs = {"generic": 243, "custom": custom_petitions, "default_values": default_values}
+        custom_petitions = [{"signature_count": 110_000, "petition_id": 999, "signatures_by": {"locales": "auto"}, "state": "open"}]
+        defaults = {"state": "open", "signature_count": range(500, 100_000)}
+        petition_kwargs = {"generic": 243, "custom": custom_petitions, "defaults": defaults}
         petitions = PetitionFactory.build(**petition_kwargs)
 
         self.query = QueryFactory(imports=petitions)
