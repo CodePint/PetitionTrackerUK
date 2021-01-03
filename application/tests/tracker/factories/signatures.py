@@ -6,14 +6,16 @@ from random import randint, randrange
 from datetime import datetime as dt
 from copy import deepcopy
 import os, json, logging
-
+from application.tests.tracker.conftest import rand_percent_locales
 from application.tracker.geographies.dictionaries.regions import REGIONS
 from application.tracker.geographies.dictionaries.countries import COUNTRIES
 from application.tracker.geographies.dictionaries.constituencies import CONSTITUENCIES
 
 logger = logging.getLogger(__name__)
 
-class SignaturesByFactory(ObjDict):
+
+
+class SignaturesByFactory():
 
     UK = {"code": "GB", "name": "United Kingdom"}
     geographies = ["region", "country", "constituency"]
@@ -27,49 +29,118 @@ class SignaturesByFactory(ObjDict):
         return self.locales.get("initialized", [])
 
     @classmethod
+    def get_key(cls, geo):
+        return f"signatures_by_{geo}"
+
+    @classmethod
+    def get_geo(cls, key):
+        return key.replace("signatures_by_", "")
+
+    @classmethod
+    def make_config(cls, locales=1):
+        config = {}
+        for geo in cls.geographies:
+            predef = [cls.UK.copy()] if geo == "country" else []
+            undef = rand_percent_locales(geo) if locales == "auto" else locales
+            config[geo] = {"locales": {"undef": undef, "predef": predef}}
+        return config
+
+    @classmethod
     def build(cls, signatures, region, country, constituency):
-        logger.info(f"Beginning SignaturesByFactory build")
-        configs = cls.configure_build(region, country, constituency, signatures)
-        key = lambda geo: f"signatures_by_{geo}"
-        return ObjDict({key(geo): SignaturesByFactory(geo, **conf).__dict__ for geo, conf in configs.items()})
+        logger.info(f"executing SignaturesByFactory build")
+        config = cls.setup_build(region, country, constituency, signatures)
+        return ObjDict({cls.get_key(geo): cls(geo, **conf).__dict__ for geo, conf in config.items()})
+
+    @classmethod
+    def increment(cls, count, previous, future):
+        config = {}
+        for key, previous_locations in deepcopy(previous).items():
+            geography = cls.get_geo(key)
+            future_undef = future[geography]["locales"].get("undef", 0)
+            future_predef = future[geography]["locales"].get("predef", [])
+
+            for prev_locale in previous_locations:
+                future_locale = cls.find_match(geography, future_predef, prev_locale)
+                prev_locale.pop("signature_count")
+                if future_locale:
+                    prev_locale["signature_count"] = future_locale["signature_count"]
+                future_predef.append(prev_locale)
+
+            config[geography] = {"locales": {"predef": future_predef, "undef": future_undef}}
+
+        incremented = cls.build(signatures=count, **config)
+        merged = cls.update(previous=previous, future=incremented)
+        return merged
+
+    @classmethod
+    def update(cls, previous, future):
+        merged = {}
+        for key, locations in future.items():
+            merged[key] = []
+            for future_locale in locations:
+                geo = cls.get_geo(key)
+                previous_locale = cls.find_match(geo, previous[key], future_locale, fallback={})
+                future_locale["signature_count"] += previous_locale.get("signature_count", 0)
+                merged[key].append(future_locale)
+        return merged
+
+    @classmethod
+    def setup_build(cls, region, country, constituency, signatures):
+        national = cls.configure_uk(country, signatures)
+        return {
+            "country": dict(**country, signatures=signatures),
+            "region": dict(**region, signatures=national),
+            "constituency": dict(**constituency, signatures=national)
+        }
+
+    @classmethod
+    def configure_uk(cls, country, total):
+        UK = cls.find_match("country", country["locales"]["predef"], cls.UK)
+        if not UK:
+            raise ValueError("UK not in predefined countries")
+
+        UK["signature_count"] = UK.get("signature_count") or cls.random_ranged_ratio(total, UK.pop("range", "auto"))
+        if UK["signature_count"] > total:
+            raise ValueError("National count greater than total count")
+
+        return UK["signature_count"]
+
+    def pre_validate(self):
+        if not self.locales["predef"] and not self.locales["undef"]:
+            raise ValueError(f"{self.geography} does not have any locales defined")
+        if not self.locales_are_unique(self.locales["predef"]):
+            raise ValueError(f"{self.geography} has dupliate predef locales")
 
     # locales => dict {"predef": [], "undef": 0}
     def __init__(self, geography, signatures, locales):
         self.geography = geography
         self.signatures = signatures
         self.locales = locales
+        self.configure()
 
         self.pre_validate()
-        self.configure()
         self.init_predef()
         self.init_undef()
         self.post_validate()
 
-    def configure(self):
-        logger.info(f"configuring locales: {self.locales}")
+    def post_validate(self):
+        counts = [locale["signature_count"] for locale in self.locales["initialized"]]
+        if sum(counts) != self.signatures:
+            raise ValueError(f"{self.geography} locale counts != signatures count")
 
+    def configure(self):
         self.locales["initialized"] = []
         self.locales["predef"] = deepcopy(self.locales.get("predef", []))
         self.locales["undef"] = self.locales.get("undef", 0)
         self.locales["source"] = self.source_locales(self.geography)
         self.locales["counts"] = self.create_counts()
 
-    def pre_validate(self):
-        logger.info("validating locales")
-        if not self.locales["predef"] and not self.locales["undef"]:
-            raise ValueError(f"{self.geography} does not have any locales defined")
-        if not self.locales_are_unique(self.locales["predef"]):
-            raise ValueError(f"{self.geography} has dupliate predef locales")
-
     def create_counts(self):
-        logger.info("creating locale counts")
-        counts = [locale["count"] for locale in self.locales["predef"] if locale.get("count")]
+        counts = [locale["signature_count"] for locale in self.locales["predef"] if locale.get("signature_count")]
         length = ((len(self.locales["predef"]) - len(counts)) + self.locales["undef"])
         remainder = self.signatures - sum(counts)
         try:
-            created = self.random_locale_counts(remainder, length)
-            logger.info(f"locale counts: {created}")
-            return created
+            return self.random_locale_counts(remainder, length)
         except ValueError as e:
             raise ValueError(f"total signatures ({self.signatures}) less than predef counts") from e
 
@@ -82,7 +153,7 @@ class SignaturesByFactory(ObjDict):
                 source.append(location)
                 continue
 
-            location["count"] = match.get("count") or self.locales["counts"].pop(0)
+            location["signature_count"] = match.get("signature_count") or self.locales["counts"].pop(0)
             self.locales["initialized"].append(location)
             predef.pop(predef.index(match))
 
@@ -90,47 +161,18 @@ class SignaturesByFactory(ObjDict):
             raise ValueError(f"invalid locales(s): {predef}")
 
         self.locales["source"] = source
-        logger.info(f"predef locales(s) initialized: {self.locales['initialized']}")
 
     def init_undef(self, **kwargs):
         for location in range(self.locales["undef"]):
             location = self.pop_random_locale()
-            location["count"] = self.locales["counts"].pop(0)
+            location["signature_count"] = self.locales["counts"].pop(0)
             self.locales["initialized"].append(location)
 
         if any(self.locales["counts"]):
             raise ValueError(f"excess locale counts {self.locales['counts']}")
 
-        logger.info(f"undef locales(s) initialized: {self.locales['initialized']}")
-
     def pop_random_locale(self):
         return self.locales["source"].pop(randrange(len(self.locales["source"])))
-
-    def post_validate(self):
-        counts = [locale["count"] for locale in self.locales["initialized"]]
-        if sum(counts) != self.signatures:
-            raise ValueError(f"{self.geography} initialized locale counts != signatures count")
-
-    @classmethod
-    def configure_build(cls, region, country, constituency, signatures):
-        national = cls.configure_uk(signatures, country)
-        return {
-            "country": dict(**country, signatures=signatures),
-            "region": dict(**region, signatures=national),
-            "constituency": dict(**constituency, signatures=national)
-        }
-
-    @classmethod
-    def configure_uk(cls, total, country):
-        UK = cls.find_match("country", country["locales"]["predef"], cls.UK)
-        if not UK:
-            raise ValueError("UK not in predefined countries")
-
-        UK["count"] = UK.get("count") or cls.random_ranged_ratio(total, UK.pop("range"))
-        if UK["count"] > total:
-            raise ValueError("National count greater than total count")
-
-        return UK["count"]
 
     @classmethod
     def locales_are_unique(cls, locations):
@@ -142,13 +184,13 @@ class SignaturesByFactory(ObjDict):
         values = []
         for locale in locations:
             for k, v in locale.items():
-                if k != "count":
+                if k != "signature_count":
                     values.append(v)
         return values
 
     @classmethod
-    def is_uk(cls, locale):
-        return cls.is_match("country", cls.UnitedKingdom, locale)
+    def is_uk(cls, locale, geography="country"):
+        return cls.is_match(geography, cls.UK, locale)
 
     @classmethod
     def random_ranged_ratio(cls, total, _range):
@@ -157,7 +199,7 @@ class SignaturesByFactory(ObjDict):
 
     @classmethod
     def random_locale_counts(cls, total, length):
-        return list(multinomial(total, dirichlet(numpy.ones(length), 1)[0]))
+        return [int(i) for i in list(multinomial(total, dirichlet(numpy.ones(length), 1)[0]))]
 
     @classmethod
     def random_ranged_decimal(cls, _range):
@@ -165,12 +207,12 @@ class SignaturesByFactory(ObjDict):
 
     @classmethod
     def alphabetize_locales(cls, locales, geo):
-        code_key, name_key = cls.get_code_key(geo), "name"
-        return sorted(locales, key=lambda x: x.get(code_key) or x.get(name_key))
+        code_key = cls.get_code_key(geo)
+        return sorted(locales, key=lambda x: x.get(code_key) or x.get("name"))
 
     @classmethod
-    def find_match(cls, geo, source, target):
-        return next(iter(filter(lambda item: cls.is_match(geo, item, target), source)), None)
+    def find_match(cls, geo, source, target, fallback=None):
+        return next(iter(filter(lambda item: cls.is_match(geo, item, target), source)), fallback)
 
     @classmethod
     def get_code_key(cls, geo):

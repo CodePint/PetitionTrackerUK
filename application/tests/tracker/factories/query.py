@@ -34,11 +34,11 @@ class QueryFactory():
     def __list__(self):
         return getattr(self, "pages", [])
 
-    def __init__(self, state="open", num_pages=1, items_per_page=50, archived=False, imports=[], **kwargs):
+    def __init__(self, state="open", num_pages=1, items_per_page=50, archived=False, imports=None, **kwargs):
         self.state = state
         self.archived = archived
         self.items_per_page = items_per_page
-        if any(imports):
+        if imports:
             self.pages = self.load_query(imports)
         else:
             self.pages = self.init_query(num_pages, **kwargs)
@@ -140,7 +140,7 @@ class QueryFactory():
         pages = deepcopy(self.pages)
         pages.insert(0, pages[0])
         page = pages[index]
-        page["data"] = [item.__query__ for item in page["data"]]
+        page["data"] = [item.as_query for item in page["data"]]
         return dict(**page, links=self.make_links(index, url))
 
 
