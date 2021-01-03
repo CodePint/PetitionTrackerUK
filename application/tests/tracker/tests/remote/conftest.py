@@ -104,20 +104,20 @@ class TestRemotePetitionFutureRequests(TestRemotePetition):
         self.mocks.future_session = self.patches.future_session.start()
         self.mocks.future_session.get = MagicMock(wraps=self.mock_future_get)
 
-    def mock_future_get(self, *args, **kwargs):
-        callback = kwargs["hooks"]["response"]
+    def mock_future_get(self, url, hooks):
+        callback = hooks["response"]
         response = requests.Response()
-        response.closure_args = [c.cell_contents for c in kwargs["hooks"]["response"].__closure__]
+        response.url = url
+        response.closure_args = [c.cell_contents for c in callback.__closure__]
         response.expected_object = response.closure_args[1]
         response.json = MagicMock(return_value=deepcopy(self.response_json))
-        response.url = kwargs["url"]
+        response.result = MagicMock(return_value=response)
         if self.request_failures:
             self.request_failures -= 1
             response.status_code = 500
         else:
             response.status_code = 200
         callback(response=response)
-        response.result = MagicMock(return_value=response)
         return response
 
     def validate_responses(self, success, failed):
