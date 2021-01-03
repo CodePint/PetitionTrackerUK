@@ -33,13 +33,12 @@ class TestRemotePetitionHelperFunctions(TestRemotePetition):
         assert RemotePetition.find_page_nums(links) == expected
 
     def test_validate_state(self):
-        invalid_state = "unknown"
-        valid_states = self.query_states
+        invalid_state, valid_states = "unknown", self.query_states
         error_message = f"Invalid state param: '{invalid_state}', valid: {valid_states}"
-
         for state in valid_states:
             RemotePetition.validate_state(state)
 
-        with pytest.raises(ValueError) as e:
+        error = None
+        with pytest.raises(ValueError) as error:
             RemotePetition.validate_state(invalid_state)
-            assert str(e.value) == error_message
+        assert str(error.value) == error_message

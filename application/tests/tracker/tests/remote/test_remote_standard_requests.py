@@ -46,9 +46,10 @@ class TestRemotePetitionFetch(TestRemotePetitionRequests):
     @pytest.mark.parametrize('configure_response', [{"status_code": 404}], indirect=True)
     def test_when_status_is_404_and_will_raise(self, configure_response):
         expected_msg = f"404 Client Error: Not Found for url: {self.url}"
-        with pytest.raises(HTTPError) as e:
+        error = None
+        with pytest.raises(HTTPError) as error:
             result = RemotePetition.fetch(self.id, raise_404=True)
-            assert str(e.value) == expected_msg
+        assert str(error.value) == expected_msg
 
 
 @freeze_time(FROZEN_TIME_STR)
@@ -76,6 +77,7 @@ class TestRemotePetitionGetPageRange(TestRemotePetitionRequests):
     @pytest.mark.parametrize('configure_response', [{"status_code": 404}], indirect=True)
     def test_when_status_is_404(self, configure_response):
         expected_msg = f"404 Client Error: Not Found for url: {self.url}"
-        with pytest.raises(HTTPError) as e:
+        error = None
+        with pytest.raises(HTTPError) as error:
             result = RemotePetition.get_page_range(self.template)
-            assert str(e.value) == expected_msg
+        assert str(error.value) == expected_msg
