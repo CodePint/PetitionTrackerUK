@@ -35,7 +35,6 @@ class Config(object):
     def override_env(cls):
         cls.ENV_OVERRIDES = ENV.get("OVERRIDES", type=ENV.to_list, fallback=[])
         print("ENV_OVERRIDES: {}".format(cls.ENV_OVERRIDES))
-        # if cls.ENV_OVERRIDES:
         [load_dotenv(dotenv_path=env, override=True) for env in cls.ENV_OVERRIDES]
 
     @classmethod
