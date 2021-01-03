@@ -138,7 +138,7 @@ class RemotePetition():
     @classmethod
     def async_callback(cls, func, obj, *args, **kwargs):
         def response_hook(response, *args, **kwargs):
-            key, val = list(obj.keys())[0], list(obj.values())[0]
+            key, val = list(obj.items())[0]
             print(f"executed {func} with {key}: {val}, status: {response.status_code}")
 
             setattr(response, key, val)
@@ -159,7 +159,7 @@ class RemotePetition():
 
     # poll existing petitions or fetch new ones
     @classmethod
-    def async_get(cls, petitions, max_retries=0, backoff=3, retries=0, completed=[]):
+    def async_get(cls, petitions, max_retries=0, backoff=3, retries=0, completed=None):
         logger.info(f"executing async_get for petitions: {petitions}")
 
         futures = [
@@ -171,7 +171,7 @@ class RemotePetition():
         ]
 
         results = cls.handle_async_responses(futures)
-        results["success"] += completed
+        results["success"] += completed or []
         retrying = cls.eval_async_retry(results, max_retries, backoff, retries)
 
         if retrying:
@@ -185,7 +185,7 @@ class RemotePetition():
 
     # query pages of petitions by state
     @classmethod
-    def async_query(cls, indexes=[], state="open", max_retries=0, backoff=3, retries=0, completed=[]):
+    def async_query(cls, indexes=None, state="open", max_retries=0, backoff=3, retries=0, completed=None):
         cls.validate_state(state)
         template_url = cls.page_url_template(state)
         indexes = indexes or cls.get_page_range(template_url)
@@ -200,7 +200,7 @@ class RemotePetition():
         ]
 
         results = cls.handle_async_responses(futures)
-        results["success"] += completed
+        results["success"] += completed or []
         retrying = cls.eval_async_retry(results, max_retries, backoff, retries)
 
         if retrying:
