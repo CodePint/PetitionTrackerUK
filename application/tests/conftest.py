@@ -97,5 +97,6 @@ def session(db, request):
 def class_session(db, request):
     kwargs = rkwargs(request)
     func = kwargs.get("func")
-    request.cls.session = _session(db, request)
-    if func: func(request.cls, **kwargs)
+    _cls = request.cls
+    _cls.session = _session(db, request)
+    if func: func(_cls, **kwargs)
