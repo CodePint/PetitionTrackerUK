@@ -78,6 +78,9 @@ class Event(db.Model):
     msg = db.Column(String, default="N/A")
     ts = db.Column(DateTime, index=True, nullable=False, default=sqlfunc.now())
 
+    def __str__(self):
+        return f"name: {self.name}, timestamp: {self.timestamp}"
+
     def __repr__(self):
         return f"name: {self.name}, msg: {self.msg}, ts: {self.ts}"
 
@@ -112,8 +115,6 @@ class Event(db.Model):
             logger.info(f"no events with: '{name}', within range")
         else:
             return gt_event if gt_diff < lt_diff else lt_event
-
-
 
 class TaskNotFound(NameError):
     def __init__(self, name, key):
@@ -213,19 +214,19 @@ class Task(db.Model):
         return lock_keys
 
     @classmethod
-    def revoke_all(cls, tasks=[]):
+    def revoke_all(cls, tasks=None):
         tasks_to_revoke = tasks or Task.query.all()
         return [task.revoke() for task in tasks_to_revoke]
 
     def revoke(self):
         return [run.revoke() for run in self.where("PENDING", "RUNNING", "RETRYING")]
 
-    def unlock(self, runs=[]):
+    def unlock(self):
         return [run.unlock() for run in self.runs.all()]
 
     # None periodic run from template
-    def run(self, kwargs={}, opts={}):
-        return c_app.celery_utils.send_task(self.name, **kwargs)
+    def run(self, kwargs=None):
+        return c_app.celery_utils.send_task(self.name, **(kwargs or {}))
 
     def where(self, *states):
         states = [TaskRun.STATE_LOOKUP[s] for s in states]
