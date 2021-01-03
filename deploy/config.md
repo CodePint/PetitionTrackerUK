@@ -1,5 +1,4 @@
 # Application Config
-
 ## Enviroment files for: Application, Workers, Postgres
 
 - ref config/env directory
