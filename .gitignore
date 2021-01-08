@@ -2,6 +2,7 @@
 .vscode/*
 **/__pycache__
 celerybeat-schedule
+celerybeat.pid
 
 .test.py
 docker-compose.*
@@ -12,7 +13,6 @@ scripts
 wsgi.sh
 
 application/lib/celery/schedule/schedule.json
-
-!deploy/**/**/**/**/
+!deploy/**/**/**/**/**
 !application/tests/docker-compose.pytest.yml
 !application/tests/*.env

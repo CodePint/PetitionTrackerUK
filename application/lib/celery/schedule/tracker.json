@@ -5,11 +5,11 @@
         "key": "[primary]-[scheduled]",
         "description": "base poll, for all open petitions (5 min inteval)",
         "module": "tracker",
-        "enabled": true,
+        "enabled": false,
         "startup": false,
         "periodic": true,
         "kwargs": {
-            "condition": "any"
+            "filters": {}
         },
         "opts": {
             "retry": true,
@@ -27,14 +27,37 @@
     {
         "name": "geo_poll_task",
         "key": "[primary]-[scheduled]",
-        "description": "geographic poll, for top 50 trending (15 min interval)",
+        "description": "geographic poll, for all open petitions (3 hour interval)",
         "module": "tracker",
-        "enabled": true,
+        "enabled": false,
         "startup": false,
         "periodic": true,
         "kwargs": {
-            "condition": "trending",
-            "threshold": 50
+            "filters": {}
+        },
+        "opts": {
+            "retry": true,
+            "max_retries": 3,
+            "once": {
+                "timeout": {"minutes": 10},
+                "graceful": true
+            }
+        },
+        "schedule": {
+            "timedelta": {"hours": 3}
+        }
+    },
+
+    {
+        "name": "geo_poll_task",
+        "key": "[primary]-[scheduled]",
+        "description": "geographic poll, for top 50 trending (30 min interval)",
+        "module": "tracker",
+        "enabled": false,
+        "startup": false,
+        "periodic": true,
+        "kwargs": {
+            "filters": {"trending": {"lt": 50}}
         },
         "opts": {
             "retry": true,
@@ -52,15 +75,13 @@
     {
         "name": "geo_poll_task",
         "key": "[signatures_gt_primary]-[scheduled]",
-        "description": "geographic poll, where signatures greater than 10,000 (1 hour interval)",
+        "description": "geographic poll, where signatures greater than 10_000 (1 hour interval)",
         "module": "tracker",
-        "enabled": true,
+        "enabled": false,
         "startup": false,
         "periodic": true,
         "kwargs": {
-            "condition": "signatures",
-            "threshold": 2500,
-            "gt": true
+            "filters": {"signatures": {"gt": 10000}}
         },
         "opts": {
             "retry": true,
@@ -76,40 +97,16 @@
     },
 
     {
-        "name": "geo_poll_task",
-        "key": "[trending_top_primary]-[scheduled]",
-        "description": "geographic poll, for top 50 trending (15 min interval)",
-        "module": "tracker",
-        "enabled": true,
-        "startup": false,
-        "periodic": true,
-        "kwargs": {
-            "condition": "trending",
-            "threshold": 50
-        },
-        "opts": {
-            "retry": true,
-            "max_retries": 3,
-            "once": {
-                "timeout": {"minutes": 10},
-                "graceful": true
-            }
-        },
-        "schedule": {
-            "timedelta": {"minutes": 15}
-        }
-    },
-
-    {
         "name": "populate_task",
         "key": "[primary]-[scheduled]",
-        "description": "populate petitions and create an initial geographic record (60 second interval)",
+        "description": "populate petitions (10 minute interval)",
         "module": "tracker",
-        "enabled": true,
+        "enabled": false,
         "startup": false,
         "periodic": true,
         "kwargs": {
-            "state": "open"
+            "state": "open",
+            "ids": []
         },
         "opts": {
             "retry": true,
@@ -120,21 +117,22 @@
             }
         },
         "schedule": {
-            "timedelta": {"seconds": 60}
+            "timedelta": {"minutes": 10}
         }
     },
 
     {
-        "name": "update_trending_pos_task",
+        "name": "update_trend_indexes_task",
         "key": "[primary]-[scheduled]",
-        "description": "updating the trending postition of all open petitions (10 min interval)",
+        "description": "updating the trending indexes of all open petitions (10 min interval)",
         "module": "tracker",
         "enabled": true,
         "startup": false,
         "periodic": true,
         "kwargs": {
-            "before": 60,
-            "ts_range": 2.5
+            "since": {"hours": 1},
+            "margin": {"minutes": 5},
+            "handle_missing": {"reindex"}
         },
         "opts": {
             "retry": true,
