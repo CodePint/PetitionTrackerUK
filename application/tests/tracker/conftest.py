@@ -1,131 +1,153 @@
-import pytest
-from freezegun.api import FakeDatetime
-from application.tests.conftest import rkwargs
-from copy import deepcopy
-from random import randint, randrange
-from datetime import datetime as dt
-import os, logging, random
+import os
+from dotenv import load_dotenv
 
-from application.tracker.geographies.dictionaries.regions import REGIONS as REGIONS_LIST_DICT
-from application.tracker.geographies.dictionaries.countries import COUNTRIES as COUNTRIES_LIST_DICT
-from application.tracker.geographies.dictionaries.constituencies import CONSTITUENCIES as CONSTITUENCIES_LIST_DICT
-from application.tracker.geographies.python.regions import REGIONS as REGIONS_DICT
-from application.tracker.geographies.python.countries import COUNTRIES as COUNTRIES_DICT
-from application.tracker.geographies.python.constituencies import CONSTITUENCIES as CONSTITUENCIES_DICT
+# application config object
+class Config(object):
 
-logger = logging.getLogger(__name__)
+    CONFIG_FILES = {
+        "development": ".dev.env",
+        "production": ".prod.env",
+        "testing": ".test.env",
+    }
 
-## geography sources
-def geography_vers(key):
-    vers = {
-        "list": {
-            "region": REGIONS_LIST_DICT,
-            "country": COUNTRIES_LIST_DICT,
-            "constituency": CONSTITUENCIES_LIST_DICT
-        },
-        "dict":{
-            "region": REGIONS_DICT,
-            "country": COUNTRIES_DICT,
-            "constituency": CONSTITUENCIES_DICT
+    @classmethod
+    def load(cls):
+        Config.init_env()
+        Config.override_env()
+        CeleryConfig.import_env()
+        Config.import_env()
+        return cls
+
+    @classmethod
+    def init_env(cls):
+        load_dotenv(dotenv_path=".env", override=True)
+        cls.FLASK_ENV = ENV.get("FLASK_ENV", else_raise=True)
+        cls.FLASK_ENV_FILE = cls.CONFIG_FILES.get(cls.FLASK_ENV)
+
+        if cls.FLASK_ENV_FILE:
+            print("FLASK_ENV: {}".format(cls.FLASK_ENV))
+        else:
+            raise RuntimeError("INAVLID FLASK ENV: '{}'".format(cls.FLASK_ENV))
+
+        load_dotenv(dotenv_path=cls.FLASK_ENV_FILE, override=True)
+
+    @classmethod
+    def override_env(cls):
+        cls.ENV_OVERRIDES = ENV.get("OVERRIDES", type=ENV.to_list, fallback=[])
+        print("ENV_OVERRIDES: {}".format(cls.ENV_OVERRIDES))
+        [load_dotenv(dotenv_path=env, override=True) for env in cls.ENV_OVERRIDES]
+
+    @classmethod
+    def import_env(cls):
+        cls.DEBUG = ENV.get("FLASK_DEBUG", type=ENV.to_bool)
+
+        # default values for Setting table
+        cls.DEFAULT_SETTINGS = {
+            "signatures_threshold": ENV.get("SIGNATURES_THRESHOLD"),
+            "trending_threshold": ENV.get("TRENDING_THRESHOLD")
         }
-    }
-    return deepcopy(vers[key])
+        cls.PROJ_SCRIPTS_DIR = ENV.get("PROJ_SCRIPTS_DIR", fallback="./scripts")
 
-get_geo_key = lambda geo: f"signatures_by_{geo}"
-geography_names = lambda: ["constituency", "country", "region"]
-geography_keys = lambda: sorted([get_geo_key(geo) for geo in geography_names()])
-geography_lengths = lambda: {g: len(l) for g, l in geography_vers("list").items()}
+        # postgres config
+        cls.POSTGRES_TEMPLATE = "postgresql://%(user)s:%(pw)s@%(host)s:%(port)s/%(db)s"
+        cls.POSTGRES_CONFIG = {
+            "user": ENV.get("POSTGRES_USER", else_raise=True),
+            "pw": ENV.get("POSTGRES_PASSWORD", else_raise=True),
+            "db": ENV.get("POSTGRES_DB", else_raise=True),
+            "host": ENV.get("POSTGRES_HOST", else_raise=True),
+            "port": ENV.get("POSTGRES_PORT", else_raise=True)
+        }
+        cls.SQLALCHEMY_DATABASE_URI = cls.POSTGRES_TEMPLATE % cls.POSTGRES_CONFIG
+        cls.SQLALCHEMY_TRACK_MODIFICATIONS = False
+        cls.SQLALCHEMY_ECHO = cls.DEBUG
+        cls.SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_recycle": 90,
+            "pool_timeout": 900,
+            "pool_size": 8,
+            "max_overflow": 5,
+        }
 
-# geography lambdas
-uk_locale = lambda: {"code": "GB", "name": "United Kingdom"}
-get_code_key = lambda geo: "code" if geo == "country" else "ons_code"
-list_of_counts = lambda locales: [loc.get("signature_count") for loc in locales if loc.get("signature_count")]
-list_with_counts = lambda locales: [loc for loc in locales if loc.get("signature_count")]
-get_geo_src = lambda fmt: {geo: copy_geo_src(geo, fmt) for geo in geography_names()}
+        # Redis config
+        cls.REDIS_HOST = ENV.get("REDIS_HOST", else_raise=True)
+        cls.REDIS_PORT = ENV.get("REDIS_PORT", else_raise=True)
+        cls.REDIS_BROKER = f"redis://{cls.REDIS_HOST}:{cls.REDIS_PORT}/0"
 
-# generic lambdas
-iso_if_dt = lambda t: t.isoformat() if t and isinstance(t, (FakeDatetime, dt)) else t
-invert_dict = lambda d: {v: k for k, v in d.items()}
-rand_range_or_int = lambda v: randint(min(v), max(v)) if type(v) is range else int(v)
-rand_pop = lambda src: src.pop(randrange(len(src)))
+        # shared celery config
+        cls.CELERY_MAX_RETRY_COUNTDOWN = ENV.get("CELERY_MAX_RETRY_COUNTDOWN", fallback=300)
+        cls.CELERY_ONCE_DEFAULT_TIMEOUT = ENV.get("CELERY_ONCE_DEFAULT_TIMEOUT", fallback=60 * 60)
+        cls.CELERY_CONFIG = CeleryConfig
 
-## helper functions
-def raiser(ex, msg, **kwargs):
-    raise ex(msg, **kwargs)
+        # view and response settings
+        cls.JSONIFY_PRETTYPRINT_REGULAR = True
+        cls.CORS_ORIGINS = ENV.get("CORS_ORIGINS", fallback='*', type=ENV.to_list)
 
-def try_strptime(val, fmt):
-    if fmt == "iso":
-        fmt = "%Y-%m-%dT%H:%M:%S.%f"
-    try:
-        return val.strptime(fmt)
-    except ValueError:
-        return val
+        # log files and settings
+        cls.LOG_FILE = ENV.get("LOG_FILE")
+        cls.LOG_LEVEL = ENV.get("LOG_LEVEL", else_raise=True)
 
-def rand_percent_locales(geo, percentage=None, used=0):
-    default_percentage = range(20, 50) if geo == "region" else range(1, 25)
-    multiplier = rand_range_or_int(percentage or default_percentage)
-    available = (geography_lengths()[geo] - used)
-    hundreth = (available / 100)
-    result = round(hundreth * multiplier)
-    return result if result <= available else raiser(ValueError, "percentage > available")
+        # Flask-Compress control settings
+        cls.COMPRESS_MIMETYPES = ["application/json"]
+        cls.COMPRESS_MIN_SIZE = 500
+        cls.COMPRESS_LEVEL = 6 # (1 = faster/bigger, 9 = slower/smaller, 6 = default)
+        cls.COMPRESS_CACHE_BACKEND = None # may implement redis caching in the future
 
-def dict_of_counts(geo, locales):
-    code_key = get_code_key(geo)
-    locales = [loc for loc in locales if loc.get("signature_count")]
-    return {loc.get(code_key) or loc.get("name"): loc["signature_count"] for loc in locales}
 
-def is_locale_match(geo, locale, target):
-    code_key, name_key = get_code_key(geo), "name"
-    matched_code = locale.get(code_key) == target.get(code_key)
-    matched_name = locale.get(name_key) == target.get(name_key)
-    return bool(matched_code or matched_name)
 
-def find_locale(geo, source, target):
-    return next(iter(filter(lambda item: is_locale_match(geo, item, target), source)), None)
+class CeleryConfig(object):
 
-def exclude_locale(geo, source, target):
-    return list(filter(lambda item: not is_locale_match(geo, item, target), source))
+    @classmethod
+    def import_env(cls):
+        cls.REDIS_HOST = ENV.get("REDIS_HOST", else_raise=True)
+        cls.REDIS_PORT = ENV.get("REDIS_PORT", else_raise=True)
+        cls.REDIS_BROKER = f"redis://{cls.REDIS_HOST}:{cls.REDIS_PORT}/0"
 
-def copy_geo_src(geo, fmt="list"):
-    src = geography_vers(fmt)
-    return deepcopy(src[geo])
+        cls.CELERY_TIMEZONE = ENV.get("CELERY_TIMEZONE", fallback="Europe/London")
+        cls.CELERY_DEFAULT_QUEUE = ENV.get("CELERY_DEFAULT_QUEUE", fallback="application")
+        cls.CELERY_MAX_RETRY_COUNTDOWN = ENV.get("CELERY_MAX_RETRY_COUNTDOWN", fallback=300)
+        cls.CELERY_ONCE_DEFAULT_TIMEOUT = ENV.get("CELERY_ONCE_DEFAULT_TIMEOUT", fallback=60 * 60)
 
-def fetch_locales_for(geo, locales=None, count=0):
-    fetched = []
-    source = copy_geo_src(geo)
+        cls.BASE = {
+            "timezone": cls.CELERY_TIMEZONE,
+            "task_default_queue": cls.CELERY_DEFAULT_QUEUE,
+        }
 
-    if locales:
-        fetched += [find_locale(geo, source, target) for target in (locales)]
-    if count:
-        fetched += [rand_pop(source) for i in range(count)]
+        cls.ONCE = {
+            "backend": "celery_once.backends.Redis",
+            "settings": {
+                "url": cls.REDIS_BROKER,
+                "default_timout": cls.CELERY_ONCE_DEFAULT_TIMEOUT
+            }
+        }
 
-    return fetched or source
+        cls.REDBEAT = {
+            "redbeat_redis_url": cls.REDIS_BROKER,
+            "redbeat_lock_key": None
+        }
 
-## fixtures
-@pytest.fixture(scope="function")
-def geo_src_list(request):
-    return get_geo_src(fmt="list")
 
-@pytest.fixture(scope="function")
-def geo_src_dict(request):
-    return get_geo_src(fmt="dict")
+class EnvVarNotFound(ValueError):
+    def __init__(self, key):
+        self.message = key
 
-@pytest.fixture(scope="function")
-def region_src(request):
-    return fetch_locales_for("region", **rkwargs(request))
 
-@pytest.fixture(scope="function")
-def country_src(request):
-    return fetch_locales_for("country", **rkwargs(request))
+# Enviroment loader helper
+class ENV():
 
-@pytest.fixture(scope="function")
-def constituency_src(request):
-    return fetch_locales_for("constituency", **rkwargs(request))
+    @classmethod
+    def raiser(cls, ex, msg, **kwargs):
+        raise ex(msg, **kwargs)
 
-@pytest.fixture(scope="function")
-def petition():
-    return {
-        "petition_id": 999999,
-        "state": "open",
-        "archived": False
-    }
+    @classmethod
+    def to_bool(cls, var):
+        return var.upper() == "TRUE"
+
+    @classmethod
+    def to_list(cls, var):
+        return var.strip("[]").replace(", ", ",") .split(",")
+
+    @classmethod
+    def get(cls, key, fallback=None, type=str, else_raise=False, msg="NOT FOUND"):
+        handle = lambda: cls.raiser(EnvVarNotFound, key) if else_raise else fallback
+        value = os.getenv(key)
+        return type(value) if value else handle()
+
