@@ -47,7 +47,7 @@ def make_celery():
     return CeleryUtils.make(Config, __name__)
 
 def make_redis():
-    return redis.Redis(host='localhost', port=6379, db=0)
+    return redis.Redis(host=Config.REDIS_HOST, port=Config.REDIS_PORT, db=0)
 
 def load_tasks():
     from application import tasks

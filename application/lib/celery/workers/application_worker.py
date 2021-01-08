@@ -4,4 +4,4 @@ app = create_app(worker=__name__)
 app.app_context().push()
 from application.lib.celery.signals import *
 
-app.celery_utils.send_startup_tasks("application", disable=False)
+app.celery_utils.send_startup_tasks("application", disabled=False)

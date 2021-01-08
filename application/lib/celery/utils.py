@@ -1,4 +1,4 @@
-from celery import Celery, signature
+from celery import Celery
 from celery import task as CeleryTask
 from celery_once import QueueOnce
 from datetime import timedelta
@@ -9,8 +9,11 @@ from .loader import TaskLoader
 from .tasks import context_tasks
 from flask import current_app as c_app
 import os, time, datetime, uuid, logging
+# from application import models
 
 logger = logging.getLogger(__name__)
+
+
 
 class CeleryUtils():
 
@@ -43,11 +46,12 @@ class CeleryUtils():
     def add_periodic_task(cls, task):
         with c_app.app_context():
             function = TaskLoader.get_func(task.name, task.module)
-            schedule = cls.parse_arg(task.schedule)
+            schedule = cls.parse_schedule(task.schedule)
+            ## task.opts must be unpacked for queues to function ##
             return c_app.celery.add_periodic_task(
                 sig=function.s(**task.kwargs),
                 schedule=schedule,
-                opts=task.opts
+                **task.opts
             )
 
     # initializes predefined template tasks with posgtres Task model
@@ -81,8 +85,10 @@ class CeleryUtils():
             return tasks
 
     @classmethod
-    def send_startup_tasks(cls, module, disable=False):
-        if disable: return
+    def send_startup_tasks(cls, module, disabled=False):
+        if disabled:
+            return False
+
         logger.info(f"sending startup tasks for: {module}")
         with c_app.app_context():
             Task = c_app.models.Task
@@ -108,7 +114,8 @@ class CeleryUtils():
 
             function = TaskLoader.get_func(task.name, task.module)
             logger.info(f"sending task {name}/{key}")
-            return function.s(**{**task.kwargs, **kwargs}).apply_async(**{**task.opts, **opts})
+            function_signature = function.s(**{**task.kwargs, **kwargs})
+            return function_signature.apply_async(**{**task.opts, **opts})
 
     @classmethod
     def retry_policy(cls):
@@ -120,13 +127,7 @@ class CeleryUtils():
         }
 
     @classmethod
-    def contains_any_keys(cls, *keys, **kwargs):
-        for k in keys:
-            if k in kwargs.values():
-                return True
-
-    @classmethod
-    def parse_arg(cls, schedule):
+    def parse_schedule(cls, schedule):
         if schedule.get("timedelta"):
             return timedelta(**schedule["timedelta"])
         if schedule.get("crontab"):

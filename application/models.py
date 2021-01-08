@@ -4,7 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship, synonym, validates, reconstructor
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql import functions as sqlfunc
-from sqlalchemy import and_, tuple_, inspect, event, inspect
+from sqlalchemy import and_, tuple_, event
+from sqlalchemy import inspect as sqlinspect
 from sqlalchemy import (
     Integer,
     Boolean,
@@ -24,7 +25,7 @@ from celery_once import helpers as CeleryOnceUtils
 from datetime import datetime as dt
 from datetime import timedelta
 from time import sleep
-import datetime, math, time, json, logging
+import datetime, math, time, json, inspect, logging
 
 logger = logging.getLogger(__name__)
 
@@ -206,33 +207,47 @@ class Task(db.Model):
 
     @classmethod
     def purge_locks(cls, pattern="qo_*"):
-        lock_keys = c_app.redis.keys(pattern=pattern)
-        if any(lock_keys):
+        lock_keys = cls.get_lock_keys(pattern)
+        if lock_keys:
             logger.info(f"deleting lock keys: {lock_keys}")
             c_app.redis.delete(*lock_keys)
 
         return lock_keys
 
     @classmethod
+    def get_lock_keys(cls, pattern="qo_*"):
+        return c_app.redis.keys(pattern=pattern)
+
+    @classmethod
     def revoke_all(cls, tasks=None):
         tasks_to_revoke = tasks or Task.query.all()
         return [task.revoke() for task in tasks_to_revoke]
 
+    @property
+    def once_opts(self):
+        return self.opts.get("once", {})
+
+    @property
+    def is_retrying(self):
+        return bool(self.where("RETRYING").count())
+
+    @property
+    def is_pending(self):
+        return bool(self.where("PENDING").count())
+
     def revoke(self):
-        return [run.revoke() for run in self.where("PENDING", "RUNNING", "RETRYING")]
+        return [run.revoke() for run in self.where("PENDING", "RUNNING", "RETRYING").all()]
 
     def unlock(self):
         return [run.unlock() for run in self.runs.all()]
 
-    # None periodic run from template
     def run(self, kwargs=None):
-        return c_app.celery_utils.send_task(self.name, **(kwargs or {}))
+        return c_app.celery_utils.send_task(task=self, **(kwargs or {}))
 
-    def where(self, *states):
+    def where(self, *states, unique=False):
         states = [TaskRun.STATE_LOOKUP[s] for s in states]
         query = self.runs.filter(TaskRun.state.in_(states))
-        query = query.filter_by(unique=False)
-        return query.all()
+        return query.filter_by(unique=unique)
 
     def update(self, **kwargs):
         for key, value in kwargs.items():
@@ -282,7 +297,8 @@ class TaskRun(db.Model):
     db_updated_at = db.Column(DateTime, default=sqlfunc.now(), onupdate=sqlfunc.now())
 
     def __repr__(self):
-        return "<id: {}, state: {}>".format(self.id, self.state)
+        task = f"name: {self.task.name}, key: {self.task.key}"
+        return f"<id: {self.id}, state: {self.state}, {task}>"
 
     # manual work around for broken choice validation in sqlalchemy utils
     @validates("state")
@@ -308,10 +324,15 @@ class TaskRun(db.Model):
             sleep(3) or cls.get(id, retry_race=False)
         raise MissingTaskHandler(id)
 
+    def getcallkwargs(self, func):
+        signature = inspect.signature(func).parameters.values()
+        parameters = [k.name for k in list(signature)]
+        return {k: v for k, v in self.kwargs.items() if k in parameters}
+
     @classmethod
     def configure(cls, bind):
-        id = bind.request.kwargs.get("id")
-        handler = cls.get_or_raise(id, retry_race=True)
+        run_id = bind.request.kwargs.get("id")
+        handler = cls.get_or_raise(run_id, retry_race=True)
         handler.bind = bind
         if handler.state != "RETRYING":
             kwargs = handler.bind.request.kwargs
@@ -324,7 +345,7 @@ class TaskRun(db.Model):
         handler.celery_id = handler.bind.request.id
         handler.retries = handler.bind.request.retries
         db.session.commit()
-        logger.info(f"handler id: {id}, configured succesfully")
+        logger.info(f"handler id: {run_id}, configured succesfully")
 
         return handler
 
@@ -399,7 +420,7 @@ class TaskRun(db.Model):
         self.state = state
         db.session.commit()
 
-        if not inspect(self).transient and getattr(self, 'bind', None):
+        if not sqlinspect(self).transient and getattr(self, 'bind', None):
             self.bind.handler = TaskRunRelationalSchema().dump(self)
 
         base_msg = f"TASK {state} - RUN TIME: {round(self.run_time.total_seconds(), 3)}"
