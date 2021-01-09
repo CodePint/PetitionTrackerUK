@@ -48,7 +48,7 @@ function TimeNav({ timeChangeHandler, timeConfig = {}, fromNavValue, toNavValue,
     let [unit, value] = [null, null];
     let to = timeConfig.maxDate;
     let from = null;
-    if (event.target.type == "radio") {
+    if (event.target.type === "radio") {
       unit = event.target.name;
       value = event.target.value;
       const isUnitShowAll = unit.includes("All");

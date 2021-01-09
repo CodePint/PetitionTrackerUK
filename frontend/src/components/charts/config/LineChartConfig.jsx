@@ -1,4 +1,3 @@
-
 const chartConfig = {
   type: "line",
   data: {
@@ -29,7 +28,6 @@ const chartConfig = {
               hour: "DD-MM-YYThh:mm:ss",
               minute: "DD-MM-YYThh:mm:ss",
               second: "DD-MM-YYThh:mm:ss",
-              hour: "DD-MM-YYThh:mm",
               day: "DD-MM-YYYY",
               week: "DD-MM-YYYY",
               month: "MM-YYYY",

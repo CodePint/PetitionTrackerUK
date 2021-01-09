@@ -16,6 +16,7 @@ function Ping({ match }) {
       let response = await axios.get(`${API_URL_PREFIX}/ping`);
       let result = response.data.response;
       if (result === "SUCCESS") {
+        console.log("sender:", sender);
         console.log("response:", response.data);
         setData(response.data);
       }
