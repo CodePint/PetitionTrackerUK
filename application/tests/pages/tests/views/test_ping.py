@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 @freeze_time(FROZEN_TIME_STR)
 class TestPing():
 
-    def test_returns_200_success_with_time_andsender(self, app):
+    def test_returns_200_success_with_time_and_sender(self, app):
         params = {"sender": "pytest"}
         expectation = {**params, "response": "SUCCESS", "time": FROZEN_TIME_STR}
         response = app.test_client().get("/ping", query_string=params)
