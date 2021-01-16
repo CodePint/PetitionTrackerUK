@@ -2,7 +2,6 @@ import pytest
 from munch import Munch as ObjDict
 from unittest.mock import MagicMock, PropertyMock, create_autospec
 from application.tests import FROZEN_DATETIME, FROZEN_TIME_STR
-from application.tracker.models import Petition
 from application.tests.conftest import rkwargs
 from application.tests.tracker.tests.models.conftest import TestPetitionModelRequests
 from application.tests.tracker.factories.query import QueryFactory

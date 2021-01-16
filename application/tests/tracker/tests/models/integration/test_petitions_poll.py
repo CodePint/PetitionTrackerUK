@@ -3,7 +3,6 @@ from munch import Munch as ObjDict
 from freezegun import freeze_time
 from unittest.mock import MagicMock, PropertyMock, create_autospec
 from application.tests import FROZEN_DATETIME, FROZEN_TIME_STR
-from application.tracker.models import Petition
 from application.tests.conftest import rkwargs
 from application.tests.tracker.tests.models.conftest import TestPetitionModelRequests
 from application.tests.tracker.factories.petition import PetitionFactory, PetitionFactoryManager
@@ -26,7 +25,7 @@ class TestPetitionPoll(TestPetitionModelRequests):
     signatures_by_kwargs = {
         "country": {"locales": {"undef": 5}},
         "constituency": {"locales": {"undef": 10}},
-        "region": {"locales": {"undef": 0}}
+        "region": {"locales": {"undef": 1}}
     }
 
     polled_at = FROZEN_DATETIME

@@ -2,7 +2,6 @@ import pytest
 from munch import Munch as ObjDict
 from freezegun import freeze_time
 from application.tests import FROZEN_TIME_STR, FROZEN_DATETIME
-from application.tracker.models import Petition
 from application.tests.conftest import rkwargs
 from application.tests.tracker.tests.models.conftest import TestRecordModel, TestPetitionModel
 from application.tests.tracker.factories.petition import PetitionFactory, PetitionFactoryManager
