@@ -108,7 +108,7 @@ class TestPetitionModel():
     def validate_base_record(cls, record, signature_count):
         assert record.signatures == signature_count
         for geo in geography_names():
-            assert not any(record.signatures_by(geo).all())
+            assert not any(record.signatures_by(geo))
         return True
 
     @classmethod
@@ -128,7 +128,7 @@ class TestPetitionModel():
         config = {}
         for geo in geography_names():
             code_key = get_code_key(geo)
-            saved = sorted(record.signatures_by(geo).all(), key=lambda x: getattr(x, code_key).code)
+            saved = sorted(record.signatures_by(geo), key=lambda x: getattr(x, code_key).code)
             remote = sorted(expected[f"signatures_by_{geo}"], key=lambda x: x[code_key])
             config[geo] = {"saved": saved, "remote": remote}
         return config

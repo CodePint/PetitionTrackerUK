@@ -50,9 +50,13 @@ function PetitionListController() {
   }, [queryParams]);
 
   async function queryPetitions() {
-    const params = { params: queryParams };
+    let requestParams = _.cloneDeep(queryParams);
+    let state = requestParams["state"];
+    delete requestParams["state"];
+    let url = `${apiURL}/${state}`;
+    let params = { params: requestParams };
     try {
-      let response = await axios.get(apiURL, params);
+      let response = await axios.get(url, params);
       let data = response.data;
       queryResult.current = data;
       paginationData.current = data.meta.pages;
@@ -75,7 +79,7 @@ function PetitionListController() {
       setPetitionID(query);
     } else {
       let params = { ...queryParams };
-      params.action = query;
+      params.text = { action: query };
       setQueryParams(params);
     }
   };
