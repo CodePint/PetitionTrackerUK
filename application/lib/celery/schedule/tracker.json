@@ -132,7 +132,7 @@
         "kwargs": {
             "since": {"hours": 1},
             "margin": {"minutes": 5},
-            "handle_missing": {"reindex"}
+            "handle_missing": "reindex"
         },
         "opts": {
             "retry": true,
