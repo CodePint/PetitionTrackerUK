@@ -56,6 +56,8 @@ def run_migrations_offline():
 def render_item(type_, obj, autogen_context):
     """Apply custom rendering for selected items."""
 
+    # See: https://sqlalchemy-utils.readthedocs.io/en/latest/data_types.html
+    # To Do: revisit and check if there has been a fix released
     # custom render for sqalchemy_utils ChoiceType column and params
     # May be better to use: https://stackoverflow.com/questions/30132370/trouble-when-using-alembic-with-sqlalchemy-utils
     if type_ == 'type' and isinstance(obj, sqlalchemy_utils.types.choice.ChoiceType):
