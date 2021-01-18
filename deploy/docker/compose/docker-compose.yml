@@ -17,7 +17,7 @@ services:
       - 5000
     networks:
       - docker_primary_network
-    command: flask exec gunicorn
+    command: pipenv run flask exec gunicorn
     logging:
       driver: "fluentd-async"
       options:
@@ -48,7 +48,7 @@ services:
     image: "${FLASK_GUNICORN_IMAGE}"
     networks:
       - docker_primary_network
-    command: flask exec celery worker --name tracker
+    command: pipenv run flask exec celery worker --name tracker
     logging:
       driver: "fluentd-async"
       options:
@@ -62,7 +62,7 @@ services:
     image: "${FLASK_GUNICORN_IMAGE}"
     networks:
       - docker_primary_network
-    command: flask exec celery worker --name tracker
+    command: pipenv run flask exec celery worker --name tracker
     logging:
       driver: "fluentd-async"
       options:
@@ -76,7 +76,7 @@ services:
     image: "${FLASK_GUNICORN_IMAGE}"
     networks:
       - docker_primary_network
-    command: flask exec celery beat
+    command: pipenv run flask exec celery beat
     logging:
       driver: "fluentd-async"
       options:
@@ -92,7 +92,7 @@ services:
       - 5555:5555
     networks:
       - docker_primary_network
-    command: flask exec celery flower
+    command: pipenv run flask exec celery flower
 
   postgres:
     container_name: postgres

@@ -43,4 +43,4 @@ munch = "*"
 python_version = "3.6"
 
 [scripts]
-celery_worker = "flask exec celery worker --name $1"
+celery_worker = "pipenv run flask exec celery worker --name $1"

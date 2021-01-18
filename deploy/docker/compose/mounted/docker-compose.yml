@@ -66,7 +66,7 @@ services:
     image: "${FLASK_GUNICORN_IMAGE}"
     networks:
       - docker_primary_network
-    command: pipenv run flask exec celery worker --name app
+    command: pipenv run flask exec celery worker --name application
     volumes:
       - ./application:/usr/src/application/
     logging:

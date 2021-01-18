@@ -13,7 +13,7 @@ services:
       - 5000
     networks:
       - docker_primary_network
-    command: flask exec gunicorn
+    command: pipenv run flask exec gunicorn
     logging:
       driver: "fluentd-async"
       options:
