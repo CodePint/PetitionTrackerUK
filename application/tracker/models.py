@@ -1,9 +1,17 @@
 import sqlalchemy
+from flask import current_app
 from sqlalchemy_utils import *
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import relationship, synonym, validates, reconstructor
 from sqlalchemy.sql import functions as sqlfunc
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.orm import (
+    relationship,
+    synonym,
+    validates,
+    reconstructor,
+    joinedload,
+    eagerload
+)
 from sqlalchemy import (
     and_,
     inspect,
@@ -15,7 +23,7 @@ from sqlalchemy import (
     DateTime,
     UniqueConstraint
 )
-from flask import current_app as c_app
+
 from marshmallow import fields as ma_fields
 from marshmallow_sqlalchemy.fields import Nested
 from marshmallow_sqlalchemy import SQLAlchemySchema, SQLAlchemyAutoSchema, auto_field
@@ -33,9 +41,9 @@ from math import ceil, floor
 from datetime import datetime as dt
 from datetime import timedelta
 from collections.abc import Iterable
-import operator as operators
-import datetime, operator, json, sys, logging
-get_operator =  lambda opr: getattr(operators, opr)
+import operator as py_operator
+import datetime, json, sys, logging
+get_operator =  lambda opr: getattr(py_operator, opr)
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +59,7 @@ class Petition(db.Model):
     ]
     STATE_VALUES = [v for v in dict(STATE_CHOICES).values()]
     STATE_LOOKUP = LazyDict({v: k for k, v in dict(STATE_CHOICES).items()})
+    record_relation_attributes = {"lazy": "dynamic", "back_populates": "petition", "cascade": "all,delete-orphan"}
 
     id = db.Column(Integer, primary_key=True, autoincrement=False)
     state = db.Column(ChoiceType(STATE_CHOICES), nullable=False)
@@ -78,10 +87,9 @@ class Petition(db.Model):
     latest_data = db.Column(JSONType)
     trend_index = db.Column(Integer, default=None)
     growth_rate = db.Column(Float, default=0)
-    record_rel_attrs = {"lazy": "dynamic", "back_populates": "petition", "cascade": "all,delete-orphan"}
-    records = relationship(lambda: Record, **record_rel_attrs)
-    date = synonym("pt_created_at")
+    records = relationship(lambda: Record, **record_relation_attributes)
 
+    date = synonym("pt_created_at")
     remote = RemotePetition
 
     def __repr__(self):
@@ -319,22 +327,27 @@ class Petition(db.Model):
         self.update(**attributes)
         return self
 
-    def record_query(self, since=None, timestamp=None, geographic=None, order="DESC"):
+    def record_query(self, timestamp=None, geographic=None, filter_on=None, join_on=None, order="DESC"):
+        filter_on = filter_on or {}
+        timestamp = timestamp or {}
         filters = []
+
         if geographic is not None:
             filters.append(Record.geographic == geographic)
-        if since:
-            timestamp["gt"] = (dt.now() - timedelta(**since))
-
-        timestamp = timestamp or {}
         if timestamp.get("lt"):
             filters.append(Record.timestamp <  self.lazy_strptime(timestamp["lt"]))
         if timestamp.get("gt"):
             filters.append(Record.timestamp > self.lazy_strptime(timestamp["gt"]))
+        if filter_on.get("geography") and filter_on.get("locale"):
+            geography, locale = filter_on["geography"], filter_on["locale"]
+            filters.append(Record.get_locale_filter(geography, locale))
 
-        order = order or {"timestamp": "DESC"}
+        query = self.records.filter(*filters)
+        if join_on:
+            query = query.options(joinedload(Record.relation_for(join_on)))
+
         ordering = getattr(Record.timestamp, order.lower())
-        return self.records.filter(*filters).order_by(ordering())
+        return query.order_by(ordering())
 
     def populate_self(self):
         return self.populate(ids=[self.id])
@@ -356,6 +369,10 @@ class Petition(db.Model):
 class Record(db.Model):
     __tablename__ = "record"
 
+    signatures_relation_attributes = {"back_populates": "record", "cascade": "all,delete-orphan"}
+    signatures_query_attributes = {"passive_deletes": True, "lazy": "dynamic", **signatures_relation_attributes}
+    signatures_select_attributes = {"lazy": "select", **signatures_relation_attributes}
+
     id = db.Column(Integer, primary_key=True)
     petition_id = db.Column(Integer, ForeignKey(Petition.id, ondelete="CASCADE"), index=True, nullable=False)
     timestamp = db.Column(DateTime, index=True, nullable=False)
@@ -363,10 +380,13 @@ class Record(db.Model):
     signatures = db.Column(Integer, nullable=False)
     geographic = db.Column(Boolean, default=False)
     petition = relationship(Petition, back_populates="records")
-    sigs_rel_attrs = {"lazy": "dynamic", "back_populates": "record", "cascade": "all,delete-orphan"}
-    signatures_by_country = relationship(lambda: SignaturesByCountry, **sigs_rel_attrs)
-    signatures_by_region = relationship(lambda: SignaturesByRegion, **sigs_rel_attrs)
-    signatures_by_constituency = relationship(lambda: SignaturesByConstituency, **sigs_rel_attrs)
+    signatures_by_country = relationship(lambda: SignaturesByCountry, **signatures_select_attributes)
+    signatures_by_region = relationship(lambda: SignaturesByRegion, **signatures_select_attributes)
+    signatures_by_constituency = relationship(lambda: SignaturesByConstituency, **signatures_select_attributes)
+
+    country_query = relationship(lambda: SignaturesByCountry, **signatures_query_attributes)
+    region_query = relationship(lambda: SignaturesByRegion,  **signatures_query_attributes)
+    constiuency_query = relationship(lambda: SignaturesByConstituency, **signatures_query_attributes)
     ts = synonym("timestamp")
 
     def __repr__(self):
@@ -380,6 +400,10 @@ class Record(db.Model):
         except KeyError:
             value = inst.__class__.CODE_LOOKUP[value]
         return value
+
+    @classmethod
+    def join_query_on(cls, query, geo):
+        return query.options(joinedload(cls.relation_for(geo)))
 
     @classmethod
     def code_for(cls, geo):
@@ -398,29 +422,18 @@ class Record(db.Model):
         return cls.model_for(geo).__table__
 
     @classmethod
-    def attributes_map(cls, *geographies):
-        return {geo: cls.atrributes_for(geo) for geo in geographies}
+    def locale_choice(cls, geography, k_or_v):
+        if type(k_or_v) is dict:
+            if k_or_v["code"] and k_or_v["value"]:
+                return k_or_v
 
-    @classmethod
-    def atrributes_for(cls, geo):
-        model = cls.model_for(geo)
-        return {
-            "model": model,
-            "table": model.__table__,
-            "name": model.__tablename__,
-            "relationship": getattr(cls, model.__tablename__),
-            "schema_class": RecordSchema.schema_for(geo)
-        }
-
-    @classmethod
-    def locale_choice(cls, geography, key_or_value):
         model = cls.model_for(geography)
         choices = dict(model.CODE_CHOICES)
         try:
-            choices[key_or_value.upper()]
-            code = key_or_value.upper()
+            choices[k_or_v.upper()]
+            code = k_or_v.upper()
         except KeyError:
-            code = model.CODE_LOOKUP[key_or_value]
+            code = model.CODE_LOOKUP[k_or_v]
 
         return {"code": code, "value": choices[code]}
 
@@ -434,24 +447,33 @@ class Record(db.Model):
         }
 
     @classmethod
-    def filter_on_locales(cls, query, geography, locale):
-        locale_filter = cls.model_for(geography).code == locale["code"]
-        locale_exists = cls.relation_for(geography).any(locale_filter)
-        return query.filter(locale_exists)
+    def get_locale_filter(cls, geography, locale):
+        locale = cls.locale_choice(geography, locale) if type(locale) is str else locale
+        equals_locale = cls.model_for(geography).code == locale["code"]
+        return cls.relation_for(geography).any(equals_locale)
+
+    @classmethod
+    def signatures_query(cls, records, geography, locale, order=None):
+        model = cls.model_for(geography)
+        locale = cls.locale_choice(geography, locale)
+        query = model.query.filter(Record.id.in_([r.id for r in records]))
+        query = query.filter(model.code == locale["code"])
+        ordering = getattr(Record.timestamp, (order or "DESC").lower())
+        return query.join(cls).order_by(ordering())
 
     # query for a single (distinct) record for each petition
     @classmethod
-    def distinct_on(cls, timestamp=None, petitions=None, filters=None, opts=None, order_by="DESC"):
+    def distinct_on(cls, petitions=None, timestamp=None, filters=None, opts=None, order_by="DESC"):
         timestamp, filters, opts = timestamp or {}, filters or [], opts or {}
 
         filters.append(Petition.archived == opts.get("archived", False))
+        if petitions:
+            petition_ids = [p.id if type(p) is Petition else p for p in petitions]
+            filters.append(Record.petition_id.in_(petition_ids))
         if opts.get("geographic") is not None:
             filters.append(Record.geographic == opts["geographic"])
         if opts.get("state"):
             filters.append(Petition.state == Petition.STATE_LOOKUP[opts["state"]])
-        if petitions:
-            petition_ids = [p.id if type(p) is Petition else p for p in petitions]
-            filters.append(Record.petition_id.in_(petition_ids))
         if timestamp.get("lt"):
             filters.append(Record.timestamp < timestamp["lt"])
         if timestamp.get("gt"):
@@ -487,40 +509,11 @@ class Record(db.Model):
         period = (self.petition.polled_at - self.timestamp).total_seconds()
         return round(growth / (period / 60.0), 3)
 
+    def query_by(self, geo):
+        return getattr(self, f"{geo}_query")
+
     def signatures_by(self, geo):
-        return getattr(self, "signatures_by_" + geo)
-
-    # helper query for signature geography + code or name
-    def signatures_for(self, geo, locale):
-        model = Record.model_for(geo)
-        choice = Record.locale_choice(geo, locale) if type(locale) is str else locale
-        query = self.signatures_by(geo).filter(model.code == choice["code"])
-        try:
-            return query.one()
-        except sqlalchemy.orm.exc.NoResultFound:
-            return None
-
-    def signatures_comparison(self, record_schema, attrs):
-        comparison = record_schema.dump(self)
-        for geo in attrs.keys():
-            relation = self.signatures_by(geo)
-            model, locales = attrs[geo]["model"], attrs[geo]["locales"]
-            filtered = relation.filter(model.code.in_(locales))
-            geo_name, geo_schema = attrs[geo]["name"], attrs[geo]["schema"]
-            comparison[geo_name] = [geo_schema.dump(sig) for sig in filtered.all()]
-
-        return comparison
-
-    # @classmethod
-    # def filter_by_growth(cls, records, threshold, geographic=True):
-    #     petitions = [r.petition_id for r in records]
-    #     query = Record.distinct_on(petitions=petitions, geographic=geographic)
-    #     previous = query.order_by(Record.petition_id.desc())
-    #     current = sorted(records, key=lambda r: r.petition_id)
-
-    #     filter_growth = lambda prev, curr: (curr.signatures - prev.signatures) >= threshold
-    #     return [curr for prev, curr in zip(previous, current) if filter_growth(prev, curr)]
-
+        return getattr(self, f"signatures_by_{geo}")
 
 
 class SignaturesByCountry(db.Model):
@@ -679,23 +672,24 @@ class RecordSchema(SQLAlchemyAutoSchema):
 
         kwargs = {"geography": geography, "locale": locale, "schemas": schemas}
         if isinstance(result, Iterable):
-            return [cls.dump_query_item(record=r, **kwargs) for r in result]
+            return [cls.dump_query_item(result=r, **kwargs) for r in result]
         else:
-            return cls.dump_query_item(record=result, **kwargs)
+            return cls.dump_query_item(result=result, **kwargs)
 
     @classmethod
-    def dump_query_item(cls, record, geography, locale, schemas):
+    def dump_query_item(cls, result, geography, locale, schemas):
         if locale:
-            signatures = record.signatures_for(geography, locale)
+            signature = result
+            record = result.record
         else:
-            signatures = record.signatures_by(geography).all()
+            signature = result.signatures_by(geography)
+            record = result
 
         geo_key = f"signatures_by_{geography}"
-        dumped_signatures = schemas["signature"].dump(signatures)
+        dumped_signature = schemas["signature"].dump(signature)
         dumped_record = schemas["record"].dump(record)
-        dumped_record[geo_key] = dumped_signatures
+        dumped_record[geo_key] = dumped_signature
         return dumped_record
-
 
     def signatures_by(self, geo):
         return getattr(self, "signatures_by_" + geo)
@@ -718,11 +712,6 @@ class RecordNestedSchema(RecordSchema):
         "signatures_by_region",
         "signatures_by_constituency"
     }
-
-    @classmethod
-    def get_exclusions_for(cls, *include):
-        include = {f"signatures_by_{i}" for i in include}
-        return (cls.relations.difference(include))
 
     total = ma_fields.Method("rename_sig_key")
     signatures_by_country = Nested(SignaturesByCountrySchema, many=True, exclude=["country"])
