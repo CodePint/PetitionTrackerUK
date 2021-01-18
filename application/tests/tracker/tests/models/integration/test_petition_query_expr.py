@@ -2,11 +2,10 @@ import pytest
 from munch import Munch as ObjDict
 from unittest.mock import MagicMock, PropertyMock, create_autospec
 from application.tests import FROZEN_DATETIME, FROZEN_TIME_STR
-from application.tracker.models import Petition
 from application.tests.conftest import rkwargs
 from application.tests.tracker.tests.models.conftest import TestPetitionModel
 from application.tests.tracker.factories.petition import PetitionFactory
-from application.tracker.models import Petition
+from application.tracker.models import Petition, Record
 
 from unittest import mock
 from copy import deepcopy
@@ -67,17 +66,20 @@ class TestPetitionQueryExpr(TestPetitionModel):
 
     @pytest.mark.parametrize("opr", [("lt"), ("gt")])
     def test_signatures_expressions(self, opr):
-        query = Petition.query_expr(signatures={opr: self.operands["signatures"]})
+        filters = Petition.filter_expression(signatures={opr: self.operands["signatures"]})
+        query = Petition.query.filter(*filters)
         assert self.sorted_ids(query.all()) == self.expected_ids["signatures"][opr]
 
     @pytest.mark.parametrize("opr", [("lt"), ("gt")])
     def test_growth_expressions(self, opr):
-        query = Petition.query_expr(growth_rate={opr: self.operands["growth_rate"]})
+        filters = Petition.filter_expression(growth_rate={opr: self.operands["growth_rate"]})
+        query = Petition.query.filter(*filters)
         assert self.sorted_ids(query.all()) == self.expected_ids["growth_rate"][opr]
 
     @pytest.mark.parametrize("opr", [("le"), ("gt")])
     def test_trend_index_expressions(self, opr):
-        query = Petition.query_expr(trend_index={opr: self.operands["trend_index"]})
+        filters = Petition.filter_expression(trend_index={opr: self.operands["trend_index"]})
+        query = Petition.query.filter(*filters)
         assert self.sorted_ids(query.all()) == self.expected_ids["trend_index"][opr]
 
     def test_combined_expressions(self, min_sigs=500_000):
@@ -90,6 +92,7 @@ class TestPetitionQueryExpr(TestPetitionModel):
         expected_pts = [p.update(signatures=randrange(min_sigs, (min_sigs * 2))) for p in expected_pts]
         self.session.commit()
 
-        query = Petition.query_expr(signatures={"gt": min_sigs}, trend_index={"le": min_index})
+        filters = Petition.filter_expression(signatures={"gt": min_sigs}, trend_index={"le": min_index})
+        query = Petition.query.filter(*filters)
         assert self.sorted_ids(query.all()) == expected_ids
 
