@@ -1,6 +1,5 @@
 # Application Config
 ## Enviroment files for: Application, Workers, Postgres
-
 - ref config/env directory
 - Specify the flask application and enviroment in '.env' file: (testing, developing, production)
 - Place enviroment specific settings in the corresponding env file: '.test.env', '.dev.env', '.prod.env' (see context dir)
@@ -25,4 +24,4 @@
 ## Tasks
 - the task schedule can be found in tasks/schedule.json, included is an example config
 - copy deploy.json file into application/lib/celery/tasks/schedule/schedule.json
-- these tasks can be then loaded into the database by running CeleryUtils.init_schedule()
+- these tasks can be then loaded into the database by running CeleryUtils.init_schedule() or custom flask cli
