@@ -402,10 +402,6 @@ class Record(db.Model):
         return value
 
     @classmethod
-    def join_query_on(cls, query, geo):
-        return query.options(joinedload(cls.relation_for(geo)))
-
-    @classmethod
     def code_for(cls, geo):
         return "code" if geo == "country" else "ons_code"
 

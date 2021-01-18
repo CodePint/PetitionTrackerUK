@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
-import { Link, Redirect, useHistory } from "react-router-dom";
-import _, { merge } from "lodash";
+import { Redirect, useHistory } from "react-router-dom";
 import axios from "axios";
+import _ from "lodash";
 import JSONPretty from "react-json-pretty";
 import moment from "moment";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -287,7 +287,6 @@ function Petition({ match }) {
   async function fetchAndBuildFromConfig() {
     const prevPoll = lastPolledAt.current;
     updatePolledAt();
-
     let geoNavData = null;
     const petitionResponse = await fetchPetition();
     if (petitionResponse.status === 200) {
@@ -343,9 +342,8 @@ function Petition({ match }) {
   }
 
   function buildGeoNavData(data) {
-    let defaultGeographies = geographiesJSON();
     let result = {};
-
+    let defaultGeographies = geographiesJSON();
     Object.keys(defaultGeographies).forEach((geo) => {
       let defaultLocales = defaultGeographies[geo];
       let responseLocales = data[`signatures_by_${geo}`];
@@ -368,10 +366,9 @@ function Petition({ match }) {
   }
 
   // API Fetch functions
-  async function fetchSignatures() {
-    let params = {};
+  async function fetchSignatures(params = {}) {
     let url = `${API_URL_PREFIX}/petition/${petition_id}/signatures`;
-    params.between = {
+    params.timestamp = {
       gt: moment(chartTime.from).format("DD-MM-YYYYTH:m:ss"),
       lt: moment(getChartTimeTo()).format("DD-MM-YYYYTH:m:ss"),
     };
@@ -386,14 +383,13 @@ function Petition({ match }) {
     }
   }
 
-  async function fetchPetition() {
-    let params = {};
+  async function fetchPetition(params = {}) {
+    let url = `${API_URL_PREFIX}/petition/${petition_id}`;
     params.signatures = true;
     if (chartTime.to) {
-      params.time = moment(getChartTimeTo()).format("DD-MM-YYYYTH:m:ss");
-      console.log(params.time);
+      params.timestamp = moment(getChartTimeTo()).format("DD-MM-YYYYTH:m:ss");
+      console.log(params.timestamp);
     }
-    let url = `${API_URL_PREFIX}/petition/${petition_id}`;
     try {
       return await axios.get(url, { params: params });
     } catch (error) {
@@ -409,10 +405,9 @@ function Petition({ match }) {
     }
   }
 
-  async function fetchSignaturesBy(geography, locale) {
-    let params = {};
+  async function fetchSignaturesBy(geography, locale, params = {}) {
     let url = `${API_URL_PREFIX}/petition/${petition_id}/signatures_by/${geography}/${locale}`;
-    params.between = {
+    params.timestamp = {
       gt: moment(chartTime.from).format("DD-MM-YYYYTH:m:ss"),
       lt: moment(getChartTimeTo()).format("DD-MM-YYYYTH:m:ss"),
     };
@@ -479,7 +474,7 @@ function Petition({ match }) {
 
   function buildGeographicDataset(input, geography) {
     let dataset = {};
-    const choice = input.meta.query.locale;
+    const choice = input.meta.locale;
     dataset.meta = input.meta.latest_data;
     dataset.geography = geography;
     dataset.key = `${choice.value}-${choice.code}`;
@@ -570,7 +565,7 @@ function Petition({ match }) {
   function deleteDataSet(locale) {
     let datasets = [...chartData];
     let index = datasets.findIndex((data) => data && data.label.includes(locale));
-    if (index != -1) {
+    if (index !== -1) {
       datasets.splice(index, 1);
     }
     return datasets;
