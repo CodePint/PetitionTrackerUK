@@ -77,8 +77,8 @@ function GeoNav({
     return (
       <div
         key={`${item.value}-${type}`}
-        className={`row 
-              ${isHighlighted ? "hover" : ""} 
+        className={`row
+              ${isHighlighted ? "hover" : ""}
               ${item.total === 0 ? "unselectable" : ""}
               ${!shouldRenderItem(item, type) ? "hidden" : ""}
             `}

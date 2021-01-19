@@ -12,7 +12,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 def context_tasks(app, celery, name):
-    from application.models import AlreadyPending
     from application.models import Task as DBTask
     from application.models import TaskRun
 

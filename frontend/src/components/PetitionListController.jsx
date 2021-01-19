@@ -59,7 +59,7 @@ function PetitionListController() {
       let response = await axios.get(url, params);
       let data = response.data;
       queryResult.current = data;
-      paginationData.current = data.meta.pages;
+      paginationData.current = data.meta.links;
       if (data.petitions) {
         numPetitionsFound.current = data.meta.items.total;
         setPetitions(data.petitions);

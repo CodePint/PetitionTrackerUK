@@ -475,17 +475,19 @@ function Petition({ match }) {
   function buildGeographicDataset(input, geography) {
     let dataset = {};
     const choice = input.meta.locale;
-    dataset.meta = input.meta.latest_data;
+    const latestData = input.meta.latest_data;
+    const geo_key = "signatures_by_" + geography;
+
+    dataset.meta = { ...latestData[geo_key], timestamp: latestData.timestamp };
     dataset.geography = geography;
     dataset.key = `${choice.value}-${choice.code}`;
     dataset.label = choice.value;
     if (dataset.meta.count === 0) {
       dataset.data = [];
     } else {
-      geography = "signatures_by_" + geography;
       dataset.data = input.signatures.map((r) => ({
         x: r.timestamp,
-        y: r[geography].count,
+        y: r[geo_key].count,
       }));
     }
     return dataset;

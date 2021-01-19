@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import JSONPretty from "react-json-pretty";
 import PetitionItem from "./PetitionItem";
-// import "../styles/PetitionList.css";
 
 function PetitionList({ petitions = [] }) {
   useEffect(() => {}, []);
@@ -28,7 +27,6 @@ function PetitionList({ petitions = [] }) {
 
   return (
     <div className="PetitionList">
-      {/* <div>{renderJsonList()}</div> */}
       <div>{renderItemList()}</div>
     </div>
   );
