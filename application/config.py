@@ -79,7 +79,6 @@ class Config(object):
 
         # view and response settings
         cls.JSONIFY_PRETTYPRINT_REGULAR = True
-        cls.CORS_ORIGINS = ENV.get("CORS_ORIGINS", fallback='*', type=ENV.to_list)
 
         # log files and settings
         cls.LOG_FILE = ENV.get("LOG_FILE")

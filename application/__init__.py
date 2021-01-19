@@ -91,11 +91,12 @@ def create_app(name=__name__, **kwargs):
     app = Flask(name, instance_relative_config=False)
     app.config.from_object(Config)
     app.context = Context
+
+    # initialize logging
     init_logging(**kwargs)
 
-    # configure cross origin resources
-    origins = {"origins": app.config["CORS_ORIGINS"]}
-    cors = CORS(app, resources={r"*": origins})
+    # configure headers
+    CORS(app)
 
     with app.app_context():
         # configure database
@@ -116,6 +117,7 @@ def create_app(name=__name__, **kwargs):
         compress.init_app(app)
         init_views(app)
 
+    # configure developer tools
     Context.register(app, db, celery)
     Cli.register(app, db, celery)
 
