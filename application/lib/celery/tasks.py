@@ -5,6 +5,8 @@ from celery.result import EagerResult
 from celery import states
 from celery_once.tasks import AlreadyQueued
 from flask import current_app as c_app
+from datetime import datetime as dt
+from datetime import timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -27,21 +29,16 @@ def context_tasks(app, celery, name):
                 self.init_opts(task, options)
                 if not self.is_retrying:
                     try:
-                        # raise if pending or locked else lock and init handler
-                        self.raise_if_pending(task)
+                        # raise if task is locked else lock the current task and revoke expired runs
                         self.once_backend.raise_or_lock(lock_key, timeout=self.timeout)
+                        self.revoke_pending(task)
                         kwargs["id"] = self.init_handler(task, lock_key).id
-                    # handle the exception if graceful else reraise
-                    except AlreadyPending as e:
-                        if self.graceful_pending:
-                            return self.reject_eager(lock_key, e)
-                        raise e
+                    # handle the AlreadyQueued exception if graceful else reraise
                     except AlreadyQueued as e:
-                        if self.graceful_lock:
+                        if self.graceful:
                             return self.reject_eager(lock_key, e)
                         raise e
 
-                    # TBC: consider implementing tidy up for expired/hung task runs
                     async_result = super(QueueOnce, self).apply_async(args, kwargs, **options)
                     async_result.lock_key = lock_key
                     return async_result
@@ -49,8 +46,7 @@ def context_tasks(app, celery, name):
         def init_opts(self, task, options):
             async_opts = options.get('once', {})
             self.is_retrying = bool(options.get("retries"))
-            self.graceful_pending = async_opts.get('graceful_pending', True)
-            self.graceful_lock = async_opts.get('graceful', self.once.get('graceful', False))
+            self.graceful = async_opts.get('graceful', self.once.get('graceful', False))
             self.timeout = async_opts.get('timeout', task.once_opts.get('timeout', self.default_timeout))
 
         def init_handler(self, task, lock_key):
@@ -69,10 +65,10 @@ def context_tasks(app, celery, name):
             EagerResult.lock_key = lock_key
             return eager_result
 
-        def raise_if_pending(self, task):
-            pending = task.where("PENDING").all()
-            if pending:
-                raise AlreadyPending(task, [p.id for p in pending])
+        def revoke_pending(self, task):
+            if task.is_pending:
+                revoked = task.revoke("PENDING")
+                logger.info(f"revoked pending task runs: {revoked}")
 
         def __call__(self, *args, **kwargs):
             with app.app_context():

@@ -117,13 +117,11 @@ class Event(db.Model):
         else:
             return gt_event if gt_diff < lt_diff else lt_event
 
+
+
 class TaskNotFound(NameError):
     def __init__(self, name, key):
         self.message = f"No task found with name: {name}, key: {key}"
-
-class AlreadyPending(Exception):
-    def __init__(self, task, pending):
-        self.message = f"Periodic task {task.name}, has pending runs: {pending}"
 
 class Task(db.Model):
 
@@ -221,7 +219,7 @@ class Task(db.Model):
     @classmethod
     def revoke_all(cls, tasks=None):
         tasks_to_revoke = tasks or Task.query.all()
-        return [task.revoke() for task in tasks_to_revoke]
+        return [task.revoke(["PENDING", "RUNNING", "RETRYING"]) for task in tasks_to_revoke]
 
     @property
     def once_opts(self):
@@ -229,14 +227,14 @@ class Task(db.Model):
 
     @property
     def is_retrying(self):
-        return bool(self.where("RETRYING").count())
+        return bool(self.where(["RETRYING"]).count())
 
     @property
     def is_pending(self):
-        return bool(self.where("PENDING").count())
+        return bool(self.where(["PENDING"]).count())
 
-    def revoke(self):
-        return [run.revoke() for run in self.where("PENDING", "RUNNING", "RETRYING").all()]
+    def revoke(self, *states):
+        return [run.revoke() for run in self.where(states).all()]
 
     def unlock(self):
         return [run.unlock() for run in self.runs.all()]
@@ -244,7 +242,7 @@ class Task(db.Model):
     def run(self, kwargs=None):
         return c_app.celery_utils.send_task(task=self, **(kwargs or {}))
 
-    def where(self, *states, unique=False):
+    def where(self, states, unique=False):
         states = [TaskRun.STATE_LOOKUP[s] for s in states]
         query = self.runs.filter(TaskRun.state.in_(states))
         return query.filter_by(unique=unique)
