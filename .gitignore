@@ -6,6 +6,7 @@ celerybeat-schedule
 celerybeat.pid
 
 .test.py
+schedule.json
 docker-compose.*
 Dockerfile
 .dockerignore

@@ -46,7 +46,10 @@ class Config(object):
             "signatures_threshold": ENV.get("SIGNATURES_THRESHOLD"),
             "trending_threshold": ENV.get("TRENDING_THRESHOLD")
         }
+
+        # configure file and script paths
         cls.PROJ_SCRIPTS_DIR = ENV.get("PROJ_SCRIPTS_DIR", fallback="./scripts")
+        cls.TASK_SCHEDULE_PATH = ENV.get("TASK_SCHEDULE_PATH")
 
         # postgres config
         cls.POSTGRES_TEMPLATE = "postgresql://%(user)s:%(pw)s@%(host)s:%(port)s/%(db)s"

@@ -1,5 +1,6 @@
 import os, json
 from pathlib import Path
+from flask import current_app
 
 class TaskLoader():
 
@@ -30,7 +31,8 @@ class TaskLoader():
     def init_tasks(cls):
         sources = {"templates": {}}
         parent_dir = Path(__file__).parent
-        sources["schedule"] =  os.path.join(parent_dir, "schedule", "schedule.json")
+        schedule_path = current_app.config.get("TASK_SCHEDULE_PATH")
+        sources["schedule"] = schedule_path or os.path.join(parent_dir, "schedule", "schedule.json")
         sources["templates"]["tracker"] = os.path.join(parent_dir, "templates", "tracker.json")
         sources["templates"]["application"] =  os.path.join(parent_dir, "templates", "application.json")
 
