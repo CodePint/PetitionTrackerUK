@@ -9,10 +9,13 @@ services:
     container_name: flask_api
     restart: always
     image: "${FLASK_GUNICORN_IMAGE}"
+    env_file: ".env"
     expose:
       - 5000
     networks:
       - docker_primary_network
+    volumes:
+      - ./mnt:/usr/src/mnt
     command: pipenv run flask exec gunicorn
     logging:
       driver: "fluentd-async"
@@ -28,7 +31,6 @@ services:
     ports:
       - 80:80
       - 443:443
-    env_file: "${REACT_ENV_FILE}"
     networks:
       - docker_primary_network
     logging:

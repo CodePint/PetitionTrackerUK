@@ -1,7 +1,6 @@
 import os
 from dotenv import load_dotenv
 
-# application config object
 class Config(object):
 
     CONFIG_FILES = {
@@ -21,6 +20,9 @@ class Config(object):
     @classmethod
     def init_env(cls):
         load_dotenv(dotenv_path=".env", override=True)
+        cls.MOUNT_PATH = ENV.get("MOUNT_PATH", fallback="")
+        load_dotenv(dotenv_path=os.path.join(cls.MOUNT_PATH, ".env"), override=True)
+
         cls.FLASK_ENV = ENV.get("FLASK_ENV", else_raise=True)
         cls.FLASK_ENV_FILE = cls.CONFIG_FILES.get(cls.FLASK_ENV)
 
@@ -29,13 +31,14 @@ class Config(object):
         else:
             raise RuntimeError("INAVLID FLASK ENV: '{}'".format(cls.FLASK_ENV))
 
-        load_dotenv(dotenv_path=cls.FLASK_ENV_FILE, override=True)
+        load_dotenv(dotenv_path=os.path.join(cls.MOUNT_PATH, cls.FLASK_ENV_FILE), override=True)
 
     @classmethod
     def override_env(cls):
         cls.ENV_OVERRIDES = ENV.get("OVERRIDES", type=ENV.to_list, fallback=[])
         print("ENV_OVERRIDES: {}".format(cls.ENV_OVERRIDES))
-        [load_dotenv(dotenv_path=env, override=True) for env in cls.ENV_OVERRIDES]
+        for env in cls.ENV_OVERRIDES:
+            load_dotenv(dotenv_path=os.path.join(cls.MOUNT_PATH, env), override=True)
 
     @classmethod
     def import_env(cls):
@@ -48,8 +51,8 @@ class Config(object):
         }
 
         # configure file and script paths
-        cls.PROJ_SCRIPTS_DIR = ENV.get("PROJ_SCRIPTS_DIR", fallback="./scripts")
-        cls.TASK_SCHEDULE_PATH = ENV.get("TASK_SCHEDULE_PATH")
+        cls.PROJ_SCRIPTS_DIR = os.path.join(cls.MOUNT_PATH, ENV.get("PROJ_SCRIPTS_DIR", fallback="scripts"))
+        cls.TASK_SCHEDULE_PATH = os.path.join(cls.MOUNT_PATH, ENV.get("TASK_SCHEDULE_PATH", fallback=""))
 
         # postgres config
         cls.POSTGRES_TEMPLATE = "postgresql://%(user)s:%(pw)s@%(host)s:%(port)s/%(db)s"

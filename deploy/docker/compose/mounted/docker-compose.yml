@@ -13,12 +13,14 @@ services:
     container_name: flask_api
     restart: always
     image: "${FLASK_GUNICORN_IMAGE}"
+    env_file: ".env"
     expose:
       - 5000
     networks:
       - docker_primary_network
     volumes:
       - ./application:/usr/src/application/
+      - ./mnt:/usr/src/mnt
     command: pipenv run flask exec gunicorn
     logging:
       driver: "fluentd-async"
@@ -34,7 +36,6 @@ services:
     ports:
       - 80:80
       - 443:443
-    env_file: "${REACT_ENV_FILE}"
     networks:
       - docker_primary_network
     logging:
@@ -48,11 +49,13 @@ services:
     container_name: tracker_worker
     restart: always
     image: "${FLASK_GUNICORN_IMAGE}"
+    env_file: ".env"
     networks:
       - docker_primary_network
-    command: pipenv run flask exec celery worker --name tracker
     volumes:
       - ./application:/usr/src/application/
+      - ./mnt:/usr/src/mnt
+    command: pipenv run flask exec celery worker --name tracker
     logging:
       driver: "fluentd-async"
       options:
@@ -64,11 +67,13 @@ services:
     container_name: app_worker
     restart: always
     image: "${FLASK_GUNICORN_IMAGE}"
+    env_file: ".env"
     networks:
       - docker_primary_network
-    command: pipenv run flask exec celery worker --name application
     volumes:
       - ./application:/usr/src/application/
+      - ./mnt:/usr/src/mnt
+    command: pipenv run flask exec celery worker --name application
     logging:
       driver: "fluentd-async"
       options:
@@ -80,12 +85,13 @@ services:
     container_name: beat_scheduler
     restart: always
     image: "${FLASK_GUNICORN_IMAGE}"
-
+    env_file: ".env"
     networks:
       - docker_primary_network
-    command: pipenv run flask exec celery beat
     volumes:
       - ./application:/usr/src/application/
+      - ./mnt:/usr/src/mnt
+    command: pipenv run flask exec celery beat
     logging:
       driver: "fluentd-async"
       options:
@@ -97,12 +103,14 @@ services:
     container_name: flower_monitor
     restart: always
     image: "${FLASK_GUNICORN_IMAGE}"
-    volumes:
-      - ./application:/usr/src/application/
+    env_file: ".env"
     ports:
       - 5555:5555
     networks:
       - docker_primary_network
+    volumes:
+      - ./application:/usr/src/application/
+      - ./mnt:/usr/src/mnt
     command: pipenv run flask exec celery flower
 
   postgres:

@@ -6,15 +6,14 @@ celerybeat-schedule
 celerybeat.pid
 
 .test.py
-schedule.json
+.dockerignore
 docker-compose.*
 Dockerfile
-.dockerignore
 compose
-scripts
-wsgi.sh
 
+mnt/**
 application/lib/celery/schedule/schedule.json
+
 !deploy/**/**/**/**/**
 !application/tests/docker-compose.pytest.yml
 !application/tests/*.env

@@ -37,12 +37,9 @@ ENV FLASK_APP=application \
     PYTHONUNBUFFERED=1
 
 WORKDIR /usr/src
-COPY Pipfile Pipfile.lock .env .*.env /usr/src/
+COPY Pipfile Pipfile.lock .env /usr/src/
 COPY application /usr/src/application/
 COPY migrations /usr/src/migrations/
-COPY deploy/scripts /usr/src/run/
-
-RUN find /usr/src/run -type f -iname "*.sh" -exec chmod +x {} \;
 
 FROM FILE-SYS as DEPLOY
 RUN pipenv install \

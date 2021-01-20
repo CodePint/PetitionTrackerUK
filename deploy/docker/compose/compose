@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+## Does not work currently due to relative mount paths ##
+
 import subprocess, click, os
 
 worker_names = ["app", "tracker"]

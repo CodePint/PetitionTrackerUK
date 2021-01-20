@@ -1,10 +1,14 @@
-# Application Config
+# PetitionTrackerUK
+
+## Application Config
+- env/schedule directory path can be specified using enviroment variable 'MOUNT_PATH'
+
 ## Enviroment files for: Application, Workers, Postgres
 - ref config/env directory
 - Specify the flask application and enviroment in '.env' file: (testing, developing, production)
 - Place enviroment specific settings in the corresponding env file: '.test.env', '.dev.env', '.prod.env' (see context dir)
 - Specify additional env files with the OVERRIDES enviroment variable i.e: OVERRIDES=[.task.env, .docker.env, .local.env] (see overrides dir)
-- Postgres config should be in the corrersponding flask application .*.env file
+- Postgres config should be in the corresponding flask application .*.env file
 - Copy these files into the project root before build or run (.env and .*.env are included in .gitignore)
 
 ## Docker files
@@ -22,6 +26,6 @@
 - additional celery workers can be spun up with the create_worker.sh script
 
 ## Tasks
-- the task schedule can be found in tasks/schedule.json, included is an example config
-- copy deploy.json file into application/lib/celery/tasks/schedule/schedule.json
-- these tasks can be then loaded into the database by running CeleryUtils.init_schedule() or custom flask cli
+- the task schedule.json location defaults to application/lib/celery/tasks/schedule/schedule.json
+- or can be specified with a combination of enviroment variables 'MOUNT_PATH' + 'TASK_SCHEDULE_PATH'
+- these tasks can be then loaded into the database by using the command flask tasks init --schedule

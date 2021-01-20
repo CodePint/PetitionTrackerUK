@@ -9,8 +9,11 @@ services:
     container_name: tracker_worker
     restart: always
     image: "${FLASK_GUNICORN_IMAGE}"
+    env_file: ".env"
     networks:
       - docker_primary_network
+    volumes:
+      - ./mnt:/usr/src/mnt
     command: pipenv run flask exec celery worker --name tracker
     logging:
       driver: "fluentd-async"
@@ -23,8 +26,11 @@ services:
     container_name: app_worker
     restart: always
     image: "${FLASK_GUNICORN_IMAGE}"
+    env_file: ".env"
     networks:
       - docker_primary_network
+    volumes:
+      - ./mnt:/usr/src/mnt
     command: pipenv run flask exec celery worker --name tracker
     logging:
       driver: "fluentd-async"
@@ -37,8 +43,11 @@ services:
     container_name: beat_scheduler
     restart: always
     image: "${FLASK_GUNICORN_IMAGE}"
+    env_file: ".env"
     networks:
       - docker_primary_network
+    volumes:
+      - ./mnt:/usr/src/mnt
     command: pipenv run flask exec celery beat
     logging:
       driver: "fluentd-async"
@@ -51,8 +60,11 @@ services:
     container_name: flower_monitor
     restart: always
     image: "${FLASK_GUNICORN_IMAGE}"
+    env_file: ".env"
     ports:
       - 5555:5555
     networks:
       - docker_primary_network
+    volumes:
+      - ./mnt:/usr/src/mnt
     command: pipenv run flask exec celery flower
