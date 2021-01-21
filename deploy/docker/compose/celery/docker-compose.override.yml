@@ -31,7 +31,7 @@ services:
       - docker_primary_network
     volumes:
       - ./mnt:/usr/src/mnt
-    command: pipenv run flask exec celery worker --name tracker
+    command: pipenv run flask exec celery worker --name application
     logging:
       driver: "fluentd-async"
       options:

@@ -200,9 +200,10 @@ class Petition(db.Model):
     # poll all petitions which match where param and kwargs opts (or provide list)
     # signatures_by = True for full geo records, signatures_by = False for basic total records
     @classmethod
-    def poll(cls, geographic=False, petitions=None, min_growth=0, **where):
+    def poll(cls, geographic=False, petitions=None, where=None, min_growth=0):
         logger.info("executing petition poll")
-        petitions = petitions or cls.where(state="open", archived=False, **where).all()
+        expressions = where or {}
+        petitions = petitions or cls.where(state="open", archived=False, **expressions).all()
         logger.info(f"polling petitions: {petitions}")
         if not petitions:
             return []

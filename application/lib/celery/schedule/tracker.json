@@ -9,7 +9,7 @@
         "startup": false,
         "periodic": true,
         "kwargs": {
-            "filters": {}
+            "where": {}
         },
         "opts": {
             "retry": true,
@@ -33,13 +33,13 @@
         "startup": false,
         "periodic": true,
         "kwargs": {
-            "filters": {}
+            "where": {}
         },
         "opts": {
             "retry": true,
             "max_retries": 3,
             "once": {
-                "timeout": {"minutes": 10},
+                "timeout": {"hours": 2.5},
                 "graceful": true
             }
         },
@@ -57,13 +57,13 @@
         "startup": false,
         "periodic": true,
         "kwargs": {
-            "filters": {"trending": {"lt": 50}}
+            "where": {"trending": {"lt": 50}}
         },
         "opts": {
             "retry": true,
             "max_retries": 3,
             "once": {
-                "timeout": {"minutes": 10},
+                "timeout": {"minutes": 20},
                 "graceful": true
             }
         },
@@ -81,7 +81,7 @@
         "startup": false,
         "periodic": true,
         "kwargs": {
-            "filters": {"signatures": {"gt": 10000}}
+            "where": {"signatures": {"gt": 10000}}
         },
         "opts": {
             "retry": true,

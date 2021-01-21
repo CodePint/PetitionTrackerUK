@@ -322,10 +322,10 @@ class TaskRun(db.Model):
             sleep(3) or cls.get(id, retry_race=False)
         raise MissingTaskHandler(id)
 
-    def getcallkwargs(self, func):
+    def getcallkwargs(self, func, kwargs):
         signature = inspect.signature(func).parameters.values()
         parameters = [k.name for k in list(signature)]
-        return {k: v for k, v in self.kwargs.items() if k in parameters}
+        return {k: v for k, v in kwargs.items() if k in parameters}
 
     @classmethod
     def configure(cls, bind):

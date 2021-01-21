@@ -15,12 +15,12 @@
             "max_retries": 3,
             "retry": true,
             "once": {
-                "timeout": {"minutes": 10},
+                "timeout": {"seconds": 45},
                 "graceful": true
             }
         },
         "schedule": {
-            "timedelta": {"seconds": 10}
+            "timedelta": {"seconds": 60}
         }
     }
 ]

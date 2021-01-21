@@ -72,7 +72,7 @@ sudo usermod -aG docker $USER
 newgrp docker
 
 # set docker to start on boot
-$ sudo systemctl enable docker
+sudo systemctl enable docker
 
 # install should now be completed, for issues see:
 https://docs.docker.com/engine/install/linux-postinstall/

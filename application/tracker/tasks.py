@@ -15,7 +15,7 @@ once_opts = {
 @celery.task(name='poll_self_task', **celery_opts, **once_opts)
 def onboard_self_task(self, *args, **kwargs):
     with TaskHandler.execute(bind=self) as handler:
-        kwargs = handler.getcallkwargs(Petition.onboard)
+        kwargs = handler.getcallkwargs(Petition.onboard, kwargs)
         petition = Petition.onboard(kwargs["id"])
         logger.info(f"onboarded petition id: {petition.id}")
         return handler.commit(result=petition, schema=PetitionSchema())
@@ -24,7 +24,7 @@ def onboard_self_task(self, *args, **kwargs):
 def poll_self_task(self, *args, **kwargs):
     with TaskHandler.execute(bind=self) as handler:
         petition = Petition.query.get(kwargs["id"])
-        kwargs = handler.getcallkwargs(petition.poll_self)
+        kwargs = handler.getcallkwargs(petition.poll_self, kwargs)
         record = petition.poll_self(**kwargs)
         logger.info(f"polled petition id: {petition.id}")
         return handler.commit(result=record, schema=RecordSchema())
@@ -32,7 +32,7 @@ def poll_self_task(self, *args, **kwargs):
 @celery.task(name='base_poll_task', **celery_opts, **once_opts)
 def base_poll_task(self, *args, **kwargs):
     with TaskHandler.execute(bind=self) as handler:
-        kwargs = handler.getcallkwargs(Petition.poll)
+        kwargs = handler.getcallkwargs(Petition.poll, kwargs)
         records = Petition.poll(geographic=False, **kwargs)
         logger.info(f"Petitions geo polled: {records}")
         return handler.commit(result=[r.petition_id for r in records])
@@ -40,7 +40,7 @@ def base_poll_task(self, *args, **kwargs):
 @celery.task(name='geo_poll_task', **celery_opts, **once_opts)
 def geo_poll_task(self, *args, **kwargs):
     with TaskHandler.execute(bind=self) as handler:
-        kwargs = handler.getcallkwargs(Petition.poll)
+        kwargs = handler.getcallkwargs(Petition.poll, kwargs)
         records = Petition.poll(geographic=True, **kwargs)
         logger.info(f"Petitions base polled: {records}")
         return handler.commit(result=[r.petition_id for r in records])
@@ -48,7 +48,7 @@ def geo_poll_task(self, *args, **kwargs):
 @celery.task(name='populate_task', **celery_opts, **once_opts)
 def populate_task(self, *args, **kwargs):
     with TaskHandler.execute(bind=self) as handler:
-        kwargs = handler.getcallkwargs(Petition.populate)
+        kwargs = handler.getcallkwargs(Petition.populate, kwargs)
         petitions = Petition.populate(**kwargs)
         logger.info(f"Petitions onboarded: {petitions}")
         return handler.commit(result=[p.id for p in petitions])
@@ -56,7 +56,7 @@ def populate_task(self, *args, **kwargs):
 @celery.task(name='update_trending_pos_task', **celery_opts, **once_opts)
 def update_trend_indexes_task(self, *args, **kwargs):
     with TaskHandler.execute(bind=self) as handler:
-        kwargs = handler.getcallkwargs(Petition.update_trend_indexes)
+        kwargs = handler.getcallkwargs(Petition.update_trend_indexes, kwargs)
         petitions = Petition.update_trend_indexes(**kwargs)
         logger.info(f"Petitions trend indexes updated: {petitions}")
         return handler.commit(result=[p.id for p in petitions])

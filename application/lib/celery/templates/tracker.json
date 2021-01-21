@@ -2,71 +2,49 @@
 [
     {
         "name": "base_poll_task",
-        "key": "[base_pol]-[base]",
-        "description": "base poll petitions - base task",
+        "key": "[template]",
+        "description": "base poll petitions - template task",
         "module": "tracker",
         "enabled": true,
         "startup": false,
         "periodic": false,
-        "schedule": {"seconds": 10},
-        "kwargs": {
-            "condition": "any"
-        },
-        "opts": {
-
-        }
+        "kwargs": {},
+        "opts": {}
     },
 
     {
         "name": "geo_poll_task",
-        "key": "[geo_poll]-[base]",
-        "description": "geo poll petitions - base task",
+        "key": "[template]",
+        "description": "geo poll petitions - template task",
         "module": "tracker",
         "enabled": true,
         "startup": false,
         "periodic": false,
-        "run": {
-            "singleton": false,
-            "periodic": false
-        },
-        "kwargs": {
-
-        },
-        "opts": {
-
-        }
+        "kwargs": {},
+        "opts": {}
     },
 
     {
         "name": "populate_task",
-        "key": "[populate_task]-[base]",
-        "description": "populate petitions - base task",
+        "key": "[template]",
+        "description": "populate petitions - template task",
         "module": "tracker",
         "enabled": true,
         "startup": false,
         "periodic": false,
-        "kwargs": {
-            "state": "open"
-        },
-        "opts": {
-
-        }
+        "kwargs": {},
+        "opts": {}
     },
 
     {
-        "name": "update_trending_pos_task",
-        "key": "[update_trending_pos]-[base]",
-        "description": "update trending petitions pos - base task",
+        "name": "update_trend_indexes_task",
+        "key": "[template]",
+        "description": "update the trending indexes for petitions - template task",
         "module": "tracker",
         "enabled": true,
         "startup": false,
         "periodic": false,
-        "kwargs": {
-            "before": 60,
-            "ts_range": 2.5
-        },
-        "opts": {
-
-        }
+        "kwargs": {},
+        "opts": {}
     }
 ]

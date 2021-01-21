@@ -1,25 +1,14 @@
 [
     {
         "name": "test_task",
-        "key": "[test_task]-[base]",
-        "description": "test task - base task",
+        "key": "[template]",
+        "description": "test task - template task",
         "module": "application",
         "enabled": true,
         "startup": false,
         "periodic": false,
-        "schedule": {"seconds": 10},
-        "kwargs": {
-            "greeting": "hello world - scheduled!"
-        },
-        "opts": {
-            "max_retries": 3,
-            "retry": true,
-            "once": {
-                "timeout": {"seconds": 20},
-                "graceful": true
-            }
-        }
+        "kwargs": {},
+        "opts": {}
     }
-
 ]
 
