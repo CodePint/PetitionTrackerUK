@@ -17,4 +17,7 @@ def test_task(self, *args, **kwargs):
     with TaskHandler.execute(bind=self) as handler:
         logger.info(f"running {self.name}!, kwargs: {kwargs}")
         logger.info("inside handler context!")
+
+        raise ValueError("help im the wrong value for test task!")
+
         return handler.commit(kwargs)

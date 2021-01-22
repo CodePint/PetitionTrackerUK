@@ -56,6 +56,7 @@ class ViewUtils():
     @classmethod
     def handle(cls, context, query, request, func):
         pagination_params = ViewUtils.get_params(request, "pagination")
+
         params = context["meta"]["query"]
         values = context["meta"]["values"]
         params.update(**pagination_params)
@@ -64,6 +65,7 @@ class ViewUtils():
             index = params.pop("index", 1)
             page = query.paginate(index, params["items"], False)
             pagination = cls.paginate(index, page, func, values,**params)
+
             context["meta"].update(pagination)
             result = page.items
         else:
@@ -99,19 +101,16 @@ class ViewUtils():
 
     @classmethod
     def paginate(cls, index, page, func, values, **params):
+        items = {"total": page.total, "on_page": len(page.items), "per_page": page.per_page}
+
+        if not page.items:
+            return {"links": {}, "items": items}
+
         page.curr_num = index
         page.last_num = page.pages
-        if not page.items:
-            return None
         if (page.curr_num > page.last_num):
             template = "invalid page index: ({}/{})"
             cls.abort(404, template.format(page.curr_num, page.last_num))
-
-        items = {
-            "total": page.total,
-            "on_page": len(page.items),
-            "per_page": page.per_page
-        }
 
         links = cls.build_links(page, func, values, params)
         return {"links": links, "items": items}

@@ -9,7 +9,6 @@ from .loader import TaskLoader
 from .tasks import context_tasks
 from flask import current_app as c_app
 import os, time, datetime, uuid, logging
-# from application import models
 
 logger = logging.getLogger(__name__)
 

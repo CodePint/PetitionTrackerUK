@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import ReactPaginate from "react-paginate";
 
-import _, { isNull } from "lodash";
+import _ from "lodash";
 
 function Pagination({ pages, baseUrl, urlParams, pagesToShow, pageChangeHandler = null }) {
   function render() {
-    if (pages) {
+    if (!_.isEmpty(pages)) {
       return (
         <ReactPaginate
           previousLabel={"<"}

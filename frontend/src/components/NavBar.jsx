@@ -17,7 +17,9 @@ function NavBar() {
           <Link to={"/"}>
             <h1>Petition Tracker</h1>
 
-            <h3>UK Government and Parliament (Unofficial)</h3>
+            <h3>
+              UK Government and Parliament <span>(unofficial)</span>
+            </h3>
           </Link>
         </div>
       </div>

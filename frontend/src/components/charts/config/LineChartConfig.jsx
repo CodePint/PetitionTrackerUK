@@ -23,11 +23,11 @@ const chartConfig = {
             fontSize: 10,
           },
           time: {
-            parser: "DD-MM-YYThh:mm:ss",
+            parser: "DD-MM-YYTH:mm:ss",
             displayFormats: {
-              hour: "DD-MM-YYThh:mm:ss",
-              minute: "DD-MM-YYThh:mm:ss",
-              second: "DD-MM-YYThh:mm:ss",
+              hour: "DD-MM-YYTH:mm:ss",
+              minute: "DD-MM-YYTH:mm:ss",
+              second: "DD-MM-YYTH:mm:ss",
               day: "DD-MM-YYYY",
               week: "DD-MM-YYYY",
               month: "MM-YYYY",

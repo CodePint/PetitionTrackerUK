@@ -2,6 +2,7 @@ import sqlalchemy
 from flask import current_app
 from sqlalchemy_utils import *
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func as sqlfuncgen
 from sqlalchemy.sql import functions as sqlfunc
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import (
@@ -40,10 +41,18 @@ from application.tracker.exceptions import PetitionsNotFound, RecordsNotFound
 from math import ceil, floor
 from datetime import datetime as dt
 from datetime import timedelta
+from copy import deepcopy
 from collections.abc import Iterable
 import operator as py_operator
 import datetime, json, sys, logging
+
 get_operator =  lambda opr: getattr(py_operator, opr)
+plainto_tsquery = lambda qs: sqlfuncgen.plainto_tsquery("english", qs)
+
+def match_text(_cls, column, value):
+    column = getattr(_cls, column)
+    text_query = plainto_tsquery(value)
+    return column.op("@@")(text_query)
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +66,8 @@ class Petition(db.Model):
         ("R", "rejected"),
         ("O", "open")
     ]
+
+    TEXT_COLS = ["action", "background", "additional_details", "creator_name"]
     STATE_VALUES = [v for v in dict(STATE_CHOICES).values()]
     STATE_LOOKUP = LazyDict({v: k for k, v in dict(STATE_CHOICES).items()})
     record_relation_attributes = {"lazy": "dynamic", "back_populates": "petition", "cascade": "all,delete-orphan"}
@@ -88,8 +99,8 @@ class Petition(db.Model):
     trend_index = db.Column(Integer, default=None)
     growth_rate = db.Column(Float, default=0)
     records = relationship(lambda: Record, **record_relation_attributes)
-
     date = synonym("pt_created_at")
+
     remote = RemotePetition
 
     def __repr__(self):
@@ -140,9 +151,8 @@ class Petition(db.Model):
         if archived is not None:
             filters.append(cls.archived == archived)
         if text:
-            text_cols = ["action", "background", "additional_details"]
-            text_match = lambda k, v: getattr(cls, k).match(v, postgresql_regconfig="english")
-            filters += [text_match(k, text[k]) for k in text_cols if text.get(k)]
+            # import pdb; pdb.set_trace()
+            filters += [match_text(cls, c, text[c]) for c in cls.TEXT_COLS if text.get(c)]
         if expressions:
             filters += cls.filter_expression(**expressions)
 
@@ -176,7 +186,7 @@ class Petition(db.Model):
         db.session.bulk_save_objects(populated)
         db.session.commit()
 
-        populated = cls.query.filter(cls.id.in_(populated_ids)).all()
+        populated = list(cls.query.filter(cls.id.in_(populated_ids)).all())
         logger.info(f"populate completed, IDs: {populated_ids}")
         return populated
 
@@ -200,17 +210,16 @@ class Petition(db.Model):
     # poll all petitions which match where param and kwargs opts (or provide list)
     # signatures_by = True for full geo records, signatures_by = False for basic total records
     @classmethod
-    def poll(cls, geographic=False, petitions=None, where=None, min_growth=0):
+    def poll(cls, geographic=False, petitions=None, where=None, min_growth=0, max_retries=3):
         logger.info("executing petition poll")
-        expressions = where or {}
-        petitions = petitions or cls.where(state="open", archived=False, **expressions).all()
+        petitions = petitions or cls.where(state="open", expressions=where).all()
         logger.info(f"polling petitions: {petitions}")
         if not petitions:
             return []
 
-        responses = cls.remote.async_get(petitions=petitions, max_retries=3)
+        responses = cls.remote.async_get(petitions=petitions, max_retries=max_retries)
         logger.info(f"petitions returned from async poll: {len(responses['success'])} ")
-        if not any(responses["success"]):
+        if not responses["success"]:
             raise RuntimeError(f"no poll responses, failures: {len(responses['failed'])}")
 
         polled = [r.petition.sync(r.data, r.timestamp) for r in responses["success"]]
@@ -314,17 +323,18 @@ class Petition(db.Model):
 
     # sync remote petition data with petition columns and updated latest_data
     def sync(self, data, timestamp):
-        attributes = data["data"]["attributes"]
         self.polled_at = timestamp
-        self.url = data["links"]["self"]
+        self.latest_data = deepcopy(data)
         self.archived = data["data"]["type"] == "archived-petition"
-        self.pt_created_at = attributes["created_at"]
-        self.pt_closed_at = attributes["closed_at"]
-        self.pt_updated_at = attributes["updated_at"]
-        self.pt_rejected_at = attributes["rejected_at"]
-        self.signatures = attributes["signature_count"]
-        self.state = attributes["state"]
-        self.latest_data = data
+        self.url = self.remote.url_addr(self.id, self.archived)
+
+        attributes = data["data"]["attributes"]
+        self.pt_created_at = attributes.pop("created_at")
+        self.pt_closed_at = attributes.pop("closed_at")
+        self.pt_updated_at = attributes.pop("updated_at")
+        self.pt_rejected_at = attributes.pop("rejected_at")
+        self.signatures = attributes.pop("signature_count")
+        self.state = attributes.pop("state")
         self.update(**attributes)
         return self
 
@@ -353,8 +363,8 @@ class Petition(db.Model):
     def populate_self(self):
         return self.populate(ids=[self.id])
 
-    def poll_self(self, commit=True, geo=True):
-        return self.poll(petitions=[self.id], commit=commit, geo=geo)
+    def poll_self(self, geographic=True):
+        return self.poll(petitions=[self.id], geographic=geographic)
 
     def fetch_self(self, raise_404=True):
         return self.remote.get(id=self.id, raise_404=raise_404)

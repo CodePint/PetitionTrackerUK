@@ -363,7 +363,6 @@
   cursor: pointer;
 }
 
-
 .petition__chart .banner label {
   display: block;
   text-decoration: none;
@@ -374,10 +373,9 @@
   text-decoration: line-through;
 }
 
-.petition__chart .banner input[type="checkbox"]:checked + label  .icon-wrapper{
+.petition__chart .banner input[type="checkbox"]:checked + label .icon-wrapper {
   background: gray;
 }
-
 
 .petition__chart .banner .refresh {
   display: flex;
@@ -385,11 +383,30 @@
   justify-content: flex-end;
 }
 
+@keyframes rotation {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(359deg);
+  }
+}
+
 .petition__chart .banner .refresh .icon {
   color: white;
   padding: 0.4em;
-  background: green;
+  background: var(--parl-green);
   border-radius: 0.5em;
+}
+
+.petition__chart .banner .refresh.active .icon {
+  background: darkblue;
+}
+
+
+.petition__chart .banner .refresh.active .icon span {
+  display: block;
+  animation: rotation 2s infinite linear;
 }
 
 .petition__chart .banner button {

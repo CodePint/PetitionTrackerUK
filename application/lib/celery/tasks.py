@@ -28,19 +28,17 @@ def context_tasks(app, celery, name):
                 self.init_opts(task, options)
                 if not self.is_retrying:
                     try:
-                        # raise if task is locked else lock the current task and revoke expired runs
                         self.once_backend.raise_or_lock(lock_key, timeout=self.timeout)
                         self.revoke_pending(task)
                         kwargs["id"] = self.init_handler(task, lock_key).id
-                    # handle the AlreadyQueued exception if graceful else reraise
                     except AlreadyQueued as e:
                         if self.graceful:
                             return self.reject_eager(lock_key, e)
                         raise e
 
-                    async_result = super(QueueOnce, self).apply_async(args, kwargs, **options)
-                    async_result.lock_key = lock_key
-                    return async_result
+                async_result = super(QueueOnce, self).apply_async(args, kwargs, **options)
+                async_result.lock_key = lock_key
+                return async_result
 
         def init_opts(self, task, options):
             async_opts = options.get('once', {})

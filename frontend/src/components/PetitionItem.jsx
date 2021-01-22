@@ -22,7 +22,7 @@ function PetitionItem({ item }) {
           </Link>
         </div>
         <div className="external-link">
-          <a href={item.url}>
+          <a href={item.url.replace(".json", "")}>
             <span>
               <FontAwesomeIcon className="fa-fw" icon={faExternalLinkAlt} />
             </span>

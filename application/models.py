@@ -25,7 +25,13 @@ from celery_once import helpers as CeleryOnceUtils
 from datetime import datetime as dt
 from datetime import timedelta
 from time import sleep
-import datetime, math, time, json, inspect, logging
+import datetime, math, time, json, inspect, traceback, logging
+
+def get_traceback(e):
+    exc_fmt = dict(etype=type(e), value=e, tb=e.__traceback__)
+    return "".join(traceback.format_exception(**exc_fmt))
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -234,7 +240,7 @@ class Task(db.Model):
         return bool(self.where(["PENDING"]).count())
 
     def revoke(self, *states):
-        return [run.revoke() for run in self.where(states).all()]
+        return [run.revoke() for run in self.where(*states).all()]
 
     def unlock(self):
         return [run.unlock() for run in self.runs.all()]
@@ -377,13 +383,13 @@ class TaskRun(db.Model):
         self.finished_at = dt.now()
         if not self.unique:
             self.task.last_failed = self.finished_at
-        self.error = str(error)
+        self.error = get_traceback(error)
         self.unlock()
         self.set("FAILED")
 
     def retry(self, error):
         db.session.rollback()
-        self.error = str(error)
+        self.error = get_traceback(error)
         self.set_countdown()
         self.set("RETRYING")
         self.bind.retry(countdown=self.retries_countdown)
@@ -393,7 +399,7 @@ class TaskRun(db.Model):
             c_app.celery.control.revoke(self.celery_id)
             self.revoke_msg  = reason
             self.finished_at = dt.now()
-            if not self.state in ["FAILED", "SUCCESSFUL"]:
+            if not self.state.value in ["FAILED", "SUCCESSFUL"]:
                 self.set("REVOKED")
         except Exception as error:
             logger.error(f"error: {error}, while revoking ID: {self.id}/{self.celery_id}")

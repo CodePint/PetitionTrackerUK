@@ -121,8 +121,9 @@ function PetitionQueryController() {
 
   function renderRadioToggle(key) {
     let radio = toggleValues[key];
+    let checked = radio.checked ? "checked" : "not-checked";
     return (
-      <div className="radio__label">
+      <div className={`radio__label ${checked}`}>
         <input
           id={`${key}-toggle`}
           value={radio.value}

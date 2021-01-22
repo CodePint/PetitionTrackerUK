@@ -8,8 +8,13 @@ from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime as dt
-import requests, json, itertools, time, datetime
-import logging
+import requests, json, itertools, time, datetime, traceback, logging
+
+def get_traceback(e):
+    exc_fmt = dict(etype=type(e), value=e, tb=e.__traceback__)
+    return "".join(traceback.format_exception(**exc_fmt))
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -138,17 +143,19 @@ class RemotePetition():
     @classmethod
     def async_callback(cls, func, obj, *args, **kwargs):
         def response_hook(response, *args, **kwargs):
-            key, val = list(obj.items())[0]
-            print(f"executed {func} with {key}: {val}, status: {response.status_code}")
+            print(f"executed {func} with {obj}, status: {response.status_code}")
+            setattr(response, *list(obj.items())[0])
+            response.success = False
 
-            setattr(response, key, val)
             if response.status_code == 200:
-                response.func = func
-                response.success = True
-                response.data = response.json()
-                response.timestamp = dt.now().isoformat()
-            else:
-                response.success = False
+                try:
+                    response.func = func
+                    response.data = response.json()
+                    response.timestamp = dt.now().isoformat()
+                    response.success = True
+                except Exception as e:
+                    response.error = get_traceback(e)
+                    print(f"error during {func} callback for: {obj}, error: {response.error}")
 
         return response_hook
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import { Redirect, useHistory } from "react-router-dom";
 import axios from "axios";
-import _ from "lodash";
+import _, { isEmpty } from "lodash";
 import JSONPretty from "react-json-pretty";
 import moment from "moment";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -53,12 +53,12 @@ function Petition({ match }) {
   const geoChartConfig = useRef(geoConfTemplate());
   const geoChartConfigCache = useRef(geoConfTemplate());
   const geoNavSortConfig = useRef(baseGeoNavConfig());
-
   const [geoNavInput, setGeoNavInput] = useState({ constituency: [], country: [], region: [] });
   const [petition, setPetition] = useState({});
   const [localeToAdd, setLocaleToAdd] = useState(null);
   const [localeToDel, setLocaleToDel] = useState(null);
 
+  const [isSyncing, setIsSyncing] = useState(false);
   const [chartData, setChartData] = useState([]);
   const [chartTime, setChartTime] = useState(defaultChartTime());
   const [petitionNotFound, setPetitionNotFound] = useState(false);
@@ -322,7 +322,7 @@ function Petition({ match }) {
         datasets.push(totalSigData);
       }
       chartDataCache.current = datacache;
-
+      setIsSyncing(false);
       return {
         geoNav: geoNavData,
         petition: petitionResponse.data.petition,
@@ -342,13 +342,15 @@ function Petition({ match }) {
   }
 
   function buildGeoNavData(data) {
+    const hasGeoData = !_.isEmpty(data);
+    const defultTotal = hasGeoData ? 0 : "null";
+
     let result = {};
-    let defultTotal = data ? 0 : "null";
     let defaultGeographies = geographiesJSON();
     Object.keys(defaultGeographies).forEach((geo) => {
-      const sortConfig = geoNavSortConfig.current[geo];
+      const sortConf = geoNavSortConfig.current[geo];
       let defaultLocales = defaultGeographies[geo];
-      let responseLocales = data ? data[`signatures_by_${geo}`] : [];
+      let responseLocales = hasGeoData ? data[`signatures_by_${geo}`] : [];
 
       let responseResult = responseLocales.map((locale) => {
         delete defaultLocales[locale.code];
@@ -358,8 +360,9 @@ function Petition({ match }) {
       let defaultResult = Object.entries(defaultLocales).map((locale) => {
         return { key: locale[0], value: locale[1], total: defultTotal, type: geo };
       });
+
       let geoResult = defaultResult.concat(responseResult);
-      geoResult = data ? sortGeoInput(geoResult, sortConfig.col, sortConfig.order) : geoResult;
+      geoResult = hasGeoData ? sortGeoInput(geoResult, sortConf.col, sortConf.order) : geoResult;
       result[geo] = geoResult;
     });
     return result;
@@ -659,6 +662,7 @@ function Petition({ match }) {
   };
 
   const handleSyncChartForm = () => {
+    setIsSyncing(true);
     fetchAndBuildFromConfig();
   };
 
@@ -855,7 +859,7 @@ function Petition({ match }) {
   function refreshChartBtn() {
     return (
       <button name="sync" value="sync" onClick={handleSyncChartForm}>
-        <div className="icon sync" alt="sync">
+        <div className="icon sync clicked" alt="sync">
           <span>
             <FontAwesomeIcon className="fa-fw" icon={faSyncAlt} />
           </span>
@@ -889,7 +893,7 @@ function Petition({ match }) {
           <h3># {petition_id}</h3>
         </div>
 
-        <div className="refresh">
+        <div className={`refresh ${isSyncing ? "active" : ""}`}>
           <div>{refreshChartBtn()}</div>
         </div>
       </div>
