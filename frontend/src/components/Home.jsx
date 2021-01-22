@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import PetitionListController from "./PetitionListController";
+import PetitionQueryController from "./PetitionQueryController";
 
 function Home() {
   return (
     <div className="Home">
-      <PetitionListController></PetitionListController>
+      <PetitionQueryController></PetitionQueryController>
     </div>
   );
 }

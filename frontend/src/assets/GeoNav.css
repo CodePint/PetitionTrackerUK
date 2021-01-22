@@ -16,22 +16,24 @@
 
 .GeoNav .search__geo .menu__wrapper {
   min-height: 20em;
-  padding-bottom: 2em;
+  /* padding-bottom: 2em; */
+
+  background: var(--parl-green);
 }
+
 .GeoNav .search__geo .menu__wrapper .menu {
-  max-height: 20em;
+  max-height: 25em;
 }
 
 .GeoNav .search__geo .menu {
   overflow: auto;
-  padding: 1em;
+  padding: 0.2em;
   background: var(--smoke-white);
 }
 
 .GeoNav .search__geo header {
   display: flex;
   background: var(--parl-green);
-  /* padding: 1em; */
 }
 
 .GeoNav .search__geo header .heading:first-child {
@@ -106,6 +108,11 @@
   font-size: 1.1em;
 }
 
+
+.GeoNav .search__geo .menu .row .name {
+  margin-left: 0.5em;
+}
+
 .GeoNav .search__geo .menu .row.hover {
   background: var(--light-grey);
 }
@@ -117,12 +124,12 @@
 
 .GeoNav .search__geo .menu .row.hidden {
   display: none;
-} 
+}
 
 .GeoNav .search__geo .menu .col {
   flex-grow: 1;
   font-size: 0.75em;
-} 
+}
 
 
 .GeoNav .search__geo  .col.name {

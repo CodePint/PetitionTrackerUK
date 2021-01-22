@@ -15,7 +15,7 @@ import {
 import PetitionList from "./PetitionList";
 import Pagination from "./Pagination";
 
-function PetitionListController() {
+function PetitionQueryController() {
   const API_URL_PREFIX = process.env.REACT_APP_FLASK_API_URL_PREFIX || "";
   const apiURL = `${API_URL_PREFIX}/petitions`;
   const [queryParams, setQueryParams] = useState(baseQuery());
@@ -179,7 +179,7 @@ function PetitionListController() {
     <div>
       {redirectIfPetitionID()}
 
-      <div className="PetitionListController">
+      <div className="PetitionQueryController">
         <nav>
           <form onSubmit={handlePetitionSearchForm}>{renderSearchBar()}</form>
           {renderToggles()}
@@ -205,4 +205,4 @@ function PetitionListController() {
   );
 }
 
-export default PetitionListController;
+export default PetitionQueryController;

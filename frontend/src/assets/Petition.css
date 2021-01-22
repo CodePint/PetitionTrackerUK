@@ -3,6 +3,7 @@
   width: 95%;
   margin: 0 auto;
   font-size: 1rem;
+  padding-bottom: 1em;
 }
 
 /* --- Petition action (header) --- */
@@ -243,9 +244,9 @@
   margin: auto;
   font-size: 0.9em;
   font-weight: 600;
-  white-space: nowrap; 
+  white-space: nowrap;
   overflow: hidden;
-} 
+}
 
 .petition__chart .Chart .legend .key.Total {
   color: white;
@@ -254,7 +255,7 @@
 .petition__chart .Chart .legend .value {
   margin-top: 0.2em;
   margin-left: 0.5em;
-  white-space: nowrap; 
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -371,7 +372,7 @@
 
 .petition__chart .banner input[type="checkbox"]:checked + label {
   text-decoration: line-through;
-}  
+}
 
 .petition__chart .banner input[type="checkbox"]:checked + label  .icon-wrapper{
   background: gray;
@@ -611,7 +612,7 @@
 
 .Petition #toggleGeographyRadios .radio-wrapper {
   flex-grow: 1;
-  
+
 }
 
 .Petition #toggleGeographyRadios .radio-wrapper label {
