@@ -24,7 +24,7 @@ def get_petition(petition_id):
         timestamp = {"lt": request.args.get("timestamp") or dt.now()}
         record_schema = RecordNestedSchema(exclude=["id", "petition"])
         record = petition.record_query(timestamp=timestamp, geographic=True).first()
-        context["signatures"] = record_schema.dump(record) if record else []
+        context["signatures"] = record_schema.dump(record) if record else {}
 
     return context
 

@@ -79,7 +79,7 @@ function GeoNav({
         key={`${item.value}-${type}`}
         className={`row
               ${isHighlighted ? "hover" : ""}
-              ${item.total === 0 ? "unselectable" : ""}
+              ${item.total === 0 || item.total === "null" ? "unselectable" : ""}
               ${!shouldRenderItem(item, type) ? "hidden" : ""}
             `}
       >

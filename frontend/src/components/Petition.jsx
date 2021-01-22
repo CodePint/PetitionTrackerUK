@@ -343,10 +343,12 @@ function Petition({ match }) {
 
   function buildGeoNavData(data) {
     let result = {};
+    let defultTotal = data ? 0 : "null";
     let defaultGeographies = geographiesJSON();
     Object.keys(defaultGeographies).forEach((geo) => {
+      const sortConfig = geoNavSortConfig.current[geo];
       let defaultLocales = defaultGeographies[geo];
-      let responseLocales = data[`signatures_by_${geo}`];
+      let responseLocales = data ? data[`signatures_by_${geo}`] : [];
 
       let responseResult = responseLocales.map((locale) => {
         delete defaultLocales[locale.code];
@@ -354,12 +356,10 @@ function Petition({ match }) {
       });
 
       let defaultResult = Object.entries(defaultLocales).map((locale) => {
-        return { key: locale[0], value: locale[1], total: 0, type: geo };
+        return { key: locale[0], value: locale[1], total: defultTotal, type: geo };
       });
       let geoResult = defaultResult.concat(responseResult);
-
-      const sortConfig = geoNavSortConfig.current[geo];
-      geoResult = sortGeoInput(geoResult, sortConfig.col, sortConfig.order);
+      geoResult = data ? sortGeoInput(geoResult, sortConfig.col, sortConfig.order) : geoResult;
       result[geo] = geoResult;
     });
     return result;

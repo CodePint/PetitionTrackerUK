@@ -112,4 +112,4 @@ class TestGetPetitionAndSignaturesData(TestGetPetition):
         data = response.json
 
         assert self.validate_petition(data["petition"], self.petition_id)
-        assert data["signatures"] == []
+        assert data["signatures"] == {}
