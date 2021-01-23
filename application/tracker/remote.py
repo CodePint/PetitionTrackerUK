@@ -166,7 +166,7 @@ class RemotePetition():
 
     # poll existing petitions or fetch new ones
     @classmethod
-    def async_get(cls, petitions, max_retries=0, backoff=3, retries=0, completed=None):
+    def async_get(cls, petitions, max_retries=0, backoff=0, retries=0, completed=None):
         logger.info(f"executing async_get for petitions: {petitions}")
 
         futures = [
@@ -192,7 +192,7 @@ class RemotePetition():
 
     # query pages of petitions by state
     @classmethod
-    def async_query(cls, indexes=None, state="open", max_retries=0, backoff=3, retries=0, completed=None):
+    def async_query(cls, indexes=None, state="open", max_retries=0, backoff=0, retries=0, completed=None):
         cls.validate_state(state)
         template_url = cls.page_url_template(state)
         indexes = indexes or cls.get_page_range(template_url)

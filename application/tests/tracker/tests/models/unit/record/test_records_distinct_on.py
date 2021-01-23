@@ -126,7 +126,7 @@ class TestRecordDistinctOn(TestRecordModel):
     )
     def test_records_distinct_on(self, state, archived, geographic, petitions, order_by, timestamp):
         params = self.make_params(state, archived, geographic, petitions, order_by, timestamp)
-        records = Record.distinct_on(**params)
+        records = Record.distinct_on(**params).all()
         if params["timestamp"].get("future"):
             assert not any(records)
             return True

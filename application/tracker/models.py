@@ -258,6 +258,8 @@ class Petition(db.Model):
     def save_geo_data(cls, records, min_growth=0):
         logger.info("executing save geo data")
         signatures_by = []
+        if min_growth:
+            records = Record.filter_by_growth(records, threshold=min_growth, geographic=True)
         for r in records:
             signatures_by += r.build(r.petition.latest_data["data"]["attributes"])
 
@@ -307,8 +309,8 @@ class Petition(db.Model):
         since = dt.now() - timedelta(**since)
         margin = timedelta(**margin)
         timestamp = {"lt": since + margin, "gt": since - margin}
-        distinct_opts = {"state": "open", "archived": False, "geographic": False}
-        distinct_records = Record.distinct_on(timestamp=timestamp, opts=distinct_opts, order_by="DESC")
+        opts = {"state": "open", "archived": False, "geographic": False}
+        distinct_records = Record.distinct_on(timestamp=timestamp, opts=opts, order_by="DESC").all()
         if not distinct_records:
             raise RecordsNotFound("growth rate update", found=[])
 
@@ -493,7 +495,21 @@ class Record(db.Model):
         query = query.filter(*filters)
         query = query.order_by(*ordering)
         query = query.distinct(distinct_on)
-        return query.all()
+        return query
+
+    @classmethod
+    def filter_by_growth(cls, records, threshold, geographic=True):
+        logger.info(f"executing growth filter. records: {len(records)}, threshold: {threshold}")
+        petitions = [r.petition for r in records]
+        query = Record.distinct_on(petitions=petitions, opts={"geographic": geographic})
+
+        previous = query.order_by(Record.petition_id.desc()).all()
+        current = sorted(records, key=lambda r: r.petition_id)
+        filter_growth = lambda prev, curr: (curr.signatures - prev.signatures) >= threshold
+
+        result = [curr for prev, curr in zip(previous, current) if filter_growth(prev, curr)]
+        logger.info(f"records remaining after filter: {len(result)}")
+        return result
 
     def build(self, attributes):
         filter_attrs = lambda d, p: {k.replace(p, ""): v for k, v in d.items() if k.startswith(p)}
