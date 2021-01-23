@@ -726,7 +726,7 @@ function Petition({ match }) {
           <span>{petition.action} </span>
           <span> &nbsp;</span>
           <span className="icon">
-            <a href={petition.url}>
+            <a href={!_.isEmpty(petition) ? petition.url.replace(".json", "") : ""}>
               <FontAwesomeIcon className="fa-fw" icon={faExternalLinkAlt} />
             </a>
           </span>
