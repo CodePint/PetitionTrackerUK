@@ -34,4 +34,4 @@ scheduled tasks can be configured using a ```schedule.json``` file, examples of 
 
 ---
 
-## Documentation and README work in progress (27/01/2020)
+## Documentation and README work in progress

@@ -63,8 +63,8 @@ def context_tasks(app, celery, name):
             return eager_result
 
         def revoke_pending(self, task):
-            if task.is_pending:
-                revoked = task.revoke("PENDING")
+            if task.pending:
+                revoked = task.revoke(["PENDING"])
                 logger.info(f"revoked pending task runs: {revoked}")
 
         def __call__(self, *args, **kwargs):

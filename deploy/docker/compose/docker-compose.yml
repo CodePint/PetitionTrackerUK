@@ -112,6 +112,7 @@ services:
     container_name: postgres
     restart: always
     image: postgres:latest
+    shm_size: 1g
     ports:
       - 5432:5432
     volumes:
