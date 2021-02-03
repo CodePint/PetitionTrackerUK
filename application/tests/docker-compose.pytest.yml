@@ -9,6 +9,7 @@ services:
     container_name: pt_postgres_testing
     restart: always
     image: postgres:latest
+    shm_size: 1g
     ports:
       - 5433:5432
     env_file: .test.env

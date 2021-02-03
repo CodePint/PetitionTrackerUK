@@ -23,13 +23,13 @@ const chartConfig = {
             fontSize: 10,
           },
           time: {
-            parser: "DD-MM-YYTH:mm:ss",
+            parser: "DD-MM-YYTHH:mm",
             displayFormats: {
-              hour: "DD-MM-YYTH:mm:ss",
-              minute: "DD-MM-YYTH:mm:ss",
-              second: "DD-MM-YYTH:mm:ss",
-              day: "DD-MM-YYYY",
-              week: "DD-MM-YYYY",
+              hour: "DD-MM-YYTHH:mm",
+              minute: "DD-MM-YYTHH:mm",
+              second: "DD-MM-YYTHH:mm",
+              day: "DD-MM-YY",
+              week: "DD-MM-YY",
               month: "MM-YYYY",
               year: "MM-YYYY",
             },
@@ -40,6 +40,7 @@ const chartConfig = {
         {
           ticks: {
             fontSize: 10,
+            precision: 0,
           },
         },
       ],

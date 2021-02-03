@@ -158,6 +158,18 @@ class Task(db.Model):
     def __repr__(self):
         return f"<id: {self.id}, name: {self.name}, key: {self.key}, enabled: {self.enabled}>"
 
+    @property
+    def once_opts(self):
+        return self.opts.get("once", {})
+
+    @property
+    def retrying(self):
+        return bool(self.where(["RETRYING"]).count())
+
+    @property
+    def pending(self):
+        return bool(self.where(["PENDING"]).count())
+
     @classmethod
     def get(cls, name, key, enabled=None, will_raise=False):
         task = cls.query.filter_by(name=name.lower(), key=key).first()
@@ -225,22 +237,11 @@ class Task(db.Model):
     @classmethod
     def revoke_all(cls, tasks=None):
         tasks_to_revoke = tasks or Task.query.all()
-        return [task.revoke(["PENDING", "RUNNING", "RETRYING"]) for task in tasks_to_revoke]
+        return [task.revoke() for task in tasks_to_revoke]
 
-    @property
-    def once_opts(self):
-        return self.opts.get("once", {})
-
-    @property
-    def is_retrying(self):
-        return bool(self.where(["RETRYING"]).count())
-
-    @property
-    def is_pending(self):
-        return bool(self.where(["PENDING"]).count())
-
-    def revoke(self, *states):
-        return [run.revoke() for run in self.where(*states).all()]
+    def revoke(self, states=None):
+        states = states or ["PENDING", "RUNNING", "RETRYING"]
+        return [run.revoke() for run in self.where(states).all()]
 
     def unlock(self):
         return [run.unlock() for run in self.runs.all()]
