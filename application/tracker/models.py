@@ -151,7 +151,6 @@ class Petition(db.Model):
         if archived is not None:
             filters.append(cls.archived == archived)
         if text:
-            # import pdb; pdb.set_trace()
             filters += [match_text(cls, c, text[c]) for c in cls.TEXT_COLS if text.get(c)]
         if expressions:
             filters += cls.filter_expression(**expressions)
