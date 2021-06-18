@@ -8,8 +8,8 @@
 ---
 - React & Chart.js UI
 - Flask REST API (`/api`)
-- PSQLalchemy ORM
 - EFK logging stack
+- Postgres + SQLalchemy ORM
 - PSQL/Celery/Redbeat Tasks + Scheduler
 
 ## Installation
