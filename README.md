@@ -8,8 +8,8 @@
 ---
 - React & Chart.js UI
 - Flask REST API (`/api`)
-- PSQLalchemy ORM
 - EFK logging stack
+- PSQL/SQLalchemy ORM
 - PSQL/Celery/Redbeat Tasks + Scheduler
 
 ## Installation
@@ -31,7 +31,3 @@ docker-compose up -d flask_api react_ui beat_scheduler tracker_worker redis post
 ```
 
 scheduled tasks can be configured using a ```schedule.json``` file, examples of which can be found at ```application/lib/celery/schedule``` (see the task section for further details)
-
----
-
-## Documentation and README work in progress
