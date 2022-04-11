@@ -46,15 +46,15 @@ from collections.abc import Iterable
 import operator as py_operator
 import datetime, json, sys, logging
 
+logger = logging.getLogger(__name__)
 get_operator =  lambda opr: getattr(py_operator, opr)
 plainto_tsquery = lambda qs: sqlfuncgen.plainto_tsquery("english", qs)
+
 
 def match_text(_cls, column, value):
     column = getattr(_cls, column)
     text_query = plainto_tsquery(value)
     return column.op("@@")(text_query)
-
-logger = logging.getLogger(__name__)
 
 
 class Petition(db.Model):
@@ -80,7 +80,7 @@ class Petition(db.Model):
     background = db.Column(String)
     creator_name = db.Column(String)
     additional_details = db.Column(String)
-    pt_created_at = db.Column(DateTime)
+    pt_created_at logger = logging.getLogger(__name__)= db.Column(DateTime)
     pt_updated_at = db.Column(DateTime)
     pt_rejected_at = db.Column(DateTime)
     pt_closed_at = db.Column(DateTime)
