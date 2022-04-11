@@ -57,7 +57,6 @@ def match_text(_cls, column, value):
 logger = logging.getLogger(__name__)
 
 
-
 class Petition(db.Model):
     __tablename__ = "petition"
 
