@@ -1,7 +1,7 @@
 # PetitionTrackerUK
 
 
-### [PetitionTrackerUK](https://petitiontracker.co.uk/ "PetitionTrackerUK Homepage link") enables the tracking and visualisation of UK petitions by country, region and constituency.
+### PetitionTrackerUK enables the tracking and visualisation of UK petitions by country, region and constituency.
 
 
 ## Components
