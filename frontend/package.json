@@ -26,7 +26,7 @@
     "react-json-pretty": "^2.2.0",
     "react-paginate": "^6.5.0",
     "react-router-dom": "^5.2.0",
-    "react-scripts": "3.4.1",
+    "react-scripts": "5.0.1",
     "react-simple-animate": "^3.3.10"
   },
   "scripts": {
